@@ -1221,6 +1221,20 @@
     font-weight: 400;
   }
   .bf-head .spacer { flex: 1; }
+  .repair-slots-btn {
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 6px;
+    background: rgba(255,255,255,0.16); color: #fff;
+    border: 1px solid rgba(255,255,255,0.32);
+    cursor: pointer; transition: background .12s;
+  }
+  .repair-slots-btn:hover { background: rgba(255,255,255,0.28); }
+  .bg-head .repair-slots-btn {
+    color: #fff; background: rgba(0,0,0,0.25);
+    border-color: rgba(0,0,0,0.45);
+  }
+  .bg-head .repair-slots-btn:hover { background: rgba(0,0,0,0.4); }
+  body.viewer-mode .repair-slots-btn { display: none; }
   .bf-summary {
     padding: 8px 12px;
     border-top: 1px dashed var(--border);
@@ -3322,12 +3336,19 @@ function buildBfHtml(bfIdx) {
   }).join("");
   const totalInBf = range.reduce((s, idx) =>
     s + state.parties.find(p=>p.id===idx).slots.filter(Boolean).length, 0);
+  // Admin-only "Repair Slots" button on Main Battlefield header — clears any
+  // orphaned slot references that the auto-sanitize might have missed (e.g.
+  // due to a race condition).
+  const repairBtn = (bfIdx === 0 && typeof isAdmin === "function" && isAdmin())
+    ? `<button class="repair-slots-btn" onclick="window.repairGhostSlots && window.repairGhostSlots()" title="ลบช่องผี (ช่องที่ชี้ไปยังคนที่ถูกลบ)">🧹 ซ่อมช่องผี</button>`
+    : "";
   return `
     <div class="bf ${bfIdx===1?'sub':''}">
       <div class="bf-head">
         <span>${bfIdx===0?'🏰':'🏯'} ${title}</span>
         <span class="count">${totalInBf} คน</span>
         <div class="spacer"></div>
+        ${repairBtn}
       </div>
       ${partiesHtml}
       ${buildBfJobSummary(range)}
@@ -3335,18 +3356,23 @@ function buildBfHtml(bfIdx) {
 }
 
 function buildOverrunHtml() {
-  const cards = OVERRUN_GROUPS.map(g => {
+  const cards = OVERRUN_GROUPS.map((g, gi) => {
     const rows = g.ids.map(idx => {
       const p = state.parties.find(p => p.id === idx);
       return buildPartyRowHtml(p);
     }).join("");
     const total = g.ids.reduce((s, idx) =>
       s + state.parties.find(p=>p.id===idx).slots.filter(Boolean).length, 0);
+    // Admin repair button on first card only (Overrun page).
+    const repairBtn = (gi === 0 && typeof isAdmin === "function" && isAdmin())
+      ? `<button class="repair-slots-btn" onclick="window.repairGhostSlots && window.repairGhostSlots()" title="ลบช่องผี (ช่องที่ชี้ไปยังคนที่ถูกลบ)">🧹 ซ่อมช่องผี</button>`
+      : "";
     return `
       <div class="bg-card" style="--gc:${g.color}">
         <div class="bg-head">
           <span>● ${g.name} Party</span>
           <span class="count">${total} คน</span>
+          ${repairBtn}
         </div>
         ${rows}
         ${buildBfJobSummary(g.ids)}
@@ -3966,6 +3992,41 @@ function fbSubscribeAll() {
       });
     });
     return dirty;
+  };
+
+  // Diagnostic helpers — exposed on window so the user can call them from the
+  // DevTools console when ghost-slot bug is suspected. Returns an array of
+  // {kind: 'league'|'overrun', party: number, slot: number, memId, member}.
+  window.diagGhostSlots = () => {
+    const out = [];
+    const scan = (kind, parties) => {
+      if (!Array.isArray(parties)) return;
+      parties.forEach((p, pi) => {
+        if (!p || !Array.isArray(p.slots)) return;
+        p.slots.forEach((id, si) => {
+          if (!id) return;
+          const m = findMember(id);
+          const bad = !m || (!(m.name || "").trim() && !(m.job || "").trim());
+          if (bad) out.push({ kind, party: pi + 1, slot: si + 1, memId: id, member: m });
+        });
+      });
+    };
+    scan("league",  state.partiesLeague);
+    scan("overrun", state.partiesOverrun);
+    console.table(out);
+    console.log("Members loaded:", state.members.length, "Ghost slots found:", out.length);
+    return out;
+  };
+
+  // Force-clean ghost slots and push to Firebase (admin only).
+  window.repairGhostSlots = () => {
+    if (!isAdmin()) { console.warn("[repair] need admin to write"); return false; }
+    let changed = 0;
+    if (sanitizeSlots(state.partiesLeague))  { _fbDB.ref("parties/league").set(state.partiesLeague);   changed++; }
+    if (sanitizeSlots(state.partiesOverrun)) { _fbDB.ref("parties/overrun").set(state.partiesOverrun); changed++; }
+    console.log("[repair] cleaned", changed, "parties tree(s)");
+    if (typeof render === "function") render();
+    return changed > 0;
   };
 
   // parties/league
