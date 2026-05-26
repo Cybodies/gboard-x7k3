@@ -141,6 +141,170 @@
   .mode-toggle.roster-active .seg-indicator {
     background: linear-gradient(90deg, #10b981, #34d399);
   }
+  .mode-toggle.leave-active .seg-indicator {
+    background: linear-gradient(90deg, #f97316, #facc15);
+  }
+
+  /* ===== Leave page ===== */
+  .leave-view {
+    display: flex; flex-direction: column;
+    gap: 14px;
+    padding-bottom: 20px;
+  }
+  .leave-hero {
+    background: linear-gradient(135deg, #2d1810 0%, #1a0e08 100%);
+    border: 1px solid var(--border-2);
+    border-left: 4px solid #f97316;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .leave-hero h2 { margin: 0; font-size: 18px; color: #fed7aa; }
+  .leave-hero .leave-today {
+    background: rgba(249,115,22,0.15);
+    border: 1px solid rgba(249,115,22,0.4);
+    color: #fed7aa;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .leave-hero .leave-today.no-event {
+    background: rgba(148,163,184,0.1);
+    border-color: rgba(148,163,184,0.3);
+    color: var(--muted);
+  }
+  .leave-form {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: minmax(180px,1fr) minmax(140px,180px) auto;
+    gap: 10px;
+    align-items: end;
+  }
+  .leave-form-field { display: flex; flex-direction: column; gap: 4px; }
+  .leave-form-field label {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  .leave-form-field select,
+  .leave-form-field input[type="date"] {
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 7px 10px; border-radius: 5px;
+    font-size: 13px;
+  }
+  .leave-form-field input[type="date"]:focus,
+  .leave-form-field select:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .leave-add-btn {
+    background: var(--accent); color: #fff; border: 0;
+    padding: 8px 16px; border-radius: 5px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .leave-add-btn:hover:not(:disabled) { background: #4a8de8; }
+  .leave-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .leave-hint {
+    font-size: 11px; color: var(--muted);
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
+  .leave-hint.has-event { color: #fbbf24; }
+  .leave-hint.no-event { color: var(--muted); }
+
+  .leave-filter-bar {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .leave-filter-bar label {
+    display: flex; align-items: center; gap: 5px;
+    cursor: pointer; color: var(--muted);
+  }
+  .leave-filter-bar label:hover { color: var(--text); }
+  .leave-filter-bar input[type="checkbox"] { margin: 0; }
+
+  .leave-groups {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .leave-group {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .leave-group-head {
+    background: var(--panel-2);
+    padding: 9px 14px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .leave-group.is-today .leave-group-head { background: rgba(249,115,22,0.12); border-bottom-color: #f97316; }
+  .leave-group.is-past   .leave-group-head { opacity: 0.55; }
+  .leave-group-date {
+    font-size: 14px; font-weight: 700; color: var(--text);
+  }
+  .leave-group-dow { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .leave-group-event {
+    background: rgba(251,191,36,0.18);
+    border: 1px solid #fbbf24;
+    color: #fbbf24;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+  }
+  .leave-group-event.gl { background: rgba(88,166,255,0.18); border-color: var(--accent); color: var(--accent); }
+  .leave-group-event.overrun { background: rgba(249,115,22,0.18); border-color: #f97316; color: #fb923c; }
+  .leave-group-event.none { background: var(--bg-2); border-color: var(--border); color: var(--muted); }
+  .leave-group-count {
+    font-size: 11px; color: var(--muted);
+    margin-left: auto;
+  }
+  .leave-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px; padding: 10px 12px;
+  }
+  .leave-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px;
+  }
+  .leave-card-job {
+    background: rgba(88,166,255,0.12);
+    color: var(--accent);
+    padding: 2px 7px; border-radius: 3px;
+    font-size: 10px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .leave-card-name { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leave-card-del {
+    background: transparent; border: 0;
+    color: var(--danger); cursor: pointer;
+    font-size: 14px; padding: 0 4px;
+    border-radius: 3px;
+  }
+  .leave-card-del:hover { background: rgba(248,81,73,0.15); }
+  .leave-empty {
+    padding: 24px; text-align: center;
+    color: var(--muted); font-size: 13px;
+    background: var(--panel); border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+  @media (max-width: 700px) {
+    .leave-form { grid-template-columns: 1fr; }
+    .leave-add-btn { width: 100%; }
+    .leave-list { grid-template-columns: 1fr; }
+    .leave-hero { padding: 10px 12px; }
+    .leave-hero h2 { font-size: 16px; }
+  }
+  body[data-mode="leave"] .sidebar          { display: none; }
+  body[data-mode="leave"] .layout           { grid-template-columns: 1fr !important; }
+  body[data-mode="leave"] .hamburger-btn    { display: none; }
+  body[data-mode="leave"] .sidebar-backdrop { display: none !important; }
 
   /* ===== Roster page (Firebase-synced member table) ===== */
   .roster-view {
@@ -1838,12 +2002,13 @@
 <header>
   <button id="hamburgerBtn" class="hamburger-btn" onclick="toggleSidebar()" aria-label="เปิดเมนูรายชื่อ" title="รายชื่อสมาชิก">☰</button>
   <div class="brand">⚔️ ROO Party</div>
-  <div class="mode-toggle cols-5" id="modeToggle">
+  <div class="mode-toggle cols-6" id="modeToggle">
     <button class="seg active" data-mode="league" onclick="switchMode('league')">⚔️ League</button>
     <button class="seg" data-mode="overrun" onclick="switchMode('overrun')">🏆 Overrun</button>
     <button class="seg" data-mode="roster" onclick="switchMode('roster')">📋 Roster</button>
     <button class="seg" data-mode="auction-gl" onclick="switchMode('auction-gl')">🎴 Auction GL</button>
     <button class="seg" data-mode="auction-overrun" onclick="switchMode('auction-overrun')">🎴 Auction Overrun</button>
+    <button class="seg" data-mode="leave" onclick="switchMode('leave')">🌴 ลา</button>
     <span class="seg-indicator"></span>
   </div>
   <select class="mode-select" id="modeSelect" onchange="switchMode(this.value)">
@@ -1852,6 +2017,7 @@
     <option value="roster">📋 Roster</option>
     <option value="auction-gl">🎴 Auction GL</option>
     <option value="auction-overrun">🎴 Auction Overrun</option>
+    <option value="leave">🌴 ลา</option>
   </select>
   <span class="status" id="statusInfo">Loading…</span>
   <div class="spacer"></div>
@@ -1979,7 +2145,7 @@ function makeEmptyParties() {
 let state = {
   sheetUrl: DEFAULT_SHEET,
   members: [],
-  mode: "league",                // "league" | "overrun" | "summary" | "auction-gl" | "auction-overrun"
+  mode: "league",                // "league" | "overrun" | "summary" | "auction-gl" | "auction-overrun" | "leave"
   parties: makeEmptyParties(),
   partiesLeague: null,
   partiesOverrun: null,
@@ -1990,8 +2156,64 @@ let state = {
   auctionGL: { cards: 0, illusion: 0, white: 0, black: 0, bonusPercent: 0,
     assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } },
   auctionOverrun: { cards: 0, illusion: 0, white: 0, black: 0,
-    assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } }
+    assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } },
+  // Scheduled leaves (advance leave registrations). Shape:
+  //   leaves[memberId] = { "YYYY-MM-DD": true, ... }
+  // Cleared every Monday 00:00 BKK. Activates the leave visual on League/
+  // Overrun ONLY on the matching date (todayBkkISO()), then auto-deactivates.
+  leaves: {},
+  // Bookkeeping for the auto-clear job. Strings are BKK dates so they're
+  // stable across timezones / DST.
+  system: { lastDailyReset: "", lastWeeklyReset: "" }
 };
+
+/* ---------- BKK timezone helpers (used by Leave page + auto-clear) ----- */
+// All "today" / "00:00" semantics are in Asia/Bangkok (UTC+7) — guild events
+// are scheduled in BKK time so the reset boundary must match.
+function bkkNow() {
+  // shift UTC → BKK by adding +7h, then format as if it were UTC. Result is
+  // a Date object whose UTC fields = BKK wall-clock fields.
+  const t = Date.now() + 7 * 60 * 60 * 1000;
+  return new Date(t);
+}
+function todayBkkISO() {
+  const d = bkkNow();
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function bkkDow(isoStr) {
+  // 0 = Sunday, 1 = Monday, ..., 6 = Saturday — same convention as JS Date.
+  // Parse YYYY-MM-DD as a UTC date so DOW is correct regardless of browser TZ.
+  const [y, m, d] = isoStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+const DOW_TH = ["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+function isEventDay(isoStr) {
+  // Tuesday/Thursday → GL · Sunday → Overrun · else null
+  const d = bkkDow(isoStr);
+  if (d === 2 || d === 4) return "GL";
+  if (d === 0) return "Overrun";
+  return null;
+}
+function fmtThaiDate(isoStr) {
+  const [y, m, d] = isoStr.split("-").map(Number);
+  const TH_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  return `${d} ${TH_MONTHS[m-1]} ${y+543}`;
+}
+function thisMondayISO() {
+  // Return the ISO date of the most recent Monday (or today if today is Mon).
+  // Used as the "weekly reset stamp" so we can detect when we've crossed
+  // Monday 00:00 BKK since last reset.
+  const today = todayBkkISO();
+  const d = bkkDow(today);
+  // Mon=1, so subtract (d===0 ? 6 : d-1) days
+  const back = d === 0 ? 6 : d - 1;
+  const [y, m, da] = today.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, da - back));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`;
+}
 
 /* =====================================================================
  * Responsive sidebar (mobile hamburger overlay)
@@ -2058,6 +2280,7 @@ function updateModeToggleUI() {
   t.classList.toggle("summary-active", state.mode === "summary");
   t.classList.toggle("auction-gl-active", state.mode === "auction-gl");
   t.classList.toggle("auction-overrun-active", state.mode === "auction-overrun");
+  t.classList.toggle("leave-active", state.mode === "leave");
   positionModeIndicator();
 }
 
@@ -3180,7 +3403,25 @@ function leaveField() {
   return null;
 }
 function leaveEnabled() { return leaveField() !== null; }
-function isOnLeave(m) { const f = leaveField(); return !!f && !!m[f]; }
+// Member counts as "on leave" if EITHER manual flag OR a scheduled-for-today
+// registration in /leaves/. Once today passes, the scheduled entry no longer
+// activates (because todayBkkISO() returns a different key). Cleared every
+// Monday 00:00 BKK by autoCheckResets().
+function hasScheduledLeaveToday(memberId) {
+  if (!state.leaves || !memberId) return false;
+  const bucket = state.leaves[memberId];
+  return !!(bucket && bucket[todayBkkISO()]);
+}
+function isOnLeave(m) {
+  if (!m) return false;
+  const f = leaveField();
+  if (f && m[f]) return true;
+  // Scheduled leaves apply on League AND Overrun pages (and their auction
+  // siblings) — they're "ลาวันนี้" regardless of which event. Skip on
+  // leave/roster/summary pages where the visual mark doesn't make sense.
+  if (f) return hasScheduledLeaveToday(m.id);
+  return false;
+}
 
 // Per-page filter state for "ซ่อนคนที่จัดตี้แล้ว" / "ซ่อนคนลา" — each mode
 // (league / overrun / auction-gl / auction-overrun) tracks its own checkbox
@@ -4168,9 +4409,88 @@ function fbSubscribeAll() {
     if (typeof renderOverrunMarkers === "function" && state.mode === "overrun") renderOverrunMarkers();
   });
 
+  // leaves (scheduled leave registrations — anyone can read/write to their own
+  // entries). Listener fires whenever someone in the guild adds/removes a leave
+  // so the page updates realtime.
+  _fbDB.ref("leaves").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    state.leaves = v;
+    _fbApplyingRemote = false;
+    // Re-render League/Overrun if today's scheduled-leave changed; safeRender
+    // because the user might be dragging when a remote leave registers.
+    safeRender();
+  });
+
+  // system: reset bookkeeping. Read-only for most of the app, written only by
+  // autoCheckResets() when crossing a reset boundary.
+  _fbDB.ref("system").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    state.system = { lastDailyReset: v.lastDailyReset || "", lastWeeklyReset: v.lastWeeklyReset || "" };
+    _fbApplyingRemote = false;
+    // Whenever we hear about the system stamps, run a reset check — if our
+    // local clock has crossed a boundary the remote stamp hasn't caught yet,
+    // we'll perform the reset ourselves.
+    autoCheckResets();
+  });
+
   // map_urls: NOT synced — map images are embedded as static assets so they
   // never change. Only markers + arrows sync above.
 }
+
+/* ---------- Auto-reset job (daily manual leave + weekly /leaves) ----- */
+// Idempotent: each client checks on load + every minute. First client past
+// the reset boundary wins (using state.system.lastDailyReset / lastWeeklyReset
+// as a "have we already reset for this period?" stamp).
+function autoCheckResets() {
+  if (!_fbDB || !state.system) return;
+  const today  = todayBkkISO();
+  const monday = thisMondayISO();
+  // Daily reset: clear manual-leave flags on members. We do this on EVERY
+  // calendar day in BKK that hasn't been stamped yet.
+  if (state.system.lastDailyReset !== today) {
+    let cleared = 0;
+    // Stamp first to claim ownership of this reset (prevents two clients
+    // from racing the work).
+    _fbDB.ref("system/lastDailyReset").set(today).catch(()=>{});
+    state.system.lastDailyReset = today;
+    // Clear the per-member manual flags. We must touch each member because
+    // the field lives inside /members/{id} which has admin-only write on
+    // most paths. For now, we ONLY clear if admin — guest clients will let
+    // the next admin login do it. This keeps Rules simple.
+    if (isAdmin() && state.members && state.members.length) {
+      state.members.forEach(m => {
+        const upd = {};
+        if (m.onLeaveLeague)  upd.onLeaveLeague  = false;
+        if (m.onLeaveOverrun) upd.onLeaveOverrun = false;
+        if (Object.keys(upd).length) {
+          _fbDB.ref(`members/${m.id}`).update(upd);
+          cleared++;
+        }
+      });
+      if (cleared) console.log(`[reset] daily: cleared manual leave on ${cleared} members`);
+    } else if (!isAdmin()) {
+      // Guests can't write to /members. The next admin login will pick this up.
+      console.log("[reset] daily: skipped (guest cannot clear manual flags) — admin will clear on next login");
+    }
+  }
+  // Weekly reset: wipe /leaves/ every Monday 00:00 BKK. Stamp uses the
+  // Monday ISO so "lastWeeklyReset = <this Monday>" means we're up to date.
+  if (state.system.lastWeeklyReset !== monday) {
+    _fbDB.ref("system/lastWeeklyReset").set(monday).catch(()=>{});
+    state.system.lastWeeklyReset = monday;
+    // Any auth'd user can wipe /leaves (Rules allow auth != null write).
+    _fbDB.ref("leaves").remove()
+      .then(() => console.log("[reset] weekly: /leaves cleared on Monday"))
+      .catch(e => console.warn("[reset] weekly clear failed", e));
+  }
+}
+// Re-check every minute so the moment the clock crosses 00:00 BKK we reset
+// without needing a page reload.
+setInterval(() => {
+  if (typeof autoCheckResets === "function") autoCheckResets();
+}, 60 * 1000);
 
 /* ---------- Firebase writes (admin only) ---------- */
 function fbPushDebounced() {
@@ -5136,6 +5456,178 @@ function buildAuctionView(kind) {
 function buildAuctionGlHtml()      { return buildAuctionView("gl"); }
 function buildAuctionOverrunHtml() { return buildAuctionView("overrun"); }
 
+/* =====================================================================
+ * Leave page (ลา)
+ * =====================================================================
+ * Anyone (guest + admin) can register leave for any roster member on any
+ * future or current date. The leave activates on that date (mark visible
+ * on League/Overrun), then auto-deactivates when the date passes. Whole
+ * /leaves/ tree resets every Monday 00:00 BKK (autoCheckResets()).
+ */
+
+// Form state — only kept on the local client during interaction. Submitted
+// values are written to Firebase immediately, so no local persistence needed.
+let _leaveFormMemberId = "";
+let _leaveFormDate     = "";  // default = next event day (computed on render)
+let _leaveHideToday    = false; // checkbox: hide past entries
+
+function nextEventDayISO() {
+  // Find the soonest upcoming Tue/Thu/Sun (today inclusive). Default form
+  // value so common case (registering for the next match) is one click.
+  let iso = todayBkkISO();
+  for (let i = 0; i < 8; i++) {
+    if (isEventDay(iso)) return iso;
+    // add one day
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + 1));
+    iso = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`;
+  }
+  return todayBkkISO();
+}
+
+function buildLeaveHtml() {
+  if (!firebaseConfigured()) {
+    return `
+      <div class="leave-view">
+        <div class="leave-hero">
+          <h2>🌴 ลา</h2>
+        </div>
+        <div class="auction-warning">⚠️ Firebase ยังไม่ได้ตั้งค่า</div>
+      </div>`;
+  }
+  const today    = todayBkkISO();
+  const todayDow = DOW_TH[bkkDow(today)];
+  const todayEv  = isEventDay(today);
+  // Default form values (only set if not already set by user this session)
+  if (!_leaveFormDate) _leaveFormDate = nextEventDayISO();
+  // Member dropdown — sorted by name, exclude visually-blank entries
+  const members = state.members
+    .filter(m => !isVisuallyBlank(m.name))
+    .slice()
+    .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
+  const memOpts = members.map(m =>
+    `<option value="${m.id}" ${m.id === _leaveFormMemberId ? "selected" : ""}>${escapeHtml(m.name)}${m.job ? ` (${escapeHtml(m.job)})` : ""}</option>`
+  ).join("");
+  // Form hint for selected date
+  const formDow = bkkDow(_leaveFormDate);
+  const formEv  = isEventDay(_leaveFormDate);
+  const hintHtml = formEv
+    ? `<div class="leave-hint has-event">📅 ${DOW_TH[formDow]} · มีกิจ <b>${formEv}</b> วันนี้</div>`
+    : `<div class="leave-hint no-event">📅 ${DOW_TH[formDow]} · ไม่มีกิจวันนี้ (กิจ GL = อังคาร/พฤหัส · Overrun = อาทิตย์)</div>`;
+  // Group all leave entries by date
+  const byDate = {}; // { "YYYY-MM-DD": [ {id, name, job}, ... ] }
+  for (const [memId, dates] of Object.entries(state.leaves || {})) {
+    if (!dates || typeof dates !== "object") continue;
+    for (const [date, on] of Object.entries(dates)) {
+      if (!on) continue;
+      const m = findMember(memId);
+      if (!m || isVisuallyBlank(m.name)) continue;
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push({ id: memId, name: m.name, job: m.job || "" });
+    }
+  }
+  const allDates = Object.keys(byDate).sort();
+  const visibleDates = _leaveHideToday ? allDates.filter(d => d >= today) : allDates;
+  const groupsHtml = visibleDates.map(date => {
+    const entries = byDate[date].sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
+    const dow = bkkDow(date);
+    const ev = isEventDay(date);
+    const isToday = date === today;
+    const isPast  = date < today;
+    const evPill = ev
+      ? `<span class="leave-group-event ${ev === "GL" ? "gl" : "overrun"}">${ev}</span>`
+      : `<span class="leave-group-event none">ไม่มีกิจ</span>`;
+    const todayBadge = isToday ? `<span class="leave-group-event" style="background:rgba(34,197,94,0.18);border-color:#22c55e;color:#4ade80">วันนี้</span>` : "";
+    const cardsHtml = entries.map(e => `
+      <div class="leave-card">
+        ${e.job ? `<span class="leave-card-job">${escapeHtml(e.job)}</span>` : ""}
+        <span class="leave-card-name">${escapeHtml(e.name)}</span>
+        <button class="leave-card-del" onclick="leaveRemove('${e.id}','${date}')" title="ยกเลิกลา">✕</button>
+      </div>
+    `).join("");
+    return `
+      <div class="leave-group ${isToday ? "is-today" : ""} ${isPast ? "is-past" : ""}">
+        <div class="leave-group-head">
+          <span class="leave-group-date">${fmtThaiDate(date)} <span class="leave-group-dow">· ${DOW_TH[dow]}</span></span>
+          ${evPill}
+          ${todayBadge}
+          <span class="leave-group-count">${entries.length} คน</span>
+        </div>
+        <div class="leave-list">${cardsHtml}</div>
+      </div>`;
+  }).join("");
+  const emptyHtml = visibleDates.length === 0
+    ? `<div class="leave-empty">— ยังไม่มีรายการลา —<br><span style="font-size:11px">ลงทะเบียนลาด้านบนได้เลย</span></div>`
+    : "";
+  return `
+    <div class="leave-view">
+      <div class="leave-hero">
+        <h2>🌴 ลา · กิจ WoE</h2>
+        <span class="leave-today ${todayEv ? "" : "no-event"}">
+          วันนี้ ${todayDow} · ${todayEv ? `มีกิจ ${todayEv}` : "ไม่มีกิจ"}
+        </span>
+        <div style="flex:1"></div>
+        <span style="font-size:11px;color:var(--muted)">รายการลาจะถูกล้างทุกวันจันทร์ 00:00</span>
+      </div>
+      <div class="leave-form">
+        <div class="leave-form-field">
+          <label>เลือกชื่อ</label>
+          <select id="leaveMemberSelect" onchange="leaveFormSetMember(this.value)">
+            <option value="">— เลือกสมาชิก —</option>
+            ${memOpts}
+          </select>
+        </div>
+        <div class="leave-form-field">
+          <label>วันที่ลา</label>
+          <input type="date" id="leaveDateInput" min="${today}" value="${_leaveFormDate}" onchange="leaveFormSetDate(this.value)" />
+        </div>
+        <button class="leave-add-btn" onclick="leaveAdd()" ${!_leaveFormMemberId || !_leaveFormDate ? "disabled" : ""}>
+          ➕ เพิ่มลา
+        </button>
+        ${hintHtml}
+      </div>
+      <div class="leave-filter-bar">
+        <label><input type="checkbox" ${_leaveHideToday ? "checked" : ""} onchange="leaveSetHidePast(this.checked)" /> ซ่อนวันที่ผ่านไปแล้ว</label>
+        <span style="color:var(--muted);font-size:11px;margin-left:auto">รวม ${allDates.length} วัน · ${Object.values(byDate).reduce((s,a)=>s+a.length,0)} รายการ</span>
+      </div>
+      <div class="leave-groups">
+        ${groupsHtml}
+        ${emptyHtml}
+      </div>
+    </div>`;
+}
+
+/* ---------- Leave form handlers ---------- */
+function leaveFormSetMember(v) { _leaveFormMemberId = v; render(); }
+function leaveFormSetDate(v)   { _leaveFormDate     = v; render(); }
+function leaveSetHidePast(v)   { _leaveHideToday    = !!v; render(); }
+
+function leaveAdd() {
+  if (!_leaveFormMemberId || !_leaveFormDate) return;
+  if (!_fbDB) { toast("Firebase ยังไม่พร้อม", "error"); return; }
+  const memId = _leaveFormMemberId;
+  const date  = _leaveFormDate;
+  // Reflect locally for snappy UI; Firebase listener will confirm.
+  if (!state.leaves[memId]) state.leaves[memId] = {};
+  state.leaves[memId][date] = true;
+  // Push to Firebase. Path-level write so race-safe.
+  _fbDB.ref(`leaves/${memId}/${date}`).set(true)
+    .catch(e => { console.warn("[leave] write failed", e); toast("เพิ่มลาไม่สำเร็จ", "error"); });
+  // Keep member selected but offer to clear for the next add — clearing makes
+  // it easier to add many people for the same date.
+  _leaveFormMemberId = "";
+  render();
+  toast("เพิ่มลาแล้ว", "success");
+}
+
+function leaveRemove(memId, date) {
+  if (!_fbDB) return;
+  if (state.leaves[memId]) delete state.leaves[memId][date];
+  _fbDB.ref(`leaves/${memId}/${date}`).remove()
+    .catch(e => console.warn("[leave] remove failed", e));
+  render();
+}
+
 
 function updateJobTarget(input) {
   const job = input.dataset.job;
@@ -5423,6 +5915,8 @@ function renderBattlefields() {
     center.innerHTML = buildAuctionGlHtml();
   } else if (state.mode === "auction-overrun") {
     center.innerHTML = buildAuctionOverrunHtml();
+  } else if (state.mode === "leave") {
+    center.innerHTML = buildLeaveHtml();
   } else {
     center.innerHTML =
       buildBfHtml(0) +
