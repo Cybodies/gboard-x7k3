@@ -1745,8 +1745,9 @@
   </div>
   <span class="status" id="statusInfo">Loading…</span>
   <div class="spacer"></div>
-  <span class="status sync-indicator" id="syncIndicator" title="Click 🔗 Sync to change">🔵 Loading…</span>
-  <button onclick="openSyncSettings()" id="btnSyncSettings" title="ตั้งค่า PAT เพื่อ sync กับ Gist">🔗 Sync</button>
+  <span class="status sync-indicator" id="syncIndicator">🔵 Connecting…</span>
+  <button onclick="openSyncSettings()" id="btnSyncSettings" title="Sign in / Sign out">🔗 Login</button>
+  <button onclick="migrateToFirebase()" id="btnMigrate" class="admin-only" title="ดัน localStorage state ขึ้น Firebase">🚚 Migrate</button>
   <button onclick="refreshFromSheet()" id="btnRefresh" class="admin-only">🔄 Refresh จาก Sheet</button>
   <button onclick="openSheetSettings()" class="admin-only">⚙ Settings</button>
   <button onclick="saveTeam()" class="admin-only">💾 Save team</button>
@@ -1810,21 +1811,14 @@
 </dialog>
 
 <dialog id="syncDialog">
-  <h3>🔗 Sync Settings (GitHub Gist)</h3>
-  <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">
-    • <b>Admin mode</b> — ใส่ Personal Access Token (PAT) ของ GitHub ที่มี <code>gist</code> scope. คุณจะสามารถแก้ไขและ push state ขึ้น Gist ได้.<br>
-    • <b>Read-only mode</b> — ปล่อยว่าง. ระบบจะ pull state จาก Gist ทุก 10 วินาที.<br>
-    • Token เก็บใน localStorage ของเครื่องนี้เท่านั้น (ไม่ส่งไปไหน).
+  <h3 id="loginDialogTitle">🔓 Login</h3>
+  <div id="loginDialogBody" style="font-size:13px;line-height:1.6;margin-bottom:12px">
+    <!-- Dynamic content (set by openSyncSettings) -->
   </div>
-  <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
-    Gist: <a href="https://gist.github.com/Cybodies/9e8f03ea739a97657060ccd0bf17ef9d" target="_blank" style="color:var(--accent)">gist.github.com/Cybodies/9e8f03ea739a97657060ccd0bf17ef9d</a>
-  </div>
-  <input id="syncPatInput" type="password" placeholder="ghp_..." autocomplete="off" />
-  <div class="row" style="margin-top:10px;display:flex;gap:6px">
-    <button onclick="document.getElementById('syncDialog').close()">ยกเลิก</button>
-    <button onclick="clearSyncSettings()" style="color:var(--danger)">ล้าง Token</button>
+  <div class="row" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+    <button onclick="document.getElementById('syncDialog').close()">ปิด</button>
     <div style="flex:1"></div>
-    <button class="primary" onclick="saveSyncSettings()">บันทึก</button>
+    <button id="loginActionBtn" class="primary"></button>
   </div>
 </dialog>
 
@@ -1978,8 +1972,8 @@ let drag = { type: null, payload: null };
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   updateStatusInfo();
-  // Push to Gist if admin (debounced so rapid drag/typing collapses to 1 PATCH)
-  if (typeof pushSyncDebounced === "function") pushSyncDebounced();
+  // Admin: push to Firebase (debounced so rapid drag/typing collapses to 1 set)
+  if (typeof fbPushDebounced === "function") fbPushDebounced();
 }
 function load() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -3497,7 +3491,7 @@ const PAT_KEY         = "roo_party_pat";
 const SYNC_KEYS = ["members", "partiesLeague", "partiesOverrun", "auctionGL", "auctionOverrun", "jobTargets"];
 
 const syncState = {
-  pat: null,
+  pat: null,             // legacy (Gist) — kept only so old localStorage doesn't crash
   lastUpdatedAt: 0,
   pollTimer: null,
   writeTimer: null,
@@ -3507,7 +3501,12 @@ const syncState = {
   applyingRemote: false
 };
 
-function isAdmin() { return !!syncState.pat; }
+// Admin = signed in with a Google account whose email is in ADMIN_EMAILS.
+// Guest = anonymous Firebase user (auto). Anyone else who signs in with a
+// non-admin Google account is still a guest (but with their email visible).
+function isAdmin() {
+  return !!(_fbUser && _fbUser.email && ADMIN_EMAILS.includes(_fbUser.email.toLowerCase()));
+}
 
 function loadPat() {
   syncState.pat = localStorage.getItem(PAT_KEY) || null;
@@ -3628,38 +3627,52 @@ function stopPolling() {
 function applyViewerMode() {
   document.body.classList.toggle("viewer-mode", !isAdmin());
 }
-function updateSyncUI() {
-  const el = document.getElementById("syncIndicator");
-  if (!el) return;
-  let dot = "🟢", label = "Live", cls = "live";
-  if (syncState.status === "writing") { dot = "🟡"; label = "Saving…"; cls = "writing"; }
-  else if (syncState.status === "error")   { dot = "🔴"; label = "Error";    cls = "error";   }
-  else if (syncState.status === "init")    { dot = "🔵"; label = "Loading…"; cls = "writing"; }
-  if (!isAdmin()) cls += " viewer";
-  el.className = "status sync-indicator " + cls;
-  el.textContent = `${dot} ${label} · ${isAdmin() ? "Admin" : "Read-only"}`;
-  el.title = syncState.lastError || (isAdmin() ? "Admin — can edit + push" : "Read-only — polling every " + (SYNC_POLL_MS/1000) + "s");
-}
+// Legacy Gist indicator → now just calls updateAuthUI (Firebase-based)
+function updateSyncUI() { updateAuthUI(); }
 
-/* ----- Settings dialog ----- */
+/* ----- Login dialog (replaces Gist PAT dialog) ----- */
 function openSyncSettings() {
   const dlg = document.getElementById("syncDialog");
   if (!dlg) return;
-  document.getElementById("syncPatInput").value = syncState.pat || "";
+  const body = document.getElementById("loginDialogBody");
+  const btn  = document.getElementById("loginActionBtn");
+  const isAnon = _fbUser && _fbUser.isAnonymous;
+  if (isAdmin()) {
+    body.innerHTML = `
+      <div style="color:var(--success);font-weight:700;margin-bottom:6px">🔓 Logged in as Admin</div>
+      <div><b>${escapeHtml(_fbUser.email)}</b></div>
+      <div style="color:var(--muted);font-size:12px;margin-top:8px">มีสิทธิ์แก้ไขทุกอย่าง รวมถึงเพิ่ม/ลบรายชื่อใน Roster.</div>
+    `;
+    btn.textContent = "🚪 Sign Out";
+    btn.onclick = () => { signOutUser(); document.getElementById("syncDialog").close(); };
+  } else if (_fbUser && !isAnon && _fbUser.email) {
+    body.innerHTML = `
+      <div style="color:var(--accent-2);font-weight:700;margin-bottom:6px">👤 Logged in (Not Admin)</div>
+      <div><b>${escapeHtml(_fbUser.email)}</b></div>
+      <div style="color:var(--muted);font-size:12px;margin-top:8px">บัญชีนี้ไม่ได้อยู่ใน admin list — กรอกได้เฉพาะ CP ใน Roster.</div>
+      <div style="color:var(--muted);font-size:11px;margin-top:6px">Admin emails: ${ADMIN_EMAILS.join(", ")}</div>
+    `;
+    btn.textContent = "🚪 Sign Out";
+    btn.onclick = () => { signOutUser(); document.getElementById("syncDialog").close(); };
+  } else {
+    body.innerHTML = `
+      <div style="color:var(--muted);font-weight:700;margin-bottom:6px">👁 Guest Mode</div>
+      <div style="font-size:13px;line-height:1.7">
+        • ดูข้อมูลได้ทุกหน้า<br>
+        • กรอก CP ของตัวเองได้ใน <b>📋 Roster</b><br>
+        • หน้าอื่นเป็น read-only<br>
+        • ถ้าเป็น Admin → กดปุ่ม "Sign in with Google" ด้านล่าง
+      </div>
+    `;
+    btn.textContent = "🔵 Sign in with Google";
+    btn.onclick = () => { signInWithGoogle(); document.getElementById("syncDialog").close(); };
+  }
   dlg.showModal();
 }
-function saveSyncSettings() {
-  const v = (document.getElementById("syncPatInput").value || "").trim();
-  savePat(v || null);
-  document.getElementById("syncDialog").close();
-  toast(v ? "✅ Admin mode — sync ON" : "👁 Read-only mode", "success");
-  if (isAdmin()) pushSyncState();   // initial push of current local state
-}
-function clearSyncSettings() {
-  savePat(null);
-  document.getElementById("syncDialog").close();
-  toast("👁 Read-only mode", "");
-}
+
+/* Legacy stubs (no-op) — kept so older calls don't crash */
+function saveSyncSettings() {}
+function clearSyncSettings() {}
 
 /* Block drag-start globally for viewers (HTML5 drag can't be disabled via CSS alone). */
 document.addEventListener("dragstart", (e) => {
@@ -3667,13 +3680,10 @@ document.addEventListener("dragstart", (e) => {
 }, true);
 
 async function initSync() {
-  loadPat();
+  // Gist-based sync is retired — Firebase Realtime DB handles all of this now.
+  // This function is a no-op kept only so older bootstrap calls don't crash.
   applyViewerMode();
-  updateSyncUI();
-  // Everyone (admin + viewer) pulls once on load so initial state matches the
-  // last admin push. Admin then stops polling; viewers keep polling.
-  await pollOnce();
-  if (!isAdmin()) startPolling();
+  updateAuthUI();
 }
 
 /* =====================================================================
@@ -3697,12 +3707,17 @@ const FIREBASE_CONFIG = {
 // To add more admins: append to this array + redeploy, or use Firebase Console
 // to add /config/admins/{email-with-dots-as-underscores}: true at runtime.
 const ADMIN_EMAILS = [
-  // TODO_ADMIN_EMAIL — paste your Gmail here, e.g. "cybodies@gmail.com"
+  "blankkardor@gmail.com"
 ];
 
-let _fbApp = null, _fbDB = null, _fbAuth = null, _fbRosterRef = null;
-let rosterCache = [];         // sorted by name asc
-let _rosterReady = false;
+let _fbApp = null, _fbDB = null, _fbAuth = null, _fbMembersRef = null;
+let _fbUser = null;            // Firebase auth user (anonymous or Google)
+let _fbReady = false;
+let _fbSubscribed = false;     // ensure we only attach listeners once
+let _fbApplyingRemote = false; // guard: when applying remote data, don't push back
+let _fbPushTimer = null;
+
+let rosterCache = [];          // sorted by name asc
 
 function firebaseConfigured() {
   return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "TODO_REPLACE_ME";
@@ -3721,33 +3736,205 @@ async function initFirebase() {
     _fbApp  = firebase.initializeApp(FIREBASE_CONFIG);
     _fbAuth = firebase.auth();
     _fbDB   = firebase.database();
-    // Sign in anonymously so DB Rules (auth != null) pass.
-    await _fbAuth.signInAnonymously();
-    _fbRosterRef = _fbDB.ref("roster");
-    _fbRosterRef.on("value", snap => {
-      const v = snap.val() || {};
-      rosterCache = Object.entries(v)
-        .map(([id, r]) => ({ id, name: r.name || "", job: r.job || "", cp: r.cp || 0, updatedAt: r.updatedAt || 0 }))
-        .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
-      _rosterReady = true;
-      // Mirror roster → state.members so League/Overrun/Auction find members
-      state.members = rosterCache.map(r => ({ id: r.id, name: r.name, job: r.job, cp: r.cp, source: "roster" }));
-      if (state.mode === "roster") renderBattlefields();
-      else { rebuildJobFilter(); render(); }
-    }, e => console.warn("[firebase] roster listener error", e));
+    _fbReady = true;
+
+    // Track auth state. On first ever load, sign in anonymously so DB rules
+    // (auth != null) pass. If user signs in with Google later, the anonymous
+    // session is replaced.
+    _fbAuth.onAuthStateChanged(user => {
+      _fbUser = user;
+      if (!user) {
+        // No session at all → sign in anonymously
+        _fbAuth.signInAnonymously().catch(e => console.warn("[firebase] anon sign-in failed", e));
+        return;
+      }
+      // First-time setup of listeners (once we have a user, rules let us read)
+      if (!_fbSubscribed) fbSubscribeAll();
+      // Refresh UI for the new auth state (admin vs guest controls)
+      applyViewerMode();
+      updateAuthUI();
+      if (typeof render === "function") render();
+    });
   } catch (e) {
     console.error("[firebase] init failed", e);
   }
 }
 
+/* ---------- Firebase subscriptions: realtime listeners on every path ----- */
+function fbSubscribeAll() {
+  if (!_fbDB || _fbSubscribed) return;
+  _fbSubscribed = true;
+  _fbMembersRef = _fbDB.ref("members");
+
+  // members → mirror to state.members + rosterCache
+  _fbMembersRef.on("value", snap => {
+    const v = snap.val() || {};
+    rosterCache = Object.entries(v)
+      .map(([id, r]) => ({ id, name: r.name || "", job: r.job || "", cp: r.cp || 0, updatedAt: r.updatedAt || 0 }))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
+    _fbApplyingRemote = true;
+    state.members = rosterCache.map(r => ({ id: r.id, name: r.name, job: r.job, cp: r.cp, source: "firebase" }));
+    _fbApplyingRemote = false;
+    rebuildJobFilter();
+    if (typeof render === "function") render();
+  }, e => console.warn("[firebase] members listener error", e));
+
+  // parties/league
+  _fbDB.ref("parties/league").on("value", snap => {
+    const v = snap.val();
+    if (!Array.isArray(v) || v.length !== PARTIES) return;
+    _fbApplyingRemote = true;
+    state.partiesLeague = v.map(p => ({
+      id: p.id, name: p.name || "",
+      slots: Array.isArray(p.slots) ? p.slots.slice(0, PARTY_SLOTS).concat(Array(PARTY_SLOTS).fill(null)).slice(0, PARTY_SLOTS) : Array(PARTY_SLOTS).fill(null)
+    }));
+    if (state.mode === "league") state.parties = state.partiesLeague;
+    _fbApplyingRemote = false;
+    if (typeof render === "function") render();
+  });
+
+  // parties/overrun
+  _fbDB.ref("parties/overrun").on("value", snap => {
+    const v = snap.val();
+    if (!Array.isArray(v) || v.length !== PARTIES) return;
+    _fbApplyingRemote = true;
+    state.partiesOverrun = v.map(p => ({
+      id: p.id, name: p.name || "",
+      slots: Array.isArray(p.slots) ? p.slots.slice(0, PARTY_SLOTS).concat(Array(PARTY_SLOTS).fill(null)).slice(0, PARTY_SLOTS) : Array(PARTY_SLOTS).fill(null)
+    }));
+    if (state.mode === "overrun") state.parties = state.partiesOverrun;
+    _fbApplyingRemote = false;
+    if (typeof render === "function") render();
+  });
+
+  // auction_gl
+  _fbDB.ref("auction_gl").on("value", snap => {
+    const v = snap.val();
+    if (!v || typeof v !== "object") return;
+    _fbApplyingRemote = true;
+    state.auctionGL = normalizeAuctionState(v);
+    _fbApplyingRemote = false;
+    if (typeof render === "function" && state.mode === "auction-gl") render();
+  });
+
+  // auction_overrun
+  _fbDB.ref("auction_overrun").on("value", snap => {
+    const v = snap.val();
+    if (!v || typeof v !== "object") return;
+    _fbApplyingRemote = true;
+    state.auctionOverrun = normalizeAuctionState(v);
+    _fbApplyingRemote = false;
+    if (typeof render === "function" && state.mode === "auction-overrun") render();
+  });
+
+  // job_targets
+  _fbDB.ref("job_targets").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    state.jobTargets = v;
+    _fbApplyingRemote = false;
+    if (typeof render === "function" && state.mode === "summary") render();
+  });
+}
+
+/* ---------- Firebase writes (admin only) ---------- */
+function fbPushDebounced() {
+  if (!_fbDB || !isAdmin() || _fbApplyingRemote) return;
+  clearTimeout(_fbPushTimer);
+  _fbPushTimer = setTimeout(fbPushAll, 800);
+}
+
+function fbPushAll() {
+  if (!_fbDB || !isAdmin() || _fbApplyingRemote) return;
+  try {
+    _fbDB.ref("parties/league").set(state.partiesLeague || makeEmptyParties());
+    _fbDB.ref("parties/overrun").set(state.partiesOverrun || makeEmptyParties());
+    _fbDB.ref("auction_gl").set(state.auctionGL);
+    _fbDB.ref("auction_overrun").set(state.auctionOverrun);
+    _fbDB.ref("job_targets").set(state.jobTargets || {});
+  } catch (e) {
+    console.warn("[firebase] push failed", e);
+  }
+}
+
+/* ---------- Google sign-in / sign-out ---------- */
+async function signInWithGoogle() {
+  if (!_fbAuth) { toast("Firebase ยังไม่พร้อม", "error"); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await _fbAuth.signInWithPopup(provider);
+    // onAuthStateChanged will handle the rest
+  } catch (e) {
+    if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+    toast("Login ไม่สำเร็จ: " + (e.message || e.code), "error");
+  }
+}
+
+async function signOutUser() {
+  if (!_fbAuth) return;
+  try {
+    await _fbAuth.signOut();
+    // onAuthStateChanged will sign in anonymously again
+  } catch (e) {
+    console.warn("[firebase] sign out failed", e);
+  }
+}
+
+function updateAuthUI() {
+  const el = document.getElementById("syncIndicator");
+  if (el) {
+    if (!_fbUser) {
+      el.className = "status sync-indicator viewer";
+      el.textContent = "🔵 Connecting…";
+    } else if (isAdmin()) {
+      el.className = "status sync-indicator live";
+      el.textContent = `🟢 Admin · ${_fbUser.email}`;
+      el.title = "Logged in as admin";
+    } else {
+      el.className = "status sync-indicator viewer";
+      el.textContent = _fbUser.email ? `👤 ${_fbUser.email}` : "👁 Guest";
+      el.title = "Guest mode — กรอกได้แค่ CP";
+    }
+  }
+  const loginBtn = document.getElementById("btnSyncSettings");
+  if (loginBtn) {
+    if (!_fbUser) loginBtn.textContent = "🔗 Login";
+    else if (isAdmin()) loginBtn.textContent = "🔓 Logout";
+    else loginBtn.textContent = "🔓 Login";
+  }
+}
+
+/* ---------- Migration (one-time push of localStorage state) ---------- */
+function migrateToFirebase() {
+  if (!isAdmin()) { toast("Admin only", "error"); return; }
+  if (!_fbDB) { toast("Firebase ยังไม่พร้อม", "error"); return; }
+  if (!confirm("Migrate localStorage state → Firebase?\n\nจะส่ง:\n• members (รายชื่อ + job)\n• parties (League + Overrun)\n• auction state (GL + Overrun)\n• job targets\n\n(ของใน Firebase ตอนนี้จะถูกเขียนทับ)")) return;
+
+  // Push members (preserves IDs)
+  let memberCount = 0;
+  (state.members || []).forEach(m => {
+    if (!m.id || !m.name) return;
+    _fbDB.ref("members/" + m.id).set({
+      name: m.name,
+      job: m.job || "",
+      cp: m.cp || 0,
+      updatedAt: Date.now()
+    });
+    memberCount++;
+  });
+  // Push parties + auction
+  fbPushAll();
+  toast(`✅ Migrated ${memberCount} คน + parties + auction`, "success");
+}
+
 /* ----- Roster CRUD ----- */
 function rosterAdd() {
   if (!isAdmin()) { toast("Admin only", "error"); return; }
-  if (!_fbRosterRef) { toast("Firebase ยังไม่ตั้งค่า", "error"); return; }
+  if (!_fbMembersRef) { toast("Firebase ยังไม่ตั้งค่า", "error"); return; }
   const name = prompt("ชื่อตัวละคร:");
   if (!name || !name.trim()) return;
   const job  = prompt("Job:", "");
-  _fbRosterRef.push({
+  _fbMembersRef.push({
     name: name.trim(),
     job:  (job || "").trim(),
     cp:   0,
@@ -3756,7 +3943,7 @@ function rosterAdd() {
 }
 
 function rosterUpdate(id, field, value) {
-  if (!_fbRosterRef) return;
+  if (!_fbMembersRef) return;
   // Frontend gating: name/job restricted to admin
   if ((field === "name" || field === "job") && !isAdmin()) {
     toast("เพิ่ม/แก้ ชื่อ + Job ทำได้เฉพาะ Admin", "error");
@@ -3767,7 +3954,7 @@ function rosterUpdate(id, field, value) {
   let val;
   if (field === "cp") val = Math.max(0, parseInt(String(value).replace(/[^0-9]/g, ""), 10) || 0);
   else val = String(value).trim();
-  _fbRosterRef.child(id).update({ [field]: val, updatedAt: Date.now() });
+  _fbMembersRef.child(id).update({ [field]: val, updatedAt: Date.now() });
 }
 
 function rosterDelete(id) {
@@ -3775,12 +3962,12 @@ function rosterDelete(id) {
   const m = rosterCache.find(r => r.id === id);
   if (!m) return;
   if (!confirm(`ลบ ${m.name} (${m.job}) ?`)) return;
-  _fbRosterRef.child(id).remove();
+  _fbMembersRef.child(id).remove();
 }
 
 function rosterImportFromSheet() {
   if (!isAdmin()) { toast("Admin only", "error"); return; }
-  if (!_fbRosterRef) { toast("Firebase ยังไม่ตั้งค่า", "error"); return; }
+  if (!_fbMembersRef) { toast("Firebase ยังไม่ตั้งค่า", "error"); return; }
   if (!state.sheetUrl) { toast("ตั้งค่า Sheet URL ก่อนที่ ⚙ Settings", "error"); return; }
   if (!confirm("Import ทุกคนใน Sheet เข้า Roster?\n(ผู้ที่มีอยู่แล้ว — match name+job — จะข้าม)")) return;
   (async () => {
@@ -3793,7 +3980,7 @@ function rosterImportFromSheet() {
       for (const m of fetched) {
         const dup = rosterCache.find(r => r.name === m.name && r.job === m.job);
         if (dup) { skipped++; continue; }
-        await _fbRosterRef.push({ name: m.name, job: m.job, cp: m.cp || 0, updatedAt: Date.now() });
+        await _fbMembersRef.push({ name: m.name, job: m.job, cp: m.cp || 0, updatedAt: Date.now() });
         added++;
       }
       toast(`✅ Import เสร็จ: เพิ่ม ${added} · ข้าม ${skipped}`, "success");
@@ -4889,17 +5076,10 @@ tryAutoLoadMapImages();
 if (state.mode === "league") renderMarkers();
 else if (state.mode === "overrun") renderOverrunMarkers();
 
-// Sync layer: pull initial state from Gist, then start polling for viewers.
-// If admin and members are empty, refreshFromSheet AFTER the sync pull so we
-// don't overwrite remote state with an empty local one.
-initSync().then(() => {
-  if (isAdmin() && !state.members.length) refreshFromSheet();
-  render();
-});
-
-// Firebase Roster — once initialized, members will sync via Firebase listener
-// (which overwrites state.members when roster data arrives).
-initFirebase();
+// Auth + data sync: Firebase handles everything now (members, parties, auction).
+// Anonymous sign-in lets guests read; Google sign-in promotes admins.
+initSync();          // no-op (legacy stub, just updates UI)
+initFirebase();      // sets up auth + realtime listeners
 </script>
 </body>
 </html>
