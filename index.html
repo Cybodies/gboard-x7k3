@@ -1408,12 +1408,18 @@
     max-height: 70vh;
     min-height: 400px;
   }
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 180px 1fr !important; }
+  /* Constrain only to 700–900px (tablet) since mobile <700px overrides with 1fr */
+  @media (max-width: 900px) and (min-width: 701px) {
+    .layout { grid-template-columns: 180px 1fr; }
     .party-row { grid-template-columns: 32px repeat(5, minmax(0,1fr)) 24px; font-size: 11px; }
     .slot { padding: 3px 4px; min-height: 38px; }
     .slot .slot-name { font-size: 11px; }
     .map-wrap { min-height: 220px; max-width: 60vh; max-height: 60vh; }
+  }
+  @media (max-width: 700px) {
+    .party-row { grid-template-columns: 32px repeat(5, minmax(0,1fr)) 24px; font-size: 11px; }
+    .slot { padding: 3px 4px; min-height: 38px; }
+    .slot .slot-name { font-size: 11px; }
   }
   .map-frame {
     position: absolute; inset: 0;
@@ -1579,6 +1585,13 @@
     line-height: 1;
   }
   .hamburger-btn:hover { background: var(--panel-2); border-color: var(--accent); }
+
+  /* Roster mode doesn't need the member sidebar — give content full width.
+     Applies on every breakpoint (desktop + tablet + mobile). */
+  body[data-mode="roster"] .sidebar         { display: none; }
+  body[data-mode="roster"] .layout          { grid-template-columns: 1fr !important; }
+  body[data-mode="roster"] .hamburger-btn   { display: none; }
+  body[data-mode="roster"] .sidebar-backdrop { display: none !important; }
 
   /* Mobile mode dropdown — replaces .mode-toggle below 700px */
   .mode-select {
@@ -1774,11 +1787,10 @@
 <header>
   <button id="hamburgerBtn" class="hamburger-btn" onclick="toggleSidebar()" aria-label="เปิดเมนูรายชื่อ" title="รายชื่อสมาชิก">☰</button>
   <div class="brand">⚔️ ROO Party</div>
-  <div class="mode-toggle cols-6" id="modeToggle">
+  <div class="mode-toggle cols-5" id="modeToggle">
     <button class="seg active" data-mode="league" onclick="switchMode('league')">⚔️ League</button>
     <button class="seg" data-mode="overrun" onclick="switchMode('overrun')">🏆 Overrun</button>
     <button class="seg" data-mode="roster" onclick="switchMode('roster')">📋 Roster</button>
-    <button class="seg" data-mode="summary" onclick="switchMode('summary')">📊 Members</button>
     <button class="seg" data-mode="auction-gl" onclick="switchMode('auction-gl')">🎴 Auction GL</button>
     <button class="seg" data-mode="auction-overrun" onclick="switchMode('auction-overrun')">🎴 Auction Overrun</button>
     <span class="seg-indicator"></span>
@@ -1787,7 +1799,6 @@
     <option value="league">⚔️ League</option>
     <option value="overrun">🏆 Overrun</option>
     <option value="roster">📋 Roster</option>
-    <option value="summary">📊 Members</option>
     <option value="auction-gl">🎴 Auction GL</option>
     <option value="auction-overrun">🎴 Auction Overrun</option>
   </select>
@@ -1954,6 +1965,8 @@ document.addEventListener("click", (e) => {
 
 /** Switch between League / Overrun / Summary. */
 function switchMode(newMode) {
+  // Legacy: summary tab merged into Roster
+  if (newMode === "summary") newMode = "roster";
   if (state.mode === newMode) return;
   // Snapshot active mode's parties (league / overrun)
   if (state.mode === "league") state.partiesLeague = state.parties;
@@ -1973,6 +1986,8 @@ function switchMode(newMode) {
   }
 
   updateModeToggleUI();
+  // Tag body so CSS can hide the sidebar on no-member-needed views
+  document.body.dataset.mode = state.mode;
   save();
   render();
 }
@@ -4205,6 +4220,75 @@ function buildRosterRowsHtml() {
     </tr>`).join("");
 }
 
+/* Job-breakdown section — merged from the old Members tab. Shows job count,
+ * editable target (admin only), status, pie chart, and AI comment.
+ * Embedded inside the Roster page so the two pages are unified. */
+function buildJobBreakdownSection() {
+  const counts = (typeof getMergedJobCounts === "function") ? getMergedJobCounts() : {};
+  const jobs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  const total = state.members.length;
+  if (!jobs.length) return "";
+  if (!state.jobTargets) state.jobTargets = {};
+  const targets = state.jobTargets;
+  const admin = isAdmin();
+
+  const rows = jobs.map((job, i) => {
+    const count = counts[job];
+    const target = targets[job] || 0;
+    const { status, cls } = classifyJobStatus(count, target);
+    const safeJob = escapeHtml(job);
+    const c = jobColorByIndex(i);
+    return `
+      <tr>
+        <td class="job-name"><span style="display:inline-block;width:8px;height:8px;background:${c};border-radius:2px;margin-right:6px;vertical-align:middle"></span>${safeJob}</td>
+        <td class="count">${count}</td>
+        <td class="target">${admin
+          ? `<input type="number" min="0" data-job="${safeJob}" value="${target}" oninput="updateJobTarget(this)" />`
+          : (target || '<span style="color:var(--muted)">—</span>')}</td>
+        <td class="status-cell ${cls}">${status}</td>
+      </tr>`;
+  }).join("");
+  const pie = buildPieSvg(jobs, counts, total);
+  const legend = jobs.map((job, i) =>
+    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${counts[job]})</span>`
+  ).join("");
+  const ai = buildAiComment(jobs, counts, targets, total);
+
+  return `
+    <div class="auction-section">
+      <h3>📊 Job Breakdown</h3>
+      <div class="summary-grid">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>อาชีพ</th>
+              <th style="text-align:center">มี</th>
+              <th style="text-align:center">เป้า</th>
+              <th style="text-align:center">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot>
+            <tr>
+              <td class="label">${jobs.length} อาชีพ</td>
+              <td class="count">${total}</td>
+              <td class="target" style="text-align:center">${jobs.reduce((s,j) => s + (targets[j] || 0), 0)}</td>
+              <td class="status-cell">—</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div class="summary-side">
+          ${pie}
+          ${legend ? `<div class="pie-legend">${legend}</div>` : ''}
+          <div class="ai-comment">
+            <div class="ai-title">💡 AI Comment</div>
+            ${ai}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function buildRosterHtml() {
   const admin = isAdmin();
   if (!firebaseConfigured()) {
@@ -4233,6 +4317,7 @@ function buildRosterHtml() {
           <span class="rate-pill">เฉลี่ย: <b>${avgCP.toLocaleString()}</b></span>
         </div>
       </div>
+      ${buildJobBreakdownSection()}
       <div class="roster-toolbar">
         <input class="r-search" placeholder="🔎 ค้นหาชื่อ/Job..." oninput="rosterSearchInput(this.value)" value="${escapeHtml(_rosterSearch)}" />
         ${admin ? `
@@ -5232,6 +5317,7 @@ if (!state.mapBg) state.mapBg = { 1: null, 2: null, 3: null };
 if (!(3 in state.mapBg)) state.mapBg[3] = null;
 
 updateModeToggleUI();
+document.body.dataset.mode = state.mode;
 initMarkers();
 rebuildJobFilter();
 setupSidebarDrop();
