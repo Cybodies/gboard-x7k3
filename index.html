@@ -2079,6 +2079,33 @@ window.addEventListener("resize", positionModeIndicator);
 
 let drag = { type: null, payload: null };
 
+// Global drag guard. Realtime Firebase listeners CALL render() which rebuilds
+// the entire .center innerHTML. If that happens mid-drag, the browser loses
+// the drop target (because the original DOM element no longer exists) and the
+// drop becomes a no-op. We set _isDragging on dragstart and clear it on dragend
+// — listeners check this and defer their render until the drag finishes.
+let _isDragging = false;
+let _pendingRenderAfterDrag = false;
+function setDragging(on) {
+  _isDragging = !!on;
+  if (!on && _pendingRenderAfterDrag) {
+    _pendingRenderAfterDrag = false;
+    if (typeof render === "function") render();
+  }
+}
+// safeRender: queues the render until the current drag finishes. Used by
+// realtime Firebase listeners so a remote write mid-drag doesn't yank the
+// drop target out from under the user.
+function safeRender() {
+  if (_isDragging) { _pendingRenderAfterDrag = true; return; }
+  if (typeof render === "function") render();
+}
+// Bind at document level so we catch ALL drags (including HTML5 default dragend
+// when user drops outside any registered target).
+document.addEventListener("dragstart", () => setDragging(true), true);
+document.addEventListener("dragend",   () => setDragging(false), true);
+document.addEventListener("drop",      () => setDragging(false), true);
+
 /* =====================================================================
  * Persistence
  * ===================================================================== */
@@ -3256,6 +3283,15 @@ function toggleLeave(id) {
   render();
 }
 
+// Visible-text helper: a name or job is "blank" if, after stripping whitespace
+// AND zero-width characters (​-‍, ﻿), nothing remains. Catches
+// edge cases like names that were imported with invisible chars.
+function isVisuallyBlank(s) {
+  return !((s || "").replace(/[\s​-‍﻿]/g, "").length);
+}
+function isGhostMember(m) {
+  return !m || (isVisuallyBlank(m.name) && isVisuallyBlank(m.job));
+}
 function buildPartyRowHtml(p) {
   const slotsHtml = p.slots.map((memId, i) => {
     if (!memId) {
@@ -3267,7 +3303,7 @@ function buildPartyRowHtml(p) {
     // Member missing OR member has no name & no job → render as Empty so the
     // user isn't stuck with a "ghost" slot. The Firebase listener / explicit
     // sanitize pass cleans the underlying state.
-    if (!m || (!(m.name || "").trim() && !(m.job || "").trim())) {
+    if (isGhostMember(m)) {
       return `<div class="slot empty"
                    ondragover="dragOverEl(event)" ondragleave="dragLeaveEl(event)"
                    ondrop="dropSlot(event, ${p.id}, ${i})">Empty</div>`;
@@ -3973,7 +4009,7 @@ function fbSubscribeAll() {
     if (state.partiesOverrun && sanitizeSlots(state.partiesOverrun) && isAdmin()) {
       _fbDB.ref("parties/overrun").set(state.partiesOverrun);
     }
-    if (typeof render === "function") render();
+    safeRender();
   }, e => console.warn("[firebase] members listener error", e));
 
   // Sanitize party slots — drop references to members that no longer exist
@@ -3986,8 +4022,7 @@ function fbSubscribeAll() {
     parties.forEach(p => {
       p.slots = p.slots.map(id => {
         if (!id) return null;
-        const m = findMember(id);
-        if (!m || (!(m.name || "").trim() && !(m.job || "").trim())) { dirty = true; return null; }
+        if (isGhostMember(findMember(id))) { dirty = true; return null; }
         return id;
       });
     });
@@ -4006,8 +4041,7 @@ function fbSubscribeAll() {
         p.slots.forEach((id, si) => {
           if (!id) return;
           const m = findMember(id);
-          const bad = !m || (!(m.name || "").trim() && !(m.job || "").trim());
-          if (bad) out.push({ kind, party: pi + 1, slot: si + 1, memId: id, member: m });
+          if (isGhostMember(m)) out.push({ kind, party: pi + 1, slot: si + 1, memId: id, member: m });
         });
       });
     };
@@ -4045,7 +4079,7 @@ function fbSubscribeAll() {
     if (sanitizeSlots(state.partiesLeague) && isAdmin()) {
       _fbDB.ref("parties/league").set(state.partiesLeague);
     }
-    if (typeof render === "function") render();
+    safeRender();
   });
 
   // parties/overrun
@@ -4062,7 +4096,7 @@ function fbSubscribeAll() {
     if (sanitizeSlots(state.partiesOverrun) && isAdmin()) {
       _fbDB.ref("parties/overrun").set(state.partiesOverrun);
     }
-    if (typeof render === "function") render();
+    safeRender();
   });
 
   // auction_gl
