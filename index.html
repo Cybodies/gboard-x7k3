@@ -1602,44 +1602,36 @@
 
   /* ===== Mobile (≤700px) — hamburger overlay sidebar ===== */
   @media (max-width: 700px) {
-    .hamburger-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; }
+    .hamburger-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; padding: 4px 8px; }
 
-    /* Hide labels, keep icons on header buttons. Marker class .btn-label
-       lets us hide text inside complex buttons; for buttons that have inline
-       emoji + text together, we just shorten with max-width + overflow. */
-    header { padding: 0 8px; gap: 4px; }
+    header { padding: 0 6px; gap: 4px; }
     header .brand { display: none; }                  /* hamburger replaces */
     header .spacer { display: none; }
     header .status { display: none; }                 /* member count — view in sidebar */
-    header button#btnRefresh,
-    header button[onclick*="openSheetSettings"],
-    header button[onclick*="saveTeam"],
     header button[onclick*="resetAll"] {
-      /* Compact: keep emoji only — text after first emoji is hidden via font-size trick */
-      font-size: 0;
-      padding: 4px;
-      min-width: 32px;
+      font-size: 0; padding: 4px; min-width: 30px;
     }
-    header button#btnRefresh::before  { content: "🔄"; font-size: 14px; }
-    header button[onclick*="openSheetSettings"]::before { content: "⚙"; font-size: 14px; }
-    header button[onclick*="saveTeam"]::before { content: "💾"; font-size: 14px; }
-    header button[onclick*="resetAll"]::before { content: "🗑"; font-size: 14px; }
+    header button[onclick*="resetAll"]::before { content: "🗑"; font-size: 13px; }
 
     header #btnSyncSettings { font-size: 11px; padding: 4px 8px; }
-    header .sync-indicator { font-size: 10px; padding: 3px 6px; }
+    header .sync-indicator {
+      font-size: 10px; padding: 3px 6px;
+      max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
 
-    /* Mode toggle scrolls horizontally — no longer fits all 6 tabs on one row */
+    /* Mode toggle scrolls horizontally — fits all 6 tabs by sliding */
     .mode-toggle {
-      flex: 0 1 auto;
-      max-width: calc(100vw - 280px);
+      flex: 1 1 auto;
+      min-width: 0;
       overflow-x: auto;
       overflow-y: hidden;
       scroll-snap-type: x mandatory;
       scrollbar-width: thin;
       -webkit-overflow-scrolling: touch;
+      padding: 3px;
     }
     .mode-toggle::-webkit-scrollbar { height: 4px; }
-    .mode-toggle .seg { scroll-snap-align: start; font-size: 10px; padding: 4px 8px; }
+    .mode-toggle .seg { scroll-snap-align: start; font-size: 10px; padding: 4px 7px; }
     .mode-toggle .seg-indicator { display: none; }     /* sliding indicator looks weird while scrolling */
     .mode-toggle .seg.active { background: var(--accent); color: #fff; border-radius: 4px; }
 
@@ -1712,15 +1704,24 @@
     dialog { width: 92vw; max-width: 92vw; }
   }
 
-  /* ===== Small mobile (≤420px) — extreme tweaks ===== */
-  @media (max-width: 420px) {
-    .mode-toggle { max-width: calc(100vw - 240px); }
+  /* ===== Small mobile (≤480px) — extreme tweaks ===== */
+  @media (max-width: 480px) {
     .mode-toggle .seg { padding: 3px 6px; font-size: 9px; }
     header { padding: 0 4px; gap: 3px; }
-    header .sync-indicator { display: none; }   /* hide on very small */
+    header .sync-indicator {
+      max-width: 80px;
+      font-size: 9px;
+    }
+    header #btnSyncSettings { font-size: 0; padding: 4px; min-width: 30px; }
+    header #btnSyncSettings::before { content: "🔗"; font-size: 13px; }
     .auction-hero { padding: 10px 12px; }
     .auction-hero h2 { font-size: 14px; }
     .auction-section h3 { font-size: 13px; }
+    /* Make tap targets bigger */
+    .auction-percent-btn { padding: 6px 12px; }
+    .auction-column .ac-actions button { padding: 7px 8px; font-size: 12px; }
+    .roster-table button.r-del { width: 34px; height: 34px; font-size: 16px; }
+    .member-row { padding: 8px 10px; min-height: 40px; }
   }
 </style>
 </head>
@@ -1748,11 +1749,7 @@
   <div class="spacer"></div>
   <span class="status sync-indicator" id="syncIndicator">🔵 Connecting…</span>
   <button onclick="openSyncSettings()" id="btnSyncSettings" title="Sign in / Sign out">🔗 Login</button>
-  <button onclick="migrateToFirebase()" id="btnMigrate" class="admin-only" title="ดัน localStorage state ขึ้น Firebase">🚚 Migrate</button>
-  <button onclick="refreshFromSheet()" id="btnRefresh" class="admin-only">🔄 Refresh จาก Sheet</button>
-  <button onclick="openSheetSettings()" class="admin-only">⚙ Settings</button>
-  <button onclick="saveTeam()" class="admin-only">💾 Save team</button>
-  <button onclick="resetAll()" class="danger admin-only">🗑 Reset</button>
+  <button onclick="resetAll()" class="danger admin-only" title="ล้างข้อมูลใน browser (state ใน Firebase ยังอยู่)">🗑 Reset</button>
 </header>
 
 <div class="layout">
@@ -3861,7 +3858,21 @@ function fbSubscribeAll() {
 function fbPushDebounced() {
   if (!_fbDB || !isAdmin() || _fbApplyingRemote) return;
   clearTimeout(_fbPushTimer);
-  _fbPushTimer = setTimeout(fbPushAll, 800);
+  // Snappy realtime — 300ms collapses a burst of drags into one Firebase write
+  _fbPushTimer = setTimeout(fbPushAll, 300);
+  flashSyncIndicator("saving");
+}
+
+function flashSyncIndicator(state) {
+  const el = document.getElementById("syncIndicator");
+  if (!el) return;
+  if (state === "saving") {
+    el.dataset.flash = "1";
+    el.style.color = "#fbbf24";
+  } else if (state === "done") {
+    el.dataset.flash = "";
+    el.style.color = "";
+  }
 }
 
 function fbPushAll() {
@@ -3875,8 +3886,10 @@ function fbPushAll() {
     _fbDB.ref("markers").set(state.markers || {});
     _fbDB.ref("overrun_markers").set(state.overrunMarkers || {});
     // map_urls intentionally not pushed — images are embedded as static assets
+    setTimeout(() => flashSyncIndicator("done"), 200);
   } catch (e) {
     console.warn("[firebase] push failed", e);
+    flashSyncIndicator("done");
   }
 }
 
