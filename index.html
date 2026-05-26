@@ -2,6 +2,8 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<meta name="theme-color" content="#0d1117" />
 <title>ROO Party — Main/Sub Battlefield Organizer</title>
 <style>
   :root {
@@ -1558,6 +1560,168 @@
   .toast.show { opacity: 1; }
   .toast.error { border-color: var(--danger); color: var(--danger); }
   .toast.success { border-color: var(--success); color: var(--success); }
+
+  /* ==========================================================
+     RESPONSIVE LAYOUT — hamburger sidebar + mobile tweaks
+     ========================================================== */
+
+  /* Hamburger button: hidden on desktop, shown on mobile */
+  .hamburger-btn {
+    display: none;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .hamburger-btn:hover { background: var(--panel-2); border-color: var(--accent); }
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 44px 0 0 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 98;
+    animation: fadeIn .2s ease;
+  }
+  body.sidebar-open .sidebar-backdrop { display: block; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
+  /* ===== Tablet (≤1100px) ===== */
+  @media (max-width: 1100px) {
+    body { font-size: 12px; }
+    .layout { grid-template-columns: 210px 1fr; }
+    header { gap: 6px; }
+    header .brand { font-size: 13px; }
+    .mode-toggle .seg { font-size: 11px; padding: 4px 9px; }
+    header button { padding: 4px 8px; font-size: 11px; }
+  }
+
+  /* ===== Mobile (≤700px) — hamburger overlay sidebar ===== */
+  @media (max-width: 700px) {
+    .hamburger-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; }
+
+    /* Hide labels, keep icons on header buttons. Marker class .btn-label
+       lets us hide text inside complex buttons; for buttons that have inline
+       emoji + text together, we just shorten with max-width + overflow. */
+    header { padding: 0 8px; gap: 4px; }
+    header .brand { display: none; }                  /* hamburger replaces */
+    header .spacer { display: none; }
+    header .status { display: none; }                 /* member count — view in sidebar */
+    header button#btnRefresh,
+    header button[onclick*="openSheetSettings"],
+    header button[onclick*="saveTeam"],
+    header button[onclick*="resetAll"] {
+      /* Compact: keep emoji only — text after first emoji is hidden via font-size trick */
+      font-size: 0;
+      padding: 4px;
+      min-width: 32px;
+    }
+    header button#btnRefresh::before  { content: "🔄"; font-size: 14px; }
+    header button[onclick*="openSheetSettings"]::before { content: "⚙"; font-size: 14px; }
+    header button[onclick*="saveTeam"]::before { content: "💾"; font-size: 14px; }
+    header button[onclick*="resetAll"]::before { content: "🗑"; font-size: 14px; }
+
+    header #btnSyncSettings { font-size: 11px; padding: 4px 8px; }
+    header .sync-indicator { font-size: 10px; padding: 3px 6px; }
+
+    /* Mode toggle scrolls horizontally — no longer fits all 6 tabs on one row */
+    .mode-toggle {
+      flex: 0 1 auto;
+      max-width: calc(100vw - 280px);
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mode-toggle::-webkit-scrollbar { height: 4px; }
+    .mode-toggle .seg { scroll-snap-align: start; font-size: 10px; padding: 4px 8px; }
+    .mode-toggle .seg-indicator { display: none; }     /* sliding indicator looks weird while scrolling */
+    .mode-toggle .seg.active { background: var(--accent); color: #fff; border-radius: 4px; }
+
+    /* Sidebar becomes overlay: hidden by default, slides in on .sidebar-open */
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      top: 44px; left: 0; bottom: 0;
+      width: 280px; max-width: 80vw;
+      z-index: 99;
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.6);
+    }
+    body.sidebar-open .sidebar { transform: translateX(0); }
+
+    /* Center area: full width on mobile */
+    .center { padding: 8px; gap: 10px; }
+    .center > * { min-width: 0; }    /* prevent overflow on flex children */
+
+    /* Auction inputs/columns: 1 col stack on mobile */
+    .auction-inputs { grid-template-columns: 1fr !important; gap: 8px; }
+    .auction-columns { grid-template-columns: 1fr !important; gap: 8px; }
+    .auction-sub-boxes { grid-template-columns: 1fr !important; }
+    .auction-summary-table { font-size: 11px; }
+    .auction-summary-table th, .auction-summary-table td { padding: 5px 4px; }
+    .auction-percent-row { flex-wrap: wrap; gap: 6px; }
+    .auction-percent-btn { padding: 4px 10px; font-size: 11px; }
+    .auction-input-card input { font-size: 18px; padding: 8px 10px; }
+
+    /* Roster table: shrink + horizontal scroll if needed */
+    .roster-table-wrap { overflow-x: auto; }
+    .roster-table { min-width: 480px; }
+    .roster-table th, .roster-table td { padding: 5px 6px; font-size: 11px; }
+    .roster-table input.r-input { font-size: 12px; padding: 4px 6px; }
+    .roster-toolbar { flex-direction: column; align-items: stretch; }
+    .roster-toolbar input.r-search { min-width: 0; }
+    .roster-hero { padding: 10px 12px; }
+    .roster-hero h2 { font-size: 14px; }
+    .roster-hero .roster-meta { font-size: 10px; gap: 6px; }
+
+    /* Summary view (Members tab): single column */
+    .summary-grid { grid-template-columns: 1fr !important; }
+    .summary-table { font-size: 11px; }
+    .summary-table th, .summary-table td { padding: 5px 6px; }
+
+    /* GL Battle summary (League) layout collapse */
+    .gl-score-board { grid-template-columns: 1fr; gap: 8px; }
+    .gl-stat-grid { grid-template-columns: 1fr; }
+    .gl-grid-2, .gl-under-block { grid-template-columns: 1fr; }
+
+    /* Party layout (League/Overrun): party row stacks */
+    .party-row { grid-template-columns: 1fr 1fr; }    /* 5 slots → 2-col grid */
+    .bg-card { font-size: 11px; }
+    .overrun { grid-template-columns: 1fr; }
+
+    /* Auction assigned row: tighter */
+    .auction-assigned-row { font-size: 11px; padding: 4px 6px; }
+    .auction-assigned-row .aar-name { font-size: 12px; }
+    .auction-assigned-row .aar-job  { font-size: 9px; }
+    .auction-assigned-row .aar-page { font-size: 9px; padding: 1px 5px; }
+
+    /* Sidebar tweaks on mobile */
+    .sidebar { padding: 10px; gap: 8px; }
+    .sidebar h3 { font-size: 13px; }
+    .member-row { padding: 6px 8px; }
+    .member-row .mname { font-size: 13px; }     /* easier to tap */
+
+    /* Dialogs full-width on mobile */
+    dialog { width: 92vw; max-width: 92vw; }
+  }
+
+  /* ===== Small mobile (≤420px) — extreme tweaks ===== */
+  @media (max-width: 420px) {
+    .mode-toggle { max-width: calc(100vw - 240px); }
+    .mode-toggle .seg { padding: 3px 6px; font-size: 9px; }
+    header { padding: 0 4px; gap: 3px; }
+    header .sync-indicator { display: none; }   /* hide on very small */
+    .auction-hero { padding: 10px 12px; }
+    .auction-hero h2 { font-size: 14px; }
+    .auction-section h3 { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -1568,6 +1732,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <header>
+  <button id="hamburgerBtn" class="hamburger-btn" onclick="toggleSidebar()" aria-label="เปิดเมนูรายชื่อ" title="รายชื่อสมาชิก">☰</button>
   <div class="brand">⚔️ ROO Party</div>
   <div class="mode-toggle cols-6" id="modeToggle">
     <button class="seg active" data-mode="league" onclick="switchMode('league')">⚔️ League</button>
@@ -1615,6 +1780,8 @@
   <!-- Center: battlefields -->
   <main class="center" id="center"></main>
 
+  <!-- Mobile sidebar backdrop (click to close) -->
+  <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
 </div>
 
 <!-- Dialogs -->
@@ -1726,6 +1893,27 @@ let state = {
   auctionOverrun: { cards: 0, illusion: 0, white: 0, black: 0,
     assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } }
 };
+
+/* =====================================================================
+ * Responsive sidebar (mobile hamburger overlay)
+ * ===================================================================== */
+function toggleSidebar() {
+  document.body.classList.toggle("sidebar-open");
+}
+function closeSidebar() {
+  document.body.classList.remove("sidebar-open");
+}
+// Close sidebar automatically when viewport grows past mobile breakpoint.
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 700) closeSidebar();
+});
+// Tap a member name in mobile → close sidebar so you can see the result.
+document.addEventListener("click", (e) => {
+  if (window.innerWidth > 700) return;
+  if (!document.body.classList.contains("sidebar-open")) return;
+  const row = e.target.closest && e.target.closest(".member-row");
+  if (row) closeSidebar();
+});
 
 /** Switch between League / Overrun / Summary. */
 function switchMode(newMode) {
