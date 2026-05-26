@@ -434,6 +434,24 @@
   .auction-input-card .ai-status.short { color: var(--danger); }
   .auction-input-card .ai-status.over { color: var(--accent); }
 
+  .auction-search-input {
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .auction-search-input:focus {
+    border-color: #fbbf24;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
+  }
+
   .auction-percent-row {
     display: flex;
     align-items: center;
@@ -1821,11 +1839,11 @@
         <option value="">All Jobs</option>
       </select>
       <label class="toggle">
-        <input type="checkbox" id="hideAssigned" onchange="renderMembers()" />
+        <input type="checkbox" id="hideAssigned" onchange="onSidebarFilterChange(this,'hideAssigned')" />
         <span>ซ่อนคนที่จัดตี้แล้ว</span>
       </label>
       <label class="toggle" id="hideLeaveWrap" style="display:none">
-        <input type="checkbox" id="hideLeave" onchange="renderMembers()" />
+        <input type="checkbox" id="hideLeave" onchange="onSidebarFilterChange(this,'hideLeave')" />
         <span>ซ่อนคนลา</span>
       </label>
     </div>
@@ -3104,15 +3122,42 @@ function leaveField() {
 function leaveEnabled() { return leaveField() !== null; }
 function isOnLeave(m) { const f = leaveField(); return !!f && !!m[f]; }
 
+// Per-page filter state for "ซ่อนคนที่จัดตี้แล้ว" / "ซ่อนคนลา" — each mode
+// (league / overrun / auction-gl / auction-overrun) tracks its own checkbox
+// state in localStorage so toggling on one page doesn't affect others.
+const PER_PAGE_FILTER_KEY = "roo_party_per_page_filters";
+function getPagePref(key) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PER_PAGE_FILTER_KEY) || "{}");
+    return (all[state.mode] || {})[key] || false;
+  } catch { return false; }
+}
+function setPagePref(key, val) {
+  try {
+    const all = JSON.parse(localStorage.getItem(PER_PAGE_FILTER_KEY) || "{}");
+    if (!all[state.mode]) all[state.mode] = {};
+    all[state.mode][key] = !!val;
+    localStorage.setItem(PER_PAGE_FILTER_KEY, JSON.stringify(all));
+  } catch {}
+}
+function onSidebarFilterChange(el, key) {
+  setPagePref(key, el.checked);
+  renderMembers();
+}
+
 function renderMembers() {
   const search = document.getElementById("searchInput").value.trim().toLowerCase();
   const jobF = document.getElementById("jobFilter").value;
-  const hideAssigned = document.getElementById("hideAssigned").checked;
   const leaveOn = leaveEnabled();
   const hideLeaveWrap = document.getElementById("hideLeaveWrap");
   if (hideLeaveWrap) hideLeaveWrap.style.display = leaveOn ? "" : "none";
-  const hideLeaveEl = document.getElementById("hideLeave");
-  const hideLeave = leaveOn && hideLeaveEl && hideLeaveEl.checked;
+  // Restore per-page checkbox state on every render (mode may have changed)
+  const hideAssignedEl = document.getElementById("hideAssigned");
+  const hideLeaveEl    = document.getElementById("hideLeave");
+  const hideAssigned   = getPagePref("hideAssigned");
+  const hideLeave      = leaveOn && getPagePref("hideLeave");
+  if (hideAssignedEl) hideAssignedEl.checked = hideAssigned;
+  if (hideLeaveEl)    hideLeaveEl.checked    = hideLeave;
   const list = document.getElementById("memberList");
 
   // In auction mode, one member can be in multiple buckets — count buckets so
@@ -3536,6 +3581,21 @@ const AUCTION_RATES = {
 };
 const AUCTION_PERCENTS = [0, 50, 70, 100];
 const AUCTION_ITEMS_PER_PAGE = 4;  // Overrun auction-house page size
+
+// Auction search query — guest types own name to find only their rows
+let _auctionSearch = "";
+function auctionSearchInput(v) {
+  _auctionSearch = (v || "").trim().toLowerCase();
+  if (typeof renderBattlefields === "function") renderBattlefields();
+  // Restore focus on the input after re-render
+  setTimeout(() => {
+    const el = document.querySelector(".auction-search-input");
+    if (el) {
+      el.focus();
+      try { el.setSelectionRange(el.value.length, el.value.length); } catch(e){}
+    }
+  }, 0);
+}
 
 /* =====================================================================
  * Sync layer — push state to a GitHub Gist on change (admin), pull every
@@ -4351,8 +4411,6 @@ function buildRosterHtml() {
         <input class="r-search" placeholder="🔎 ค้นหาชื่อ/Job..." oninput="rosterSearchInput(this.value)" value="${escapeHtml(_rosterSearch)}" />
         ${admin ? `
           <button class="primary" onclick="rosterAdd()">➕ เพิ่มสมาชิก</button>
-          <button onclick="rosterImportFromSheet()" title="Import ครั้งเดียวจาก Google Sheet เดิม">📥 Import จาก Sheet</button>
-          <button onclick="rosterDedupe()" title="ลบแถวที่ชื่อ+Job ซ้ำกัน">🔧 Merge ซ้ำ</button>
         ` : `<span style="color:var(--muted);font-size:12px">🔒 Read-only — เฉพาะ CP ที่แก้ได้</span>`}
       </div>
       <div class="roster-table-wrap">
@@ -4744,6 +4802,12 @@ function buildAuctionView(kind) {
     const rows = ids.map((memId, i) => {
       const m = findMember(memId);
       if (!m) return "";
+      // Search filter — if a query is active, hide rows that don't match the
+      // name. Index `i` is preserved so page calculation stays correct for the
+      // visible rows (a person searched mid-list still sees their real page).
+      if (_auctionSearch && !(m.name || "").toLowerCase().includes(_auctionSearch)) {
+        return "";
+      }
       // Items number 1-4 LOCAL to each page (reset whenever the page changes).
       // GL chain → split the person's allocation into segments per real auction
       // page (one badge per page they touch). Overrun → 1 person = 1 batch slot,
@@ -4812,7 +4876,9 @@ function buildAuctionView(kind) {
              ondragover="dragOverEl(event)"
              ondragleave="dragLeaveEl(event)"
              ondrop="dropAuctionColumn(event,'${data.kind}','${field}','${it.key}')">
-          ${rows || `<div class="ac-empty">ลากชื่อจาก sidebar<br>มาวางที่นี่</div>`}
+          ${rows || (_auctionSearch
+            ? `<div class="ac-empty">🔍 ไม่มี "${escapeHtml(_auctionSearch)}"<br>ในคอลัมน์นี้</div>`
+            : `<div class="ac-empty">ลากชื่อจาก sidebar<br>มาวางที่นี่</div>`)}
         </div>
         <div class="ac-actions">
           <button onclick="autoFillAuctionColumn('${data.kind}','${field}','${it.key}')">✨ ใส่ทุกคน</button>
@@ -4831,6 +4897,18 @@ function buildAuctionView(kind) {
   const mainHeader = data.hasSubField
     ? "👥 สนามหลัก (70%) — ลากชื่อจาก sidebar มาวางในคอลัมน์"
     : "👥 รายชื่อรับของ — ลากชื่อจาก sidebar มาวางในคอลัมน์";
+
+  // Search input — lets guests filter by their name to see only their rows.
+  // The search applies to BOTH main + sub columns; columns without a match
+  // show a placeholder so it's clear "ไม่มีชื่อนี้ในคอลัมน์นี้".
+  const searchSection = `
+    <div class="auction-section" style="padding:10px 14px">
+      <input class="auction-search-input"
+             placeholder="🔎 ค้นหาชื่อตัวเอง — แสดงเฉพาะแถวที่มีชื่อนี้ (ใส่ทีละ 1 ชื่อ)"
+             value="${escapeHtml(_auctionSearch || "")}"
+             oninput="auctionSearchInput(this.value)" />
+      ${_auctionSearch ? `<button onclick="auctionSearchInput('')" style="margin-left:6px;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px">ล้างค้นหา</button>` : ""}
+    </div>`;
   const memberSection = `
     <div class="auction-section">
       <h3>${mainHeader}</h3>
@@ -4879,6 +4957,8 @@ function buildAuctionView(kind) {
         </table>
         ${warning}
       </div>
+
+      ${searchSection}
 
       ${memberSection}
 
