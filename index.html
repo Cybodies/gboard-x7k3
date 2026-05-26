@@ -261,6 +261,25 @@
     font-family: inherit;
   }
   .roster-table input.r-input:focus { border-color: #10b981; outline: none; }
+  .roster-table select.r-job-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 24px 5px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23858e9c' d='M0 0l5 6 5-6z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    cursor: pointer;
+  }
+  .roster-table select.r-job-select:focus { border-color: #10b981; outline: none; }
+  .roster-table select.r-job-select option { background: var(--bg-2); color: var(--text); }
   .roster-table input.r-cp {
     text-align: right;
     font-family: monospace;
@@ -3582,6 +3601,18 @@ const AUCTION_RATES = {
 const AUCTION_PERCENTS = [0, 50, 70, 100];
 const AUCTION_ITEMS_PER_PAGE = 4;  // Overrun auction-house page size
 
+// Canonical job list shown in the Roster Job dropdown. Any existing job that
+// doesn't match (e.g. legacy data from the Sheet) is preserved as a "(custom)"
+// option so it isn't silently overwritten.
+const JOB_LIST = [
+  "Paladin", "Lord Knight", "Champion",
+  "Wizard", "Professor",
+  "Assassin", "Stalker",
+  "Mastersmith", "Biochemist",
+  "Sniper", "Bard", "Summoner",
+  "High Priest", "Dancer"
+];
+
 // Auction search query — guest types own name to find only their rows
 let _auctionSearch = "";
 function auctionSearchInput(v) {
@@ -4131,7 +4162,7 @@ function rosterAdd() {
   if (!_fbMembersRef) { toast("Firebase ยังไม่ตั้งค่า", "error"); return; }
   const name = prompt("ชื่อตัวละคร (Guild Member):");
   if (!name || !name.trim()) return;
-  const job     = prompt("Job:", "") || "";
+  const job     = prompt(`Job (ปล่อยว่างได้ — เลือกจาก dropdown หลังเพิ่ม):\n\n${JOB_LIST.join(" / ")}`, "") || "";
   const discord = prompt("Discord username:", "") || "";
   _fbMembersRef.push({
     name:    name.trim(),
@@ -4294,7 +4325,18 @@ function buildRosterRowsHtml() {
         ? `<input class="r-input" value="${escapeHtml(m.name)}" onchange="rosterUpdate('${m.id}','name',this.value)" />`
         : `<div class="r-cell-static">${escapeHtml(m.name)}</div>`}</td>
       <td data-label="Job">${admin
-        ? `<input class="r-input" value="${escapeHtml(m.job)}" onchange="rosterUpdate('${m.id}','job',this.value)" />`
+        ? (() => {
+            const cur = m.job || "";
+            const inList = JOB_LIST.includes(cur);
+            const opts = JOB_LIST.map(j =>
+              `<option value="${j}" ${j === cur ? "selected" : ""}>${j}</option>`).join("");
+            const customOpt = (cur && !inList)
+              ? `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (custom)</option>`
+              : `<option value="" ${!cur ? "selected" : ""}>— เลือก Job —</option>`;
+            return `<select class="r-input r-job-select" onchange="rosterUpdate('${m.id}','job',this.value)">
+              ${customOpt}${opts}
+            </select>`;
+          })()
         : `<div class="r-cell-static r-job">${escapeHtml(m.job)}</div>`}</td>
       <td data-label="Discord">${admin
         ? `<input class="r-input" value="${escapeHtml(m.discord || "")}" placeholder="@username" onchange="rosterUpdate('${m.id}','discord',this.value)" />`
