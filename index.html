@@ -3684,17 +3684,21 @@ async function initSync() {
  *   • Replace the Google Sheet as source of truth for state.members.
  * ===================================================================== */
 const FIREBASE_CONFIG = {
-  /* PASTE FROM FIREBASE CONSOLE: Project Settings → Web app → SDK setup
-     The apiKey here is NOT a secret — it identifies the project; real
-     access control lives in Realtime Database Rules. */
-  apiKey:        "TODO_REPLACE_ME",
-  authDomain:    "TODO_REPLACE_ME",
-  databaseURL:   "TODO_REPLACE_ME",
-  projectId:     "TODO_REPLACE_ME",
-  storageBucket: "TODO_REPLACE_ME",
-  messagingSenderId: "TODO_REPLACE_ME",
-  appId:         "TODO_REPLACE_ME"
+  apiKey:            "AIzaSyDgMMw5_T_LaX297i0NyXdSZBfs06odDUQ",
+  authDomain:        "woe-party.firebaseapp.com",
+  databaseURL:       "https://woe-party-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "woe-party",
+  storageBucket:     "woe-party.firebasestorage.app",
+  messagingSenderId: "992111979010",
+  appId:             "1:992111979010:web:206138501fc4eb8a86d51b"
 };
+
+// Admin emails (hardcoded). Anyone else who signs in is treated as guest.
+// To add more admins: append to this array + redeploy, or use Firebase Console
+// to add /config/admins/{email-with-dots-as-underscores}: true at runtime.
+const ADMIN_EMAILS = [
+  // TODO_ADMIN_EMAIL — paste your Gmail here, e.g. "cybodies@gmail.com"
+];
 
 let _fbApp = null, _fbDB = null, _fbAuth = null, _fbRosterRef = null;
 let rosterCache = [];         // sorted by name asc
