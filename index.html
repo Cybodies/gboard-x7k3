@@ -4044,7 +4044,18 @@ function toggleLeave(id) {
 // Uses explicit \uXXXX escapes so the regex isn't dependent on the source file
 // being saved as a specific encoding.
 function isVisuallyBlank(s) {
-  return !((s || "").replace(/[\s​‌‍﻿]/g, "").length);
+  if (s === null || s === undefined) return true;
+  // Strip all whitespace + Unicode control + format + separator chars
+  // (ZWSP, ZWNJ, ZWJ, BOM, RTL/LTR marks, soft hyphen, word joiner,
+  // invisible math operators, etc.). Anything that survives is a real
+  // visible glyph; if nothing survives, the field renders empty in the
+  // browser even though the underlying string has length > 0.
+  try {
+    return String(s).replace(/[\s\p{C}\p{Z}]/gu, "").length === 0;
+  } catch (_) {
+    // Older runtime without \p{} support — fall back to the legacy regex.
+    return !((s || "").replace(/[\s​‌‍﻿]/g, "").length);
+  }
 }
 // "Ghost" for slot-display purposes: missing entirely, OR missing EITHER a
 // usable name OR a usable job. A slot member needs BOTH to be considered a
@@ -4955,7 +4966,33 @@ function fbSubscribeAll() {
     if (typeof render === "function") render();
     if (typeof toast === "function") {
       if (cleared) toast(`🧹 ซ่อม ${cleared} ช่องผีแล้ว`, "success");
-      else         toast("ไม่พบช่องผีที่ต้องซ่อม", "");
+      else {
+        toast("ไม่พบช่องผีตามเกณฑ์อัตโนมัติ — ดู Console สำหรับรายการ slot ที่น่าสงสัย หรือกด × ที่ slot นั้นเองได้", "");
+        // Dump every populated slot's raw member data + char-by-char codes
+        // so we can see what unicode the "ghost" actually contains.
+        const dump = [];
+        const scan = (kind, parties) => {
+          if (!Array.isArray(parties)) return;
+          parties.forEach((p, pi) => {
+            if (!p || !Array.isArray(p.slots)) return;
+            p.slots.forEach((id, si) => {
+              if (!id) return;
+              const m = findMember(id);
+              dump.push({
+                kind, party: pi + 1, slot: si + 1, memId: id,
+                name: m ? m.name : "(NO MEMBER)",
+                job:  m ? m.job  : "(NO MEMBER)",
+                nameCodes: m && m.name ? [...m.name].map(c => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" ") : "",
+                jobCodes:  m && m.job  ? [...m.job ].map(c => "U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4,"0")).join(" ") : ""
+              });
+            });
+          });
+        };
+        scan("league",  state.partiesLeague);
+        scan("overrun", state.partiesOverrun);
+        console.table(dump);
+        console.log("[repair] no auto-detected ghosts; full slot dump above. ส่งภาพ console มาให้ดูได้ครับ");
+      }
     }
     return cleared > 0;
   };
