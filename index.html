@@ -144,6 +144,9 @@
   .mode-toggle.leave-active .seg-indicator {
     background: linear-gradient(90deg, #f97316, #facc15);
   }
+  .mode-toggle.auction-request-active .seg-indicator {
+    background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  }
 
   /* ===== Leave page ===== */
   .leave-view {
@@ -305,6 +308,199 @@
   body[data-mode="leave"] .layout           { grid-template-columns: 1fr !important; }
   body[data-mode="leave"] .hamburger-btn    { display: none; }
   body[data-mode="leave"] .sidebar-backdrop { display: none !important; }
+
+  body[data-mode="auction-request"] .sidebar          { display: none; }
+  body[data-mode="auction-request"] .layout           { grid-template-columns: 1fr !important; }
+  body[data-mode="auction-request"] .hamburger-btn    { display: none; }
+  body[data-mode="auction-request"] .sidebar-backdrop { display: none !important; }
+
+  /* ===== Auction Request page ===== */
+  .ar-view { display: flex; flex-direction: column; gap: 14px; }
+  .ar-hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #3b0764 100%);
+    border: 1px solid #4c1d95;
+    border-left: 4px solid #a855f7;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .ar-hero h2 { margin: 0; color: #c4b5fd; font-size: 18px; }
+  .ar-hero .ar-meta { color: var(--muted); font-size: 13px; }
+  .ar-hero .ar-meta b { color: #f9a8d4; }
+  .ar-section {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .ar-section h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--text); }
+  .ar-claim {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .ar-claim label { color: var(--muted); font-size: 12px; }
+  .ar-claim select, .ar-claim input {
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; font-size: 13px; min-width: 180px;
+  }
+  .ar-claim button {
+    background: #a855f7; color: white; border: none; border-radius: 6px;
+    padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 700;
+  }
+  .ar-claim button.ghost {
+    background: var(--bg-2); color: var(--text); border: 1px solid var(--border);
+  }
+  .ar-claim .ar-claimed {
+    background: #1e1b4b; border: 1px solid #6d28d9; color: #c4b5fd;
+    padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 13px;
+  }
+  .ar-day-tabs {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .ar-day-tab {
+    background: var(--bg-2); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 12px; cursor: pointer; font-size: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    min-width: 80px;
+  }
+  .ar-day-tab.active { background: #6d28d9; color: white; border-color: #a855f7; }
+  .ar-day-tab .ar-day-num { font-size: 14px; font-weight: 700; }
+  .ar-day-tab .ar-day-mode { font-size: 10px; }
+  .ar-day-tab.has-gl { border-left: 3px solid #fbbf24; }
+  .ar-day-tab.has-overrun { border-right: 3px solid #f97316; }
+  .ar-day-tab.has-both { border-left: 3px solid #fbbf24; border-right: 3px solid #f97316; }
+  .ar-day-tab.closed { opacity: 0.5; cursor: not-allowed; }
+
+  .ar-request-btn {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 700;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ar-request-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(168,85,247,0.4); }
+  .ar-request-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .ar-my-list { display: flex; flex-direction: column; gap: 8px; }
+  .ar-req-row {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .ar-req-row.pending  { border-left: 3px solid #fbbf24; }
+  .ar-req-row.approved { border-left: 3px solid var(--success); }
+  .ar-req-row.rejected { border-left: 3px solid var(--danger); opacity: 0.7; }
+  .ar-req-row .ar-name { font-weight: 700; min-width: 120px; }
+  .ar-req-row .ar-job { color: var(--muted); font-size: 11px; }
+  .ar-req-row .ar-items { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ar-req-row .ar-item-chip {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 999px; padding: 2px 8px; font-size: 11px;
+  }
+  .ar-req-row .ar-prio {
+    background: #312e81; color: #c4b5fd; border-radius: 4px;
+    padding: 2px 6px; font-size: 11px; font-weight: 700;
+  }
+  .ar-req-row .ar-field-tag {
+    background: #064e3b; color: #6ee7b7; border-radius: 4px;
+    padding: 2px 6px; font-size: 11px;
+  }
+  .ar-req-row .ar-field-tag.sub { background: #422006; color: #fdba74; }
+  .ar-req-row .ar-status-tag {
+    margin-left: auto; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 700;
+  }
+  .ar-req-row .ar-status-tag.pending  { background: rgba(251,191,36,0.18); color: #fbbf24; }
+  .ar-req-row .ar-status-tag.approved { background: rgba(34,197,94,0.18); color: var(--success); }
+  .ar-req-row .ar-status-tag.rejected { background: rgba(248,113,113,0.18); color: var(--danger); }
+  .ar-req-row .ar-action-btn {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; padding: 4px 10px;
+    cursor: pointer; font-size: 11px;
+  }
+  .ar-req-row .ar-action-btn.approve { background: #064e3b; border-color: #10b981; color: #6ee7b7; }
+  .ar-req-row .ar-action-btn.reject  { background: #450a0a; border-color: #ef4444; color: #fca5a5; }
+  .ar-req-row .ar-note {
+    flex-basis: 100%; color: var(--muted); font-size: 11px; font-style: italic;
+    margin-top: 2px;
+  }
+
+  .ar-queue-empty {
+    text-align: center; color: var(--muted); padding: 20px;
+    font-size: 13px;
+  }
+  .ar-queue-group {
+    margin-bottom: 14px;
+  }
+  .ar-queue-group h4 {
+    margin: 0 0 6px 0; font-size: 12px; color: #a855f7; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ar-bulk-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .ar-bulk-bar button {
+    background: var(--bg-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px;
+  }
+  .ar-bulk-bar button.primary { background: #6d28d9; border-color: #a855f7; color: white; font-weight: 700; }
+  .ar-bulk-bar button.danger { background: #450a0a; border-color: #b91c1c; color: #fca5a5; }
+
+  /* Modal */
+  .ar-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .ar-modal {
+    background: var(--panel); border: 1px solid var(--border-2);
+    border-radius: 10px; padding: 18px;
+    max-width: 480px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .ar-modal h3 { margin: 0 0 12px 0; color: #c4b5fd; font-size: 16px; }
+  .ar-modal .ar-item-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 6px; margin-bottom: 6px; cursor: pointer;
+  }
+  .ar-modal .ar-item-row:hover { border-color: #a855f7; }
+  .ar-modal .ar-item-row.selected { background: #1e1b4b; border-color: #a855f7; }
+  .ar-modal .ar-item-row .ar-routing {
+    margin-left: auto; font-size: 11px; color: var(--muted);
+  }
+  .ar-modal .ar-item-row .ar-routing b { color: #6ee7b7; }
+  .ar-modal .ar-item-row .ar-routing.sub b { color: #fdba74; }
+  .ar-modal .ar-prio-row {
+    display: flex; gap: 6px; align-items: center; margin: 10px 0;
+  }
+  .ar-modal .ar-prio-btn {
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px;
+  }
+  .ar-modal .ar-prio-btn.active { background: #6d28d9; border-color: #a855f7; color: white; font-weight: 700; }
+  .ar-modal textarea {
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px; font-size: 13px; width: 100%; resize: vertical;
+    font-family: inherit;
+  }
+  .ar-modal-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;
+  }
+  .ar-modal-actions button {
+    background: var(--bg-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px;
+  }
+  .ar-modal-actions button.primary {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white; border: none; font-weight: 700;
+  }
+
+  @media (max-width: 700px) {
+    .ar-claim select, .ar-claim input { min-width: 0; flex: 1; }
+    .ar-day-tab { min-width: 64px; padding: 5px 8px; }
+    .ar-req-row { font-size: 12px; }
+    .ar-req-row .ar-name { min-width: 0; flex: 1; }
+  }
 
   /* ===== Roster page (Firebase-synced member table) ===== */
   .roster-view {
@@ -2211,12 +2407,13 @@
 <header>
   <button id="hamburgerBtn" class="hamburger-btn" onclick="toggleSidebar()" aria-label="เปิดเมนูรายชื่อ" title="รายชื่อสมาชิก">☰</button>
   <div class="brand">⚔️ ROO Party</div>
-  <div class="mode-toggle cols-6" id="modeToggle">
+  <div class="mode-toggle cols-7" id="modeToggle">
     <button class="seg active" data-mode="league" onclick="switchMode('league')">⚔️ League</button>
     <button class="seg" data-mode="overrun" onclick="switchMode('overrun')">🏆 Overrun</button>
     <button class="seg" data-mode="roster" onclick="switchMode('roster')">📋 Roster</button>
     <button class="seg" data-mode="auction-gl" onclick="switchMode('auction-gl')">🎴 Auction GL</button>
     <button class="seg" data-mode="auction-overrun" onclick="switchMode('auction-overrun')">🎴 Auction Overrun</button>
+    <button class="seg" data-mode="auction-request" onclick="switchMode('auction-request')">🙋 ขอประมูล</button>
     <button class="seg" data-mode="leave" onclick="switchMode('leave')">🌴 ลา</button>
     <span class="seg-indicator"></span>
   </div>
@@ -2226,6 +2423,7 @@
     <option value="roster">📋 Roster</option>
     <option value="auction-gl">🎴 Auction GL</option>
     <option value="auction-overrun">🎴 Auction Overrun</option>
+    <option value="auction-request">🙋 ขอประมูล</option>
     <option value="leave">🌴 ลา</option>
   </select>
   <span class="status" id="statusInfo">Loading…</span>
@@ -2373,7 +2571,13 @@ let state = {
   leaves: {},
   // Bookkeeping for the auto-clear job. Strings are BKK dates so they're
   // stable across timezones / DST.
-  system: { lastDailyReset: "", lastWeeklyReset: "" }
+  system: { lastDailyReset: "", lastWeeklyReset: "" },
+  // Auction Request feature — per-date guest requests + admin queue.
+  //   auctionRequests["YYYY-MM-DD"]["gl"|"overrun"][requestId] = { ... }
+  // auctionDays["YYYY-MM-DD"] = { gl: bool, overrun: bool }
+  // Both are mirrored to Firebase at /auction_requests and /auction_days.
+  auctionRequests: {},
+  auctionDays: {}
 };
 
 /* ---------- BKK timezone helpers (used by Leave page + auto-clear) ----- */
@@ -2489,6 +2693,7 @@ function updateModeToggleUI() {
   t.classList.toggle("summary-active", state.mode === "summary");
   t.classList.toggle("auction-gl-active", state.mode === "auction-gl");
   t.classList.toggle("auction-overrun-active", state.mode === "auction-overrun");
+  t.classList.toggle("auction-request-active", state.mode === "auction-request");
   t.classList.toggle("leave-active", state.mode === "leave");
   positionModeIndicator();
 }
@@ -4632,6 +4837,26 @@ function fbSubscribeAll() {
     safeRender();
   });
 
+  // auction_requests: per-date guest requests + admin queue. Lives entirely
+  // in Firebase so multiple guests see updates instantly; we keep a local
+  // mirror in state.auctionRequests for render.
+  _fbDB.ref("auction_requests").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    state.auctionRequests = v;
+    _fbApplyingRemote = false;
+    if (typeof render === "function" && state.mode === "auction-request") render();
+  });
+
+  // auction_days: per-date "is GL/Overrun open for requests" flags. Admin-only.
+  _fbDB.ref("auction_days").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    state.auctionDays = v;
+    _fbApplyingRemote = false;
+    if (typeof render === "function" && state.mode === "auction-request") render();
+  });
+
   // system: reset bookkeeping. Read-only for most of the app, written only by
   // autoCheckResets() when crossing a reset boundary.
   _fbDB.ref("system").on("value", snap => {
@@ -4684,6 +4909,9 @@ function autoCheckResets() {
       // Guests can't write to /members. The next admin login will pick this up.
       console.log("[reset] daily: skipped (guest cannot clear manual flags) — admin will clear on next login");
     }
+    // Auction-request: drop any past-date auction request branches so /auction_requests
+    // never grows unbounded. Admin-only; guests skip and the next admin login picks it up.
+    if (typeof arAutoClearPast === "function") arAutoClearPast();
   }
   // Weekly reset: wipe /leaves/ every Monday 00:00 BKK. Stamp uses the
   // Monday ISO so "lastWeeklyReset = <this Monday>" means we're up to date.
@@ -5667,6 +5895,613 @@ function buildAuctionGlHtml()      { return buildAuctionView("gl"); }
 function buildAuctionOverrunHtml() { return buildAuctionView("overrun"); }
 
 /* =====================================================================
+ * Auction Request page (ขอประมูล)
+ * =====================================================================
+ * Guest claims their identity, picks date + items, submits a request.
+ * Admin sees a queue grouped by item × main/sub, approves/rejects.
+ * Auto-routes (main vs sub) by checking which party the member is in.
+ * Auto-cuts when an item's capacity is reached.
+ * Auto-clears on the day after activity ends.
+ *
+ * Data shape (Firebase):
+ *   /auction_requests/{date}/{mode}/{requestId} = {
+ *     id, memberId, memberName, items: ["cards", ...], priority,
+ *     note, status, computedField, requestedAt, decidedAt, decidedBy,
+ *     rejectReason
+ *   }
+ *   /auction_days/{date} = { gl: bool, overrun: bool }
+ */
+const AR_MAX_DAYS_AHEAD = 7;            // can request up to today+7 days
+const AR_CLAIMED_KEY    = "roo_party_claimed_member";
+const AR_ITEM_META = {
+  cards:    { label: "🎴 การ์ด",         rateKey: "card",     unit: "ใบ"   },
+  illusion: { label: "🔮 Illusion Frag.", rateKey: "illusion", unit: "ชิ้น" },
+  white:    { label: "🪶 ขนขาว",         rateKey: "white",    unit: "ขน"   },
+  black:    { label: "🪶 ขนดำ",          rateKey: "black",    unit: "ขน"   }
+};
+
+// View state for the request page (not persisted; rebuilt on render)
+let _arSelectedDate = null;
+let _arModalState   = null;  // { date, mode, items: Set, priority, note } when modal open
+
+function arGetClaimedMemberId() {
+  return localStorage.getItem(AR_CLAIMED_KEY) || "";
+}
+function arSetClaimedMember(id) {
+  if (id) localStorage.setItem(AR_CLAIMED_KEY, id);
+  else    localStorage.removeItem(AR_CLAIMED_KEY);
+  render();
+}
+
+function arGetDateRange() {
+  // Today plus next AR_MAX_DAYS_AHEAD days, BKK timezone
+  const out = [];
+  for (let i = 0; i < AR_MAX_DAYS_AHEAD; i++) {
+    out.push(addDaysBkkISO(todayBkkISO(), i));
+  }
+  return out;
+}
+
+// Add N days to an ISO yyyy-mm-dd string (BKK). N can be 0.
+function addDaysBkkISO(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + n);
+  return dt.toISOString().slice(0, 10);
+}
+
+function arDayActive(date) {
+  const d = (state.auctionDays && state.auctionDays[date]) || {};
+  return { gl: !!d.gl, overrun: !!d.overrun };
+}
+
+function arSetDayActive(date, mode, active) {
+  if (!isAdmin() || !_fbDB) { toast("ต้องเป็น admin", "error"); return; }
+  _fbDB.ref(`auction_days/${date}/${mode}`).set(!!active);
+}
+
+/** Detect main/sub for a member in a given mode. Returns "main" | "sub" | null. */
+function arDetectField(memberId, mode) {
+  const parties = mode === "gl" ? state.partiesLeague : state.partiesOverrun;
+  if (!Array.isArray(parties)) return null;
+  for (let i = 0; i < parties.length; i++) {
+    const p = parties[i];
+    if (p && Array.isArray(p.slots) && p.slots.includes(memberId)) {
+      // Parties 1-8 (index 0-7) = main field; 9-16 = sub field
+      return i < 8 ? "main" : "sub";
+    }
+  }
+  return null;
+}
+
+function arGetRequests(date, mode) {
+  const all = (state.auctionRequests && state.auctionRequests[date]) || {};
+  const list = (all[mode]) || {};
+  return Object.values(list).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+}
+
+function arGetMyRequests(memberId) {
+  if (!memberId || !state.auctionRequests) return [];
+  const out = [];
+  Object.entries(state.auctionRequests).forEach(([date, byMode]) => {
+    Object.entries(byMode || {}).forEach(([mode, byId]) => {
+      Object.values(byId || {}).forEach(r => {
+        if (r.memberId === memberId) out.push({ ...r, date, mode });
+      });
+    });
+  });
+  return out.sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
+}
+
+function arCreateRequest({ date, mode, items, priority, note }) {
+  if (!_fbDB) { toast("Firebase ยังไม่พร้อม", "error"); return; }
+  const memberId = arGetClaimedMemberId();
+  if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
+  const m = findMember(memberId);
+  if (!m) { toast("ไม่พบสมาชิก", "error"); return; }
+  if (!Array.isArray(items) || items.length === 0) { toast("เลือกของอย่างน้อย 1 อย่าง", "error"); return; }
+  const active = arDayActive(date);
+  if (!active[mode]) { toast(`วันที่ ${date} ยังไม่เปิดรับ ${mode === "gl" ? "GL" : "Overrun"}`, "error"); return; }
+
+  // Block duplicate: same member + same date+mode + overlapping items
+  const existing = arGetRequests(date, mode).filter(r =>
+    r.memberId === memberId && r.status !== "rejected" && r.status !== "withdrawn"
+  );
+  const conflict = existing.find(r => (r.items || []).some(it => items.includes(it)));
+  if (conflict) { toast("คุณขอของบางอย่างไปแล้ว ไปดูในคำขอของฉัน", "error"); return; }
+
+  const id = "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+  const computedField = arDetectField(memberId, mode);
+  const req = {
+    id,
+    memberId,
+    memberName: m.name || "",
+    items: items.slice(),
+    priority: Math.max(1, Math.min(4, priority | 0 || 1)),
+    note: (note || "").slice(0, 200),
+    status: "pending",
+    computedField,
+    requestedAt: Date.now(),
+    decidedAt: null,
+    decidedBy: null,
+    rejectReason: null
+  };
+  _fbDB.ref(`auction_requests/${date}/${mode}/${id}`).set(req)
+    .then(() => toast("✅ ส่งคำขอแล้ว — รอ admin อนุมัติ", "success"))
+    .catch(e => toast("ส่งไม่สำเร็จ: " + e.message, "error"));
+}
+
+function arApproveRequest(date, mode, requestId) {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  const r = ((state.auctionRequests || {})[date] || {})[mode] || {};
+  const req = r[requestId];
+  if (!req) return;
+  if (req.status === "approved") return;
+  // Place into auction column(s)
+  const field = req.computedField || arDetectField(req.memberId, mode) || "main";
+  const auctionKey = mode === "gl" ? "auctionGL" : "auctionOverrun";
+  const obj = state[auctionKey];
+  if (!obj) { toast("ยังไม่ได้ตั้งค่า auction state", "error"); return; }
+  if (!obj.assignments) obj.assignments = { main: {}, sub: {} };
+  ["main","sub"].forEach(f => {
+    if (!obj.assignments[f]) obj.assignments[f] = { cards: [], illusion: [], white: [], black: [] };
+    ["cards","illusion","white","black"].forEach(k => {
+      if (!Array.isArray(obj.assignments[f][k])) obj.assignments[f][k] = [];
+    });
+  });
+  (req.items || []).forEach(item => {
+    const bucket = obj.assignments[field][item];
+    if (bucket && !bucket.includes(req.memberId)) bucket.push(req.memberId);
+  });
+  // Persist auction state
+  if (_fbDB) _fbDB.ref(mode === "gl" ? "auction_gl" : "auction_overrun").set(obj);
+  // Mark request approved
+  _fbDB.ref(`auction_requests/${date}/${mode}/${requestId}`).update({
+    status: "approved",
+    decidedAt: Date.now(),
+    decidedBy: (_fbUser && _fbUser.email) || "admin",
+    computedField: field
+  });
+}
+
+function arRejectRequest(date, mode, requestId, reason) {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  // If was previously approved, also remove from auction columns
+  const r = ((state.auctionRequests || {})[date] || {})[mode] || {};
+  const req = r[requestId];
+  if (req && req.status === "approved") {
+    const auctionKey = mode === "gl" ? "auctionGL" : "auctionOverrun";
+    const obj = state[auctionKey];
+    const field = req.computedField || "main";
+    if (obj && obj.assignments && obj.assignments[field]) {
+      (req.items || []).forEach(item => {
+        const arr = obj.assignments[field][item];
+        if (Array.isArray(arr)) {
+          const idx = arr.indexOf(req.memberId);
+          if (idx >= 0) arr.splice(idx, 1);
+        }
+      });
+      if (_fbDB) _fbDB.ref(mode === "gl" ? "auction_gl" : "auction_overrun").set(obj);
+    }
+  }
+  _fbDB.ref(`auction_requests/${date}/${mode}/${requestId}`).update({
+    status: "rejected",
+    decidedAt: Date.now(),
+    decidedBy: (_fbUser && _fbUser.email) || "admin",
+    rejectReason: reason || ""
+  });
+}
+
+function arWithdrawRequest(date, mode, requestId) {
+  const r = ((state.auctionRequests || {})[date] || {})[mode] || {};
+  const req = r[requestId];
+  if (!req) return;
+  const me = arGetClaimedMemberId();
+  if (req.memberId !== me && !isAdmin()) { toast("ถอนคำขอของคนอื่นไม่ได้", "error"); return; }
+  if (req.status === "approved") { toast("Admin อนุมัติแล้ว ถอนเองไม่ได้", "error"); return; }
+  _fbDB.ref(`auction_requests/${date}/${mode}/${requestId}`).remove();
+}
+
+/** Bulk approve with auto-cut. Walks the pending queue oldest-first (main
+ *  before sub), tracking per-bucket usage against capacity (pool / rate).
+ *  Requests that fit go to "approved" + auction column. Requests that
+ *  would push ANY of their items past capacity go straight to "rejected"
+ *  with reason "เกิน quota". Single pass — no follow-up needed.
+ */
+function arBulkApprove(date, mode) {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  if (!confirm(`จัดสรรอัตโนมัติทุก request ของ ${date} (${mode === "gl" ? "GL" : "Overrun"})?`)) return;
+  const auctionData = (typeof computeAuction === "function") ? computeAuction(mode) : null;
+  if (!auctionData) { toast("ยังไม่ได้ตั้งค่า base ของไอเทม", "error"); return; }
+
+  // Build the priority queue: main first, then sub, then oldest first.
+  const pending = arGetRequests(date, mode)
+    .filter(r => r.status === "pending")
+    .sort((a, b) => {
+      const fa = a.computedField === "sub" ? 1 : 0;
+      const fb = b.computedField === "sub" ? 1 : 0;
+      if (fa !== fb) return fa - fb;
+      if ((a.priority || 1) !== (b.priority || 1)) return (a.priority || 1) - (b.priority || 1);
+      return (a.requestedAt || 0) - (b.requestedAt || 0);
+    });
+
+  // Track usage already committed during this bulk pass (since Firebase
+  // writes are async, side.count from auctionData reflects pre-bulk state).
+  const used = {};  // key = `${field}_${item}`, value = count of slots taken
+  const capacityOf = (field, item) => {
+    const it = auctionData.items.find(x => x.key === item);
+    if (!it) return 0;
+    if (mode === "overrun" && field === "sub") return 0;
+    const side = it[field];
+    const rate = it.rate || 1;
+    return Math.floor((side.pool || 0) / rate);
+  };
+  // Pre-load "used" with current approved counts so we don't double-allocate
+  ["cards","illusion","white","black"].forEach(item => {
+    ["main","sub"].forEach(field => {
+      const it = auctionData.items.find(x => x.key === item);
+      if (!it) return;
+      used[`${field}_${item}`] = (it[field] && it[field].count) || 0;
+    });
+  });
+
+  let approvedN = 0, cutN = 0;
+  pending.forEach(r => {
+    const field = r.computedField || arDetectField(r.memberId, mode) || "main";
+    let firstFullItem = null;
+    // Check fit: every requested item must have room in (capacity - used)
+    (r.items || []).forEach(item => {
+      if (firstFullItem) return;
+      const cap = capacityOf(field, item);
+      const u   = used[`${field}_${item}`] || 0;
+      if (u >= cap) firstFullItem = item;
+    });
+
+    if (firstFullItem) {
+      const label = AR_ITEM_META[firstFullItem] ? AR_ITEM_META[firstFullItem].label : firstFullItem;
+      _fbDB.ref(`auction_requests/${date}/${mode}/${r.id}`).update({
+        status: "rejected",
+        decidedAt: Date.now(),
+        decidedBy: "auto-cut",
+        rejectReason: `เกิน quota (${label} ${field === "main" ? "สนามหลัก" : "สนามรอง"} เต็ม)`,
+        computedField: field
+      });
+      cutN++;
+    } else {
+      (r.items || []).forEach(item => {
+        used[`${field}_${item}`] = (used[`${field}_${item}`] || 0) + 1;
+      });
+      arApproveRequest(date, mode, r.id);
+      approvedN++;
+    }
+  });
+  toast(`✅ อนุมัติ ${approvedN} คน · ตัด ${cutN} คน (เกิน quota)`, "success");
+}
+
+function arClearDay(date) {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  if (!confirm(`ล้างคำขอทั้งหมดของ ${date}?`)) return;
+  _fbDB.ref(`auction_requests/${date}`).remove();
+  _fbDB.ref(`auction_days/${date}`).remove();
+}
+
+/** Auto-clear past dates (anything before today). Called periodically. */
+function arAutoClearPast() {
+  if (!isAdmin() || !_fbDB || !state.auctionRequests) return;
+  const today = todayBkkISO();
+  Object.keys(state.auctionRequests || {}).forEach(date => {
+    if (date < today) _fbDB.ref(`auction_requests/${date}`).remove();
+  });
+  Object.keys(state.auctionDays || {}).forEach(date => {
+    if (date < today) _fbDB.ref(`auction_days/${date}`).remove();
+  });
+}
+
+/* ---------- Modal helpers ---------- */
+function arOpenRequestModal(date, mode) {
+  const memberId = arGetClaimedMemberId();
+  if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
+  if (!findMember(memberId)) { toast("ไม่พบสมาชิก — เลือกใหม่", "error"); return; }
+  _arModalState = { date, mode, items: new Set(), priority: 1, note: "" };
+  render();
+}
+function arCloseModal() {
+  _arModalState = null;
+  render();
+}
+function arToggleModalItem(item) {
+  if (!_arModalState) return;
+  if (_arModalState.items.has(item)) _arModalState.items.delete(item);
+  else                                _arModalState.items.add(item);
+  render();
+}
+function arSetModalPriority(p) {
+  if (!_arModalState) return;
+  _arModalState.priority = p;
+  render();
+}
+function arSetModalNote(v) {
+  if (!_arModalState) return;
+  _arModalState.note = v;
+}
+function arSubmitModal() {
+  if (!_arModalState) return;
+  const { date, mode, items, priority, note } = _arModalState;
+  arCreateRequest({ date, mode, items: Array.from(items), priority, note });
+  _arModalState = null;
+  render();
+}
+
+/* ---------- Page render ---------- */
+function buildAuctionRequestHtml() {
+  // Initialize selected date to today on first render
+  const dateRange = arGetDateRange();
+  if (!_arSelectedDate || !dateRange.includes(_arSelectedDate)) _arSelectedDate = dateRange[0];
+  const claimedId = arGetClaimedMemberId();
+  const claimed = claimedId ? findMember(claimedId) : null;
+  const admin = isAdmin();
+  const date = _arSelectedDate;
+  const active = arDayActive(date);
+
+  // ---- Hero ----
+  const hero = `
+    <div class="ar-hero">
+      <div>
+        <h2>🙋 Auction Request</h2>
+        <div class="ar-meta">ขอประมูลล่วงหน้า — แอดมินจัดให้ลงสนามหลัก/รองอัตโนมัติ</div>
+      </div>
+      <div style="flex:1"></div>
+      <div class="ar-meta">
+        <b>📅 ${date}</b> · ${active.gl ? "🟢 GL" : "⚪ GL"} · ${active.overrun ? "🟢 Overrun" : "⚪ Overrun"}
+        <br><span style="font-size:11px">ประมูล 21:00–22:00 ของวันกิจกรรม</span>
+      </div>
+    </div>`;
+
+  // ---- Claim ----
+  const claimSection = claimed ? `
+    <div class="ar-section">
+      <div class="ar-claim">
+        <span class="ar-claimed">👤 ${escapeHtml(claimed.name)} (${escapeHtml(claimed.job || "?")})</span>
+        <button class="ghost" onclick="arSetClaimedMember('')">เปลี่ยน / ออก</button>
+      </div>
+    </div>
+  ` : `
+    <div class="ar-section">
+      <h3>👤 บอกชื่อตัวเอง</h3>
+      <div class="ar-claim">
+        <label>เลือกชื่อ:</label>
+        <select id="arClaimSelect">
+          <option value="">— เลือกชื่อ —</option>
+          ${(state.members || [])
+            .slice()
+            .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"))
+            .map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} (${escapeHtml(m.job || "?")})</option>`)
+            .join("")}
+        </select>
+        <button onclick="arSetClaimedMember(document.getElementById('arClaimSelect').value)">บันทึก</button>
+      </div>
+    </div>
+  `;
+
+  // ---- Day tabs ----
+  const dayTabs = `
+    <div class="ar-day-tabs">
+      ${dateRange.map(d => {
+        const a = arDayActive(d);
+        const cls = [
+          "ar-day-tab",
+          d === date ? "active" : "",
+          a.gl && a.overrun ? "has-both" : a.gl ? "has-gl" : a.overrun ? "has-overrun" : "closed"
+        ].filter(Boolean).join(" ");
+        const label = formatDayShortBkk(d);
+        const tag = a.gl && a.overrun ? "GL+OR" : a.gl ? "GL" : a.overrun ? "OR" : "ปิด";
+        return `<div class="${cls}" onclick="arSelectDate('${d}')">
+          <span class="ar-day-num">${label}</span>
+          <span class="ar-day-mode">${tag}</span>
+        </div>`;
+      }).join("")}
+    </div>`;
+
+  // ---- Admin: day controls ----
+  const adminDayControls = admin ? `
+    <div class="ar-section">
+      <h3>⚙️ ตั้งค่าวันนี้ (${date}) — admin</h3>
+      <div class="ar-bulk-bar">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+          <input type="checkbox" ${active.gl ? "checked" : ""}
+            onchange="arSetDayActive('${date}','gl',this.checked)"> เปิดรับ GL
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px">
+          <input type="checkbox" ${active.overrun ? "checked" : ""}
+            onchange="arSetDayActive('${date}','overrun',this.checked)"> เปิดรับ Overrun
+        </label>
+        <div style="flex:1"></div>
+        <button class="danger" onclick="arClearDay('${date}')">🧹 ล้างคำขอวันนี้</button>
+      </div>
+    </div>
+  ` : "";
+
+  // ---- Guest: request button + my list ----
+  const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= todayBkkISO()) : [];
+  const requestButtons = claimedId ? `
+    <div class="ar-bulk-bar">
+      <button class="ar-request-btn" ${!active.gl ? "disabled" : ""}
+        onclick="arOpenRequestModal('${date}','gl')">🙋 ขอประมูล GL วันที่ ${date}</button>
+      <button class="ar-request-btn" ${!active.overrun ? "disabled" : ""}
+        onclick="arOpenRequestModal('${date}','overrun')">🙋 ขอประมูล Overrun วันที่ ${date}</button>
+    </div>
+  ` : "";
+  const mySection = claimedId ? `
+    <div class="ar-section">
+      <h3>📋 คำขอของฉัน (${myRequests.length})</h3>
+      ${requestButtons}
+      ${myRequests.length ? `<div class="ar-my-list">${myRequests.map(r => arRenderRow(r, false)).join("")}</div>`
+                          : `<div class="ar-queue-empty">ยังไม่มีคำขอ — กดปุ่ม "ขอประมูล" ด้านบน</div>`}
+    </div>
+  ` : "";
+
+  // ---- Admin queue ----
+  const adminQueue = admin ? arBuildAdminQueue(date) : "";
+
+  // ---- Modal ----
+  const modal = _arModalState ? arBuildModal() : "";
+
+  return `<div class="ar-view">
+    ${hero}
+    ${claimSection}
+    ${dayTabs}
+    ${adminDayControls}
+    ${mySection}
+    ${adminQueue}
+    ${modal}
+  </div>`;
+}
+
+function arSelectDate(d) {
+  _arSelectedDate = d;
+  render();
+}
+
+/** Format yyyy-mm-dd as short Thai weekday + dd/mm */
+function formatDayShortBkk(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const wd = ["อา","จ","อ","พ","พฤ","ศ","ส"][dt.getUTCDay()];
+  return `${wd} ${d}/${m}`;
+}
+
+function arRenderRow(r, asAdmin) {
+  const m = findMember(r.memberId);
+  const name = m ? m.name : (r.memberName || "?");
+  const job  = m ? (m.job || "") : "";
+  const items = (r.items || []).map(k => `<span class="ar-item-chip">${AR_ITEM_META[k] ? AR_ITEM_META[k].label : k}</span>`).join("");
+  const fieldTag = r.computedField
+    ? `<span class="ar-field-tag ${r.computedField === "sub" ? "sub" : ""}">${r.computedField === "sub" ? "สนามรอง" : "สนามหลัก"}</span>`
+    : `<span class="ar-field-tag" style="background:#3f3f46;color:#a1a1aa">ยังไม่อยู่ในตี้</span>`;
+  const modeTag = `<span style="font-size:10px;color:var(--muted)">${r.mode === "gl" ? "GL" : "OR"} · ${r.date}</span>`;
+  const statusTag = `<span class="ar-status-tag ${r.status}">${r.status === "pending" ? "รออนุมัติ" : r.status === "approved" ? "อนุมัติ" : "ปฏิเสธ"}</span>`;
+  const noteRow = r.note ? `<div class="ar-note">"${escapeHtml(r.note)}"</div>` : "";
+  const rejectRow = r.rejectReason ? `<div class="ar-note" style="color:#fca5a5">⚠ ${escapeHtml(r.rejectReason)}</div>` : "";
+
+  let actions = "";
+  if (asAdmin && r.status === "pending") {
+    actions = `
+      <button class="ar-action-btn approve" onclick="arApproveRequest('${r.date}','${r.mode}','${r.id}')">✓ อนุมัติ</button>
+      <button class="ar-action-btn reject" onclick="arPromptReject('${r.date}','${r.mode}','${r.id}')">✗ ปฏิเสธ</button>`;
+  } else if (!asAdmin && r.status === "pending") {
+    actions = `<button class="ar-action-btn reject" onclick="arWithdrawRequest('${r.date}','${r.mode}','${r.id}')">🗑 ถอน</button>`;
+  } else if (asAdmin && r.status === "approved") {
+    actions = `<button class="ar-action-btn reject" onclick="arPromptReject('${r.date}','${r.mode}','${r.id}')">↩ ยกเลิก</button>`;
+  }
+
+  return `<div class="ar-req-row ${r.status}">
+    <span class="ar-name">${escapeHtml(name)}</span>
+    <span class="ar-job">${escapeHtml(job)}</span>
+    <span class="ar-prio">P${r.priority || 1}</span>
+    ${fieldTag}
+    <span class="ar-items">${items}</span>
+    ${modeTag}
+    ${statusTag}
+    ${actions}
+    ${noteRow}
+    ${rejectRow}
+  </div>`;
+}
+
+function arPromptReject(date, mode, requestId) {
+  const reason = prompt("เหตุผล (ไม่บังคับ):", "");
+  if (reason === null) return;
+  arRejectRequest(date, mode, requestId, reason);
+}
+
+function arBuildAdminQueue(date) {
+  const all = ((state.auctionRequests || {})[date] || {});
+  const pendingGl      = arGetRequests(date, "gl").filter(r => r.status === "pending");
+  const pendingOverrun = arGetRequests(date, "overrun").filter(r => r.status === "pending");
+  const approvedGl     = arGetRequests(date, "gl").filter(r => r.status === "approved");
+  const approvedOver   = arGetRequests(date, "overrun").filter(r => r.status === "approved");
+  const totalPending = pendingGl.length + pendingOverrun.length;
+
+  const renderGroup = (title, mode, reqs) => {
+    if (!reqs.length) return "";
+    // Sort: main before sub, then by requestedAt
+    const sorted = reqs.slice().sort((a, b) => {
+      const fa = a.computedField === "sub" ? 1 : 0;
+      const fb = b.computedField === "sub" ? 1 : 0;
+      if (fa !== fb) return fa - fb;
+      return (a.requestedAt || 0) - (b.requestedAt || 0);
+    });
+    return `<div class="ar-queue-group">
+      <h4>${title} (${reqs.length})</h4>
+      ${sorted.map(r => arRenderRow({ ...r, date, mode }, true)).join("")}
+    </div>`;
+  };
+
+  const bulkBar = `
+    <div class="ar-bulk-bar">
+      <button class="primary" ${!pendingGl.length ? "disabled" : ""}
+        onclick="arBulkApprove('${date}','gl')">🤖 จัดสรร GL อัตโนมัติ</button>
+      <button class="primary" ${!pendingOverrun.length ? "disabled" : ""}
+        onclick="arBulkApprove('${date}','overrun')">🤖 จัดสรร Overrun อัตโนมัติ</button>
+      <div style="flex:1"></div>
+      <button onclick="arAutoClearPast()">🧹 ล้างวันที่ผ่านมา</button>
+    </div>`;
+
+  const pendingSection = `
+    <div class="ar-section">
+      <h3>📥 รออนุมัติ (${totalPending})</h3>
+      ${bulkBar}
+      ${totalPending === 0 ? `<div class="ar-queue-empty">ไม่มีคำขอรออนุมัติ</div>` : ""}
+      ${renderGroup("⚔️ GL", "gl", pendingGl)}
+      ${renderGroup("🏆 Overrun", "overrun", pendingOverrun)}
+    </div>`;
+
+  const approvedSection = (approvedGl.length || approvedOver.length) ? `
+    <div class="ar-section">
+      <h3>✅ อนุมัติแล้ว (${approvedGl.length + approvedOver.length})</h3>
+      ${renderGroup("⚔️ GL", "gl", approvedGl)}
+      ${renderGroup("🏆 Overrun", "overrun", approvedOver)}
+    </div>` : "";
+
+  return pendingSection + approvedSection;
+}
+
+function arBuildModal() {
+  const { date, mode, items, priority, note } = _arModalState;
+  const memberId = arGetClaimedMemberId();
+  const field = arDetectField(memberId, mode);
+  const fieldTxt = field === "main" ? "<b>สนามหลัก</b>" : field === "sub" ? '<b class="sub">สนามรอง</b>' : `<span style="color:var(--danger)">ยังไม่อยู่ในตี้</span>`;
+
+  const itemRows = ["cards","illusion","white","black"].map(k => {
+    const meta = AR_ITEM_META[k];
+    const sel = items.has(k);
+    return `<div class="ar-item-row ${sel ? "selected" : ""}" onclick="arToggleModalItem('${k}')">
+      <span style="font-size:18px">${sel ? "☑" : "☐"}</span>
+      <span>${meta.label}</span>
+      <span class="ar-routing ${field === "sub" ? "sub" : ""}">ระบบจะใส่: ${fieldTxt}</span>
+    </div>`;
+  }).join("");
+
+  return `<div class="ar-modal-backdrop" onclick="if(event.target===this)arCloseModal()">
+    <div class="ar-modal">
+      <h3>🙋 ขอประมูล — ${mode === "gl" ? "GL" : "Overrun"} วันที่ ${date}</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">เลือกของที่ต้องการ (ติ๊กได้หลายอย่าง)</div>
+      ${itemRows}
+      <div class="ar-prio-row">
+        <span style="font-size:12px;color:var(--muted)">ลำดับความสำคัญ:</span>
+        ${[1,2,3,4].map(p => `<button class="ar-prio-btn ${priority === p ? "active" : ""}" onclick="arSetModalPriority(${p})">P${p}</button>`).join("")}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">หมายเหตุ (ไม่บังคับ):</div>
+      <textarea rows="2" maxlength="200" oninput="arSetModalNote(this.value)" placeholder="เช่น ขอใบเดียวพอ">${escapeHtml(note || "")}</textarea>
+      <div class="ar-modal-actions">
+        <button onclick="arCloseModal()">ยกเลิก</button>
+        <button class="primary" onclick="arSubmitModal()">📤 ส่งคำขอ</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
  * Leave page (ลา)
  * =====================================================================
  * Anyone (guest + admin) can register leave for any roster member on any
@@ -6127,6 +6962,8 @@ function renderBattlefields() {
     center.innerHTML = buildAuctionOverrunHtml();
   } else if (state.mode === "leave") {
     center.innerHTML = buildLeaveHtml();
+  } else if (state.mode === "auction-request") {
+    center.innerHTML = buildAuctionRequestHtml();
   } else {
     center.innerHTML =
       buildBfHtml(0) +
@@ -6257,7 +7094,7 @@ delete state.partiesDimension;
 delete state.dimensionNames;
 // Legacy modes redirect to league
 if (state.mode === "dimension" || state.mode === "glsummary") state.mode = "league";
-if (state.mode === "summary" || state.mode === "auction-gl" || state.mode === "auction-overrun" || state.mode === "roster") {
+if (state.mode === "summary" || state.mode === "auction-gl" || state.mode === "auction-overrun" || state.mode === "roster" || state.mode === "auction-request") {
   state.parties = state.partiesLeague;
 } else {
   state.parties = state.mode === "overrun" ? state.partiesOverrun : state.partiesLeague;
