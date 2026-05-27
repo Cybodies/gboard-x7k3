@@ -1679,20 +1679,6 @@
     font-weight: 400;
   }
   .bf-head .spacer { flex: 1; }
-  .repair-slots-btn {
-    font-size: 10px; font-weight: 600;
-    padding: 3px 8px; border-radius: 6px;
-    background: rgba(255,255,255,0.16); color: #fff;
-    border: 1px solid rgba(255,255,255,0.32);
-    cursor: pointer; transition: background .12s;
-  }
-  .repair-slots-btn:hover { background: rgba(255,255,255,0.28); }
-  .bg-head .repair-slots-btn {
-    color: #fff; background: rgba(0,0,0,0.25);
-    border-color: rgba(0,0,0,0.45);
-  }
-  .bg-head .repair-slots-btn:hover { background: rgba(0,0,0,0.4); }
-  body.viewer-mode .repair-slots-btn { display: none; }
   .bf-summary {
     padding: 8px 12px;
     border-top: 1px dashed var(--border);
@@ -2332,7 +2318,6 @@
     /* Battlefield header (Main / Sub) — wrap if needed */
     .bf-head, .bg-head { padding: 7px 10px; font-size: 12px; flex-wrap: wrap; }
     .bf-head .count, .bg-head .count { font-size: 10px; }
-    .repair-slots-btn { font-size: 9px; padding: 2px 6px; }
 
     /* Auction assigned row: tighter */
     .auction-assigned-row { font-size: 11px; padding: 4px 6px; }
@@ -4072,7 +4057,14 @@ function isFullyBlankMember(m) {
   return !m || (isVisuallyBlank(m.name) && isVisuallyBlank(m.job));
 }
 function buildPartyRowHtml(p) {
-  const slotsHtml = p.slots.map((memId, i) => {
+  // ALWAYS render exactly PARTY_SLOTS cells regardless of what p.slots
+  // holds. Firebase serializes trailing nulls out of an array (so a row
+  // that ends with empties comes back shorter than 5 entries), which
+  // used to leak .party-actions into the last slot column and look like
+  // a stray × icon. Reading p.slots[i] for i >= p.slots.length safely
+  // returns undefined → treated as empty.
+  const slotsHtml = Array.from({ length: PARTY_SLOTS }, (_, i) => {
+    const memId = (p.slots && p.slots[i]) || null;
     if (!memId) {
       return `<div class="slot empty"
                    ondragover="dragOverEl(event)" ondragleave="dragLeaveEl(event)"
@@ -4151,19 +4143,11 @@ function buildBfHtml(bfIdx) {
   }).join("");
   const totalInBf = range.reduce((s, idx) =>
     s + state.parties.find(p=>p.id===idx).slots.filter(Boolean).length, 0);
-  // Admin-only "Repair Slots" button on every battlefield header so the
-  // admin can fix ghost slots from whichever card they happen to be
-  // looking at (Main or Sub) without scrolling up.
-  const repairBtn = (typeof isAdmin === "function" && isAdmin())
-    ? `<button class="repair-slots-btn" onclick="window.repairGhostSlots && window.repairGhostSlots()" title="ลบช่องผี (ช่องที่ชี้ไปยังคนที่ถูกลบ หรือชื่อ/อาชีพไม่ครบ)">🧹 ซ่อมช่องผี</button>`
-    : "";
   return `
     <div class="bf ${bfIdx===1?'sub':''}">
       <div class="bf-head">
         <span>${bfIdx===0?'🏰':'🏯'} ${title}</span>
         <span class="count">${totalInBf} คน</span>
-        <div class="spacer"></div>
-        ${repairBtn}
       </div>
       ${partiesHtml}
       ${buildBfJobSummary(range)}
@@ -4178,17 +4162,11 @@ function buildOverrunHtml() {
     }).join("");
     const total = g.ids.reduce((s, idx) =>
       s + state.parties.find(p=>p.id===idx).slots.filter(Boolean).length, 0);
-    // Admin repair button on every overrun card so it's reachable from
-    // any group, not just the first one.
-    const repairBtn = (typeof isAdmin === "function" && isAdmin())
-      ? `<button class="repair-slots-btn" onclick="window.repairGhostSlots && window.repairGhostSlots()" title="ลบช่องผี (ช่องที่ชี้ไปยังคนที่ถูกลบ หรือชื่อ/อาชีพไม่ครบ)">🧹 ซ่อมช่องผี</button>`
-      : "";
     return `
       <div class="bg-card" style="--gc:${g.color}">
         <div class="bg-head">
           <span>● ${g.name} Party</span>
           <span class="count">${total} คน</span>
-          ${repairBtn}
         </div>
         ${rows}
         ${buildBfJobSummary(g.ids)}
