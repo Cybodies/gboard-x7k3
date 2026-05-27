@@ -395,10 +395,6 @@
     background: var(--panel); border: 1px solid var(--border);
     border-radius: 999px; padding: 2px 8px; font-size: 11px;
   }
-  .ar-req-row .ar-prio {
-    background: #312e81; color: #c4b5fd; border-radius: 4px;
-    padding: 2px 6px; font-size: 11px; font-weight: 700;
-  }
   .ar-req-row .ar-field-tag {
     background: #064e3b; color: #6ee7b7; border-radius: 4px;
     padding: 2px 6px; font-size: 11px;
@@ -469,14 +465,6 @@
   }
   .ar-modal .ar-item-row .ar-routing b { color: #6ee7b7; }
   .ar-modal .ar-item-row .ar-routing.sub b { color: #fdba74; }
-  .ar-modal .ar-prio-row {
-    display: flex; gap: 6px; align-items: center; margin: 10px 0;
-  }
-  .ar-modal .ar-prio-btn {
-    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
-    border-radius: 4px; padding: 4px 12px; cursor: pointer; font-size: 12px;
-  }
-  .ar-modal .ar-prio-btn.active { background: #6d28d9; border-color: #a855f7; color: white; font-weight: 700; }
   .ar-modal textarea {
     background: var(--bg-2); color: var(--text);
     border: 1px solid var(--border); border-radius: 6px;
@@ -2574,10 +2562,9 @@ let state = {
   system: { lastDailyReset: "", lastWeeklyReset: "" },
   // Auction Request feature — per-date guest requests + admin queue.
   //   auctionRequests["YYYY-MM-DD"]["gl"|"overrun"][requestId] = { ... }
-  // auctionDays["YYYY-MM-DD"] = { gl: bool, overrun: bool }
-  // Both are mirrored to Firebase at /auction_requests and /auction_days.
-  auctionRequests: {},
-  auctionDays: {}
+  // Mirrored to Firebase at /auction_requests. Always open for the next
+  // AR_MAX_DAYS_AHEAD days — no per-day enable flag.
+  auctionRequests: {}
 };
 
 /* ---------- BKK timezone helpers (used by Leave page + auto-clear) ----- */
@@ -4848,15 +4835,6 @@ function fbSubscribeAll() {
     if (typeof render === "function" && state.mode === "auction-request") render();
   });
 
-  // auction_days: per-date "is GL/Overrun open for requests" flags. Admin-only.
-  _fbDB.ref("auction_days").on("value", snap => {
-    const v = snap.val() || {};
-    _fbApplyingRemote = true;
-    state.auctionDays = v;
-    _fbApplyingRemote = false;
-    if (typeof render === "function" && state.mode === "auction-request") render();
-  });
-
   // system: reset bookkeeping. Read-only for most of the app, written only by
   // autoCheckResets() when crossing a reset boundary.
   _fbDB.ref("system").on("value", snap => {
@@ -4912,6 +4890,9 @@ function autoCheckResets() {
     // Auction-request: drop any past-date auction request branches so /auction_requests
     // never grows unbounded. Admin-only; guests skip and the next admin login picks it up.
     if (typeof arAutoClearPast === "function") arAutoClearPast();
+    // Reset the Auction GL + Overrun pages so each event day starts fresh
+    // — guild rules say the auction is a per-day activity. Admin-only.
+    if (isAdmin() && typeof arResetAuctionPages === "function") arResetAuctionPages();
   }
   // Weekly reset: wipe /leaves/ every Monday 00:00 BKK. Stamp uses the
   // Monday ISO so "lastWeeklyReset = <this Monday>" means we're up to date.
@@ -5905,11 +5886,10 @@ function buildAuctionOverrunHtml() { return buildAuctionView("overrun"); }
  *
  * Data shape (Firebase):
  *   /auction_requests/{date}/{mode}/{requestId} = {
- *     id, memberId, memberName, items: ["cards", ...], priority,
+ *     id, memberId, memberName, items: ["cards", ...],
  *     note, status, computedField, requestedAt, decidedAt, decidedBy,
  *     rejectReason
  *   }
- *   /auction_days/{date} = { gl: bool, overrun: bool }
  */
 const AR_MAX_DAYS_AHEAD = 7;            // can request up to today+7 days
 const AR_CLAIMED_KEY    = "roo_party_claimed_member";
@@ -5922,7 +5902,7 @@ const AR_ITEM_META = {
 
 // View state for the request page (not persisted; rebuilt on render)
 let _arSelectedDate = null;
-let _arModalState   = null;  // { date, mode, items: Set, priority, note } when modal open
+let _arModalState   = null;  // { date, mode, items: Set, note } when modal open
 
 function arGetClaimedMemberId() {
   return localStorage.getItem(AR_CLAIMED_KEY) || "";
@@ -5950,27 +5930,9 @@ function addDaysBkkISO(iso, n) {
   return dt.toISOString().slice(0, 10);
 }
 
-function arDayActive(date) {
-  const d = (state.auctionDays && state.auctionDays[date]) || {};
-  return { gl: !!d.gl, overrun: !!d.overrun };
-}
-
-function arSetDayActive(date, mode, active) {
-  if (!isAdmin() || !_fbDB) { toast("ต้องเป็น admin", "error"); return; }
-  // Optimistic local update so the UI reacts immediately. Revert on failure.
-  if (!state.auctionDays) state.auctionDays = {};
-  if (!state.auctionDays[date]) state.auctionDays[date] = {};
-  const prev = state.auctionDays[date][mode];
-  state.auctionDays[date][mode] = !!active;
-  if (typeof render === "function") render();
-  _fbDB.ref(`auction_days/${date}/${mode}`).set(!!active)
-    .catch(e => {
-      state.auctionDays[date][mode] = prev;
-      if (typeof render === "function") render();
-      toast(`เปิด/ปิดวันไม่สำเร็จ: ${e.message}. ตรวจ Firebase Rules ที่ /auction_days`, "error");
-      console.error("[auction-request] set day failed", e);
-    });
-}
+// Auction Request is always open for the next AR_MAX_DAYS_AHEAD days —
+// no per-day enable required. Daily reset wipes the auction pages at
+// 00:00 BKK so each event day starts with a fresh sheet.
 
 /** Detect main/sub for a member in a given mode. Returns "main" | "sub" | null. */
 function arDetectField(memberId, mode) {
@@ -6005,15 +5967,13 @@ function arGetMyRequests(memberId) {
   return out.sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
 }
 
-function arCreateRequest({ date, mode, items, priority, note }) {
+function arCreateRequest({ date, mode, items, note }) {
   if (!_fbDB) { toast("Firebase ยังไม่พร้อม", "error"); return; }
   const memberId = arGetClaimedMemberId();
   if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
   const m = findMember(memberId);
   if (!m) { toast("ไม่พบสมาชิก", "error"); return; }
   if (!Array.isArray(items) || items.length === 0) { toast("เลือกของอย่างน้อย 1 อย่าง", "error"); return; }
-  const active = arDayActive(date);
-  if (!active[mode]) { toast(`วันที่ ${date} ยังไม่เปิดรับ ${mode === "gl" ? "GL" : "Overrun"}`, "error"); return; }
 
   // Block duplicate: same member + same date+mode + overlapping items
   const existing = arGetRequests(date, mode).filter(r =>
@@ -6029,7 +5989,6 @@ function arCreateRequest({ date, mode, items, priority, note }) {
     memberId,
     memberName: m.name || "",
     items: items.slice(),
-    priority: Math.max(1, Math.min(4, priority | 0 || 1)),
     note: (note || "").slice(0, 200),
     status: "pending",
     computedField,
@@ -6123,99 +6082,62 @@ function arWithdrawRequest(date, mode, requestId) {
   _fbDB.ref(`auction_requests/${date}/${mode}/${requestId}`).remove();
 }
 
-/** Bulk approve with auto-cut. Walks the pending queue oldest-first (main
- *  before sub), tracking per-bucket usage against capacity (pool / rate).
- *  Requests that fit go to "approved" + auction column. Requests that
- *  would push ANY of their items past capacity go straight to "rejected"
- *  with reason "เกิน quota". Single pass — no follow-up needed.
+/** Bulk approve all pending. FIFO (main field before sub, then oldest
+ *  first). No capacity check — every request goes into the auction
+ *  column even if it overflows the pool. Admin trims excess people
+ *  manually on the Auction GL / Auction Overrun pages.
  */
 function arBulkApprove(date, mode) {
   if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
-  if (!confirm(`จัดสรรอัตโนมัติทุก request ของ ${date} (${mode === "gl" ? "GL" : "Overrun"})?`)) return;
-  const auctionData = (typeof computeAuction === "function") ? computeAuction(mode) : null;
-  if (!auctionData) { toast("ยังไม่ได้ตั้งค่า base ของไอเทม", "error"); return; }
-
-  // Build the priority queue: main first, then sub, then oldest first.
+  if (!confirm(`อนุมัติทุก request ของ ${date} (${mode === "gl" ? "GL" : "Overrun"})?`)) return;
   const pending = arGetRequests(date, mode)
     .filter(r => r.status === "pending")
     .sort((a, b) => {
       const fa = a.computedField === "sub" ? 1 : 0;
       const fb = b.computedField === "sub" ? 1 : 0;
       if (fa !== fb) return fa - fb;
-      if ((a.priority || 1) !== (b.priority || 1)) return (a.priority || 1) - (b.priority || 1);
       return (a.requestedAt || 0) - (b.requestedAt || 0);
     });
-
-  // Track usage already committed during this bulk pass (since Firebase
-  // writes are async, side.count from auctionData reflects pre-bulk state).
-  const used = {};  // key = `${field}_${item}`, value = count of slots taken
-  const capacityOf = (field, item) => {
-    const it = auctionData.items.find(x => x.key === item);
-    if (!it) return 0;
-    if (mode === "overrun" && field === "sub") return 0;
-    const side = it[field];
-    const rate = it.rate || 1;
-    return Math.floor((side.pool || 0) / rate);
-  };
-  // Pre-load "used" with current approved counts so we don't double-allocate
-  ["cards","illusion","white","black"].forEach(item => {
-    ["main","sub"].forEach(field => {
-      const it = auctionData.items.find(x => x.key === item);
-      if (!it) return;
-      used[`${field}_${item}`] = (it[field] && it[field].count) || 0;
-    });
-  });
-
-  let approvedN = 0, cutN = 0;
-  pending.forEach(r => {
-    const field = r.computedField || arDetectField(r.memberId, mode) || "main";
-    let firstFullItem = null;
-    // Check fit: every requested item must have room in (capacity - used)
-    (r.items || []).forEach(item => {
-      if (firstFullItem) return;
-      const cap = capacityOf(field, item);
-      const u   = used[`${field}_${item}`] || 0;
-      if (u >= cap) firstFullItem = item;
-    });
-
-    if (firstFullItem) {
-      const label = AR_ITEM_META[firstFullItem] ? AR_ITEM_META[firstFullItem].label : firstFullItem;
-      _fbDB.ref(`auction_requests/${date}/${mode}/${r.id}`).update({
-        status: "rejected",
-        decidedAt: Date.now(),
-        decidedBy: "auto-cut",
-        rejectReason: `เกิน quota (${label} ${field === "main" ? "สนามหลัก" : "สนามรอง"} เต็ม)`,
-        computedField: field
-      });
-      cutN++;
-    } else {
-      (r.items || []).forEach(item => {
-        used[`${field}_${item}`] = (used[`${field}_${item}`] || 0) + 1;
-      });
-      arApproveRequest(date, mode, r.id);
-      approvedN++;
-    }
-  });
-  toast(`✅ อนุมัติ ${approvedN} คน · ตัด ${cutN} คน (เกิน quota)`, "success");
+  pending.forEach(r => arApproveRequest(date, mode, r.id));
+  toast(`✅ อนุมัติ ${pending.length} คน · ถ้าเกินจำนวนของ ไป trim ในหน้า Auction ${mode === "gl" ? "GL" : "Overrun"}`, "success");
 }
 
 function arClearDay(date) {
   if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
   if (!confirm(`ล้างคำขอทั้งหมดของ ${date}?`)) return;
-  _fbDB.ref(`auction_requests/${date}`).remove();
-  _fbDB.ref(`auction_days/${date}`).remove();
+  _fbDB.ref(`auction_requests/${date}`).remove()
+    .catch(e => { toast(`ล้างไม่สำเร็จ: ${e.message}`, "error"); console.error(e); });
 }
 
-/** Auto-clear past dates (anything before today). Called periodically. */
+/** Auto-clear past dates (anything before today). Called from the daily
+ *  reset cron. Admin-only; guests skip and next admin login picks it up.
+ */
 function arAutoClearPast() {
   if (!isAdmin() || !_fbDB || !state.auctionRequests) return;
   const today = todayBkkISO();
   Object.keys(state.auctionRequests || {}).forEach(date => {
     if (date < today) _fbDB.ref(`auction_requests/${date}`).remove();
   });
-  Object.keys(state.auctionDays || {}).forEach(date => {
-    if (date < today) _fbDB.ref(`auction_days/${date}`).remove();
+}
+
+/** Reset both Auction GL and Auction Overrun pages — clear base inputs +
+ *  drag-drop assignments. Called automatically on the daily reset boundary
+ *  so each event day starts with a fresh sheet. Also exposed as a manual
+ *  admin button in case something needs to be wiped early.
+ */
+function arResetAuctionPages() {
+  if (!isAdmin() || !_fbDB) { toast("ต้องเป็น admin", "error"); return; }
+  const fresh = () => ({
+    cards: 0, illusion: 0, white: 0, black: 0, bonusPercent: 0,
+    assignments: {
+      main: { cards: [], illusion: [], white: [], black: [] },
+      sub:  { cards: [], illusion: [], white: [], black: [] }
+    }
   });
+  _fbDB.ref("auction_gl").set(fresh())
+    .catch(e => { toast(`ล้าง Auction GL ไม่สำเร็จ: ${e.message}`, "error"); console.error(e); });
+  _fbDB.ref("auction_overrun").set(fresh())
+    .catch(e => { toast(`ล้าง Auction Overrun ไม่สำเร็จ: ${e.message}`, "error"); console.error(e); });
 }
 
 /* ---------- Modal helpers ---------- */
@@ -6223,7 +6145,7 @@ function arOpenRequestModal(date, mode) {
   const memberId = arGetClaimedMemberId();
   if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
   if (!findMember(memberId)) { toast("ไม่พบสมาชิก — เลือกใหม่", "error"); return; }
-  _arModalState = { date, mode, items: new Set(), priority: 1, note: "" };
+  _arModalState = { date, mode, items: new Set(), note: "" };
   render();
 }
 function arCloseModal() {
@@ -6236,19 +6158,14 @@ function arToggleModalItem(item) {
   else                                _arModalState.items.add(item);
   render();
 }
-function arSetModalPriority(p) {
-  if (!_arModalState) return;
-  _arModalState.priority = p;
-  render();
-}
 function arSetModalNote(v) {
   if (!_arModalState) return;
   _arModalState.note = v;
 }
 function arSubmitModal() {
   if (!_arModalState) return;
-  const { date, mode, items, priority, note } = _arModalState;
-  arCreateRequest({ date, mode, items: Array.from(items), priority, note });
+  const { date, mode, items, note } = _arModalState;
+  arCreateRequest({ date, mode, items: Array.from(items), note });
   _arModalState = null;
   render();
 }
@@ -6262,7 +6179,6 @@ function buildAuctionRequestHtml() {
   const claimed = claimedId ? findMember(claimedId) : null;
   const admin = isAdmin();
   const date = _arSelectedDate;
-  const active = arDayActive(date);
 
   // ---- Hero ----
   const hero = `
@@ -6273,8 +6189,8 @@ function buildAuctionRequestHtml() {
       </div>
       <div style="flex:1"></div>
       <div class="ar-meta">
-        <b>📅 ${date}</b> · ${active.gl ? "🟢 GL" : "⚪ GL"} · ${active.overrun ? "🟢 Overrun" : "⚪ Overrun"}
-        <br><span style="font-size:11px">ประมูล 21:00–22:00 ของวันกิจกรรม</span>
+        <b>📅 ${date}</b>
+        <br><span style="font-size:11px">ประมูล 21:00–22:00 ของวันกิจกรรม · เคลียร์ 00:00</span>
       </div>
     </div>`;
 
@@ -6308,36 +6224,24 @@ function buildAuctionRequestHtml() {
   const dayTabs = `
     <div class="ar-day-tabs">
       ${dateRange.map(d => {
-        const a = arDayActive(d);
-        const cls = [
-          "ar-day-tab",
-          d === date ? "active" : "",
-          a.gl && a.overrun ? "has-both" : a.gl ? "has-gl" : a.overrun ? "has-overrun" : "closed"
-        ].filter(Boolean).join(" ");
+        const cls = ["ar-day-tab", d === date ? "active" : "", "has-both"].filter(Boolean).join(" ");
         const label = formatDayShortBkk(d);
-        const tag = a.gl && a.overrun ? "GL+OR" : a.gl ? "GL" : a.overrun ? "OR" : "ปิด";
         return `<div class="${cls}" onclick="arSelectDate('${d}')">
           <span class="ar-day-num">${label}</span>
-          <span class="ar-day-mode">${tag}</span>
+          <span class="ar-day-mode">เปิดรับ</span>
         </div>`;
       }).join("")}
     </div>`;
 
-  // ---- Admin: day controls ----
+  // ---- Admin tools (manual clear, in case admin wants to wipe before midnight) ----
   const adminDayControls = admin ? `
     <div class="ar-section">
-      <h3>⚙️ ตั้งค่าวันนี้ (${date}) — admin</h3>
+      <h3>⚙️ Admin tools</h3>
       <div class="ar-bulk-bar">
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-          <input type="checkbox" ${active.gl ? "checked" : ""}
-            onchange="arSetDayActive('${date}','gl',this.checked)"> เปิดรับ GL
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px">
-          <input type="checkbox" ${active.overrun ? "checked" : ""}
-            onchange="arSetDayActive('${date}','overrun',this.checked)"> เปิดรับ Overrun
-        </label>
+        <span style="font-size:12px;color:var(--muted)">เปิดรับทุกวัน — เคลียร์อัตโนมัติ 00:00 ตามเวลา BKK</span>
         <div style="flex:1"></div>
-        <button class="danger" onclick="arClearDay('${date}')">🧹 ล้างคำขอวันนี้</button>
+        <button class="danger" onclick="arClearDay('${date}')">🧹 ล้างคำขอวันนี้ (${date})</button>
+        <button class="danger" onclick="arResetAuctionPages()">🧹 ล้างหน้า Auction GL+Overrun</button>
       </div>
     </div>
   ` : "";
@@ -6346,14 +6250,9 @@ function buildAuctionRequestHtml() {
   const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= todayBkkISO()) : [];
   const requestButtons = claimedId ? `
     <div class="ar-bulk-bar">
-      <button class="ar-request-btn" ${!active.gl ? "disabled" : ""}
-        title="${!active.gl ? "admin ยังไม่เปิดรับวันนี้" : ""}"
-        onclick="arOpenRequestModal('${date}','gl')">🙋 ขอประมูล GL วันที่ ${date}${!active.gl ? " (🔒 ปิด)" : ""}</button>
-      <button class="ar-request-btn" ${!active.overrun ? "disabled" : ""}
-        title="${!active.overrun ? "admin ยังไม่เปิดรับวันนี้" : ""}"
-        onclick="arOpenRequestModal('${date}','overrun')">🙋 ขอประมูล Overrun วันที่ ${date}${!active.overrun ? " (🔒 ปิด)" : ""}</button>
+      <button class="ar-request-btn" onclick="arOpenRequestModal('${date}','gl')">🙋 ขอประมูล GL วันที่ ${date}</button>
+      <button class="ar-request-btn" onclick="arOpenRequestModal('${date}','overrun')">🙋 ขอประมูล Overrun วันที่ ${date}</button>
     </div>
-    ${(!active.gl && !active.overrun) ? `<div style="text-align:center;color:#fbbf24;padding:10px;font-size:13px">⚠️ ${admin ? "ติ๊ก \"เปิดรับ GL/Overrun\" ด้านบนก่อน เพื่อให้ Guest กดขอประมูลได้" : "Admin ยังไม่เปิดรับวันนี้ — ลองวันถัดไป"}</div>` : ""}
   ` : "";
   const mySection = claimedId ? `
     <div class="ar-section">
@@ -6421,7 +6320,6 @@ function arRenderRow(r, asAdmin) {
   return `<div class="ar-req-row ${r.status}">
     <span class="ar-name">${escapeHtml(name)}</span>
     <span class="ar-job">${escapeHtml(job)}</span>
-    <span class="ar-prio">P${r.priority || 1}</span>
     ${fieldTag}
     <span class="ar-items">${items}</span>
     ${modeTag}
@@ -6491,7 +6389,7 @@ function arBuildAdminQueue(date) {
 }
 
 function arBuildModal() {
-  const { date, mode, items, priority, note } = _arModalState;
+  const { date, mode, items, note } = _arModalState;
   const memberId = arGetClaimedMemberId();
   const field = arDetectField(memberId, mode);
   const fieldTxt = field === "main" ? "<b>สนามหลัก</b>" : field === "sub" ? '<b class="sub">สนามรอง</b>' : `<span style="color:var(--danger)">ยังไม่อยู่ในตี้</span>`;
@@ -6511,11 +6409,7 @@ function arBuildModal() {
       <h3>🙋 ขอประมูล — ${mode === "gl" ? "GL" : "Overrun"} วันที่ ${date}</h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">เลือกของที่ต้องการ (ติ๊กได้หลายอย่าง)</div>
       ${itemRows}
-      <div class="ar-prio-row">
-        <span style="font-size:12px;color:var(--muted)">ลำดับความสำคัญ:</span>
-        ${[1,2,3,4].map(p => `<button class="ar-prio-btn ${priority === p ? "active" : ""}" onclick="arSetModalPriority(${p})">P${p}</button>`).join("")}
-      </div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">หมายเหตุ (ไม่บังคับ):</div>
+      <div style="font-size:12px;color:var(--muted);margin:10px 0 4px">หมายเหตุ (ไม่บังคับ):</div>
       <textarea rows="2" maxlength="200" oninput="arSetModalNote(this.value)" placeholder="เช่น ขอใบเดียวพอ">${escapeHtml(note || "")}</textarea>
       <div class="ar-modal-actions">
         <button onclick="arCloseModal()">ยกเลิก</button>
