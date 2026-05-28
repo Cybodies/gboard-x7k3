@@ -757,6 +757,7 @@
   .roster-table .r-cell-static.r-job { color: var(--accent); font-weight: 600; }
   .roster-table .r-cell-static.r-discord { color: #a78bfa; font-family: monospace; font-size: 12px; }
   .roster-table .r-cell-static.r-discord-id { color: #fbbf24; font-size: 12px; }
+  .roster-table .r-updated-at { color: var(--muted); font-size: 11px; font-family: monospace; white-space: nowrap; }
   .roster-table button.r-del {
     background: transparent;
     border: 1px solid var(--border);
@@ -2705,6 +2706,17 @@ function fmtThaiDate(isoStr) {
   const TH_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
   return `${d} ${TH_MONTHS[m-1]} ${y+543}`;
 }
+/** Format an epoch ms timestamp into compact "D/M, H:MM" using BKK time.
+ *  Used by the Roster's Last Update column. Returns "—" if ms is falsy. */
+function fmtUpdatedAt(ms) {
+  if (!ms) return "—";
+  const t = new Date(ms + 7 * 60 * 60 * 1000);  // shift to BKK then read UTC fields
+  const d = t.getUTCDate();
+  const mo = t.getUTCMonth() + 1;
+  const hh = t.getUTCHours();
+  const mm = String(t.getUTCMinutes()).padStart(2, "0");
+  return `${d}/${mo}, ${hh}:${mm}`;
+}
 function thisMondayISO() {
   // Return the ISO date of the most recent Monday (or today if today is Mon).
   // Used as the "weekly reset stamp" so we can detect when we've crossed
@@ -3077,7 +3089,7 @@ function extractMembersFromRows(rows) {
     const name      = (r[2]  || "").trim();   // col C — Guild Member
     const job       = (r[4]  || "").trim();   // col E — Job
     const discord   = (r[5]  || "").trim();   // col F — Discord username
-    const discordId = (r[12] || "").trim();   // col M — Discord ID
+    const discordId = (r[13] || "").trim();   // col N — Discord ID
     if (!name || !job) continue;
     if (name === "Guild Member" || name.toLowerCase() === "name") continue;
     if (name === "#N/A" || job === "#N/A") continue;
@@ -5561,7 +5573,7 @@ function rosterImportFromSheet() {
       console.log("  col E (idx 4)  → job");
       console.log("  col F (idx 5)  → discord (@username)");
       console.log("  col L (idx 11) → CP");
-      console.log("  col M (idx 12) → discordId");
+      console.log("  col N (idx 13) → discordId");
       console.log("[import] Sample of first 5 fetched rows:");
       console.table(fetched.slice(0, 5));
       console.log(`[import] Total parsed: ${fetched.length} member(s)`);
@@ -5574,7 +5586,7 @@ function rosterImportFromSheet() {
         `  • Job (col E)\n` +
         `  • Discord username (col F)\n` +
         `  • CP (col L)\n` +
-        `  • Discord ID (col M) ← ใหม่\n\n` +
+        `  • Discord ID (col N)\n\n` +
         `Total rows: ${fetched.length}\n\n` +
         `ตัวอย่าง 3 แถวแรก (ดูครบใน DevTools Console):\n${sampleLines}\n\n` +
         `กด OK ถ้า mapping ถูกต้อง — ไม่งั้นกด Cancel\n` +
@@ -5678,7 +5690,7 @@ async function rosterDedupe(silent) {
 
 /* ----- Roster page render ----- */
 let _rosterSearch  = "";
-let _rosterSortKey = "name";   // "name" | "job" | "discord" | "discordId" | "cp"
+let _rosterSortKey = "name";   // "name" | "job" | "discord" | "discordId" | "cp" | "updatedAt"
 let _rosterSortDir = "asc";    // "asc" | "desc"
 
 function rosterSearchInput(v) {
@@ -5696,9 +5708,9 @@ function rosterSort(key) {
     _rosterSortDir = _rosterSortDir === "asc" ? "desc" : "asc";
   } else {
     _rosterSortKey = key;
-    // Numeric columns default to descending (highest CP first feels natural);
-    // string columns default to ascending (alphabetical).
-    _rosterSortDir = (key === "cp") ? "desc" : "asc";
+    // Numeric/time columns default to descending (highest CP / most recent
+    // first feels natural); string columns default to ascending (alphabetical).
+    _rosterSortDir = (key === "cp" || key === "updatedAt") ? "desc" : "asc";
   }
   if (typeof render === "function") render();
 }
@@ -5712,8 +5724,9 @@ function rosterApplySort(list) {
   const key = _rosterSortKey;
   const dir = _rosterSortDir === "asc" ? 1 : -1;
   const sorted = list.slice();
-  if (key === "cp") {
-    sorted.sort((a, b) => ((a.cp || 0) - (b.cp || 0)) * dir);
+  if (key === "cp" || key === "updatedAt") {
+    // Numeric sort — treat missing/null as 0 so unedited rows fall to bottom on desc
+    sorted.sort((a, b) => ((a[key] || 0) - (b[key] || 0)) * dir);
   } else {
     sorted.sort((a, b) => (a[key] || "").localeCompare(b[key] || "", "th") * dir);
   }
@@ -5731,13 +5744,13 @@ function buildRosterRowsHtml() {
         (m.discordId || "").toLowerCase().includes(search));
   if (!filtered.length) {
     if (!rosterCache.length) {
-      return `<tr><td colspan="7" class="roster-empty">
+      return `<tr><td colspan="8" class="roster-empty">
         ยังไม่มีสมาชิกใน Roster<br>
         ${admin ? '<b>Admin:</b> กด <b>➕ เพิ่มสมาชิก</b> หรือ <b>📥 Import จาก Sheet</b>'
                 : 'รอ Admin เพิ่มสมาชิก'}
       </td></tr>`;
     }
-    return `<tr><td colspan="7" class="roster-empty">ไม่พบ "${escapeHtml(search)}"</td></tr>`;
+    return `<tr><td colspan="8" class="roster-empty">ไม่พบ "${escapeHtml(search)}"</td></tr>`;
   }
   return rosterApplySort(filtered).map((m, i) => `
     <tr data-id="${m.id}">
@@ -5769,6 +5782,7 @@ function buildRosterRowsHtml() {
         <input class="r-input r-cp" type="text" inputmode="numeric" pattern="[0-9]*"
                value="${m.cp || 0}" onchange="rosterUpdate('${m.id}','cp',this.value)" />
       </td>
+      <td data-label="Last Update" class="r-updated-at">${fmtUpdatedAt(m.updatedAt)}</td>
       <td class="r-actions">${admin
         ? `<button class="r-del" onclick="rosterDelete('${m.id}')" title="ลบ">×</button>`
         : ""}</td>
@@ -5891,6 +5905,7 @@ function buildRosterHtml() {
               <th class="r-th-sort" onclick="rosterSort('discord')">Discord${rosterSortArrow("discord")}${!admin ? '<span class="badge">admin only</span>' : ""}</th>
               <th class="r-th-sort" onclick="rosterSort('discordId')">Discord ID${rosterSortArrow("discordId")}${!admin ? '<span class="badge">admin only</span>' : ""}</th>
               <th class="r-th-sort" style="width:140px;text-align:right" onclick="rosterSort('cp')">CP${rosterSortArrow("cp")}</th>
+              <th class="r-th-sort" style="width:110px" onclick="rosterSort('updatedAt')">Last Update${rosterSortArrow("updatedAt")}</th>
               <th style="width:50px"></th>
             </tr>
           </thead>
