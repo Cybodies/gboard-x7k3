@@ -5594,18 +5594,25 @@ function rosterImportFromSheet() {
       let added = 0, updated = 0;
       for (const m of fetched) {
         const dup = existing.find(r => r.name === m.name && r.job === m.job);
-        const payload = {
-          name:      m.name,
-          job:       m.job,
-          discord:   m.discord   || "",
-          discordId: m.discordId || "",
-          cp:        m.cp || 0,
-          updatedAt: Date.now()
-        };
         if (dup) {
-          await _fbMembersRef.child(dup.id).update(payload);
+          // Merge-only update: skip empty fields so an empty sheet cell
+          // doesn't wipe a manually-entered Discord/Discord ID/CP value.
+          // For new rows (no dup), we still seed empty defaults below.
+          const upd = { name: m.name, job: m.job, updatedAt: Date.now() };
+          if (m.discord)    upd.discord   = m.discord;
+          if (m.discordId)  upd.discordId = m.discordId;
+          if (m.cp > 0)     upd.cp        = m.cp;
+          await _fbMembersRef.child(dup.id).update(upd);
           updated++;
         } else {
+          const payload = {
+            name:      m.name,
+            job:       m.job,
+            discord:   m.discord   || "",
+            discordId: m.discordId || "",
+            cp:        m.cp || 0,
+            updatedAt: Date.now()
+          };
           const ref = _fbMembersRef.push();
           await ref.set(payload);
           // Track so subsequent rows in this batch don't re-add the same name+job
@@ -5870,6 +5877,8 @@ function buildRosterHtml() {
         <input class="r-search" placeholder="🔎 ค้นหาชื่อ/Job..." oninput="rosterSearchInput(this.value)" value="${escapeHtml(_rosterSearch)}" />
         ${admin ? `
           <button class="primary" onclick="rosterAdd()">➕ เพิ่มสมาชิก</button>
+          <button onclick="rosterImportFromSheet()" title="ดึง Name / Job / Discord / Discord ID / CP จาก Google Sheet">📥 Import จาก Sheet</button>
+          <button onclick="rosterDedupe()" title="รวมแถวซ้ำ (ชื่อ + Job เดียวกัน)">🧹 ล้างของซ้ำ</button>
         ` : `<span style="color:var(--muted);font-size:12px">🔒 Read-only — เฉพาะ CP ที่แก้ได้</span>`}
       </div>
       <div class="roster-table-wrap">
