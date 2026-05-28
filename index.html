@@ -4558,7 +4558,7 @@ function sortAllPartiesByJob() {
   let changed = 0;
   state.parties.forEach(p => { if (sortPartySlotsByJob(p)) changed++; });
   if (changed === 0) { toast("ทุกตี้เรียงตามอาชีพอยู่แล้ว", ""); return; }
-  save();
+  commitPartiesNow();
   render();
   toast(`🔀 จัดเรียงแล้ว ${changed} ตี้`, "success");
 }
@@ -4569,8 +4569,27 @@ function sortPartyByJob(partyId) {
   const p = state.parties.find(p => p.id === partyId);
   if (!p) return;
   if (!sortPartySlotsByJob(p)) { toast("ตี้นี้เรียงอยู่แล้ว", ""); return; }
-  save();
+  commitPartiesNow();
   render();
+}
+
+/** Write the active mode's parties to Firebase IMMEDIATELY (bypassing the
+ *  300ms debounce) and arm the local-mutation guard so an in-flight echo
+ *  of a previous edit can't overwrite our change before our own write
+ *  lands. Used by sort which is a multi-slot atomic change — a debounced
+ *  push leaves a 300ms window where the sort can silently revert. */
+function commitPartiesNow() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  if (!_fbDB || !isAdmin()) return;
+  clearTimeout(_fbPushTimer);  // kill any older queued push with stale state
+  _localPartiesGuardUntil = Date.now() + 2000;
+  const writes = [];
+  if (state.partiesLeague)  writes.push(_fbDB.ref("parties/league").set(state.partiesLeague));
+  if (state.partiesOverrun) writes.push(_fbDB.ref("parties/overrun").set(state.partiesOverrun));
+  Promise.all(writes).catch(e => {
+    console.warn("[parties] direct push failed", e);
+    toast("เซฟไม่สำเร็จ: " + (e.message || e.code), "error");
+  });
 }
 
 // Auction search query — guest types own name to find only their rows
@@ -4932,6 +4951,12 @@ let _fbReady = false;
 let _fbSubscribed = false;     // ensure we only attach listeners once
 let _fbApplyingRemote = false; // guard: when applying remote data, don't push back
 let _fbPushTimer = null;
+// Time-window guard against Firebase echo overwriting a rapid local mutation.
+// Set to `Date.now() + N ms` right BEFORE a local change (sort, drag, etc.)
+// pushes to /parties. Until that timestamp passes, the parties listener
+// ignores incoming echoes — otherwise an in-flight echo of a previous edit
+// could land mid-sort and wipe the sort result before our own push lands.
+let _localPartiesGuardUntil = 0;
 
 let rosterCache = [];          // sorted by name asc
 
@@ -5163,6 +5188,13 @@ function fbSubscribeAll() {
   _fbDB.ref("parties/league").on("value", snap => {
     const v = snap.val();
     if (v == null) return;  // no data yet — don't wipe local state
+    // Skip echoes that arrive during a recent local mutation window
+    // (sort, drag). Otherwise an in-flight echo of a previous edit
+    // could overwrite the fresh local change before our own push lands.
+    if (Date.now() < _localPartiesGuardUntil) {
+      console.log("[parties/league] echo suppressed — within local mutation guard");
+      return;
+    }
     const partiesRaw = fbToFixedArray(v, PARTIES, null);
     _fbApplyingRemote = true;
     state.partiesLeague = partiesRaw.map((p, i) => {
@@ -5198,6 +5230,10 @@ function fbSubscribeAll() {
   _fbDB.ref("parties/overrun").on("value", snap => {
     const v = snap.val();
     if (v == null) return;  // no data yet — don't wipe local state
+    if (Date.now() < _localPartiesGuardUntil) {
+      console.log("[parties/overrun] echo suppressed — within local mutation guard");
+      return;
+    }
     const partiesRaw = fbToFixedArray(v, PARTIES, null);
     _fbApplyingRemote = true;
     state.partiesOverrun = partiesRaw.map((p, i) => {
