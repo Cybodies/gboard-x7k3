@@ -3261,7 +3261,7 @@ function deleteMember(id) {
   if (!confirm("ลบสมาชิกนี้?")) return;
   state.members = state.members.filter(m => m.id !== id);
   state.parties.forEach(p => p.slots = p.slots.map(s => s === id ? null : s));
-  save(); render();
+  commitPartiesNow(); render();
 }
 
 /* =====================================================================
@@ -3310,12 +3310,12 @@ function clearParty(partyId) {
   if (!confirm("เคลียร์สมาชิกทั้งหมดในตี้นี้?")) return;
   const p = state.parties.find(p => p.id === partyId);
   p.slots = Array(PARTY_SLOTS).fill(null);
-  save(); render();
+  commitPartiesNow(); render();
 }
 function renameParty(partyId) {
   const p = state.parties.find(p => p.id === partyId);
   const v = prompt("เปลี่ยนชื่อตี้:", p.name);
-  if (v !== null && v.trim()) { p.name = v.trim(); save(); render(); }
+  if (v !== null && v.trim()) { p.name = v.trim(); commitPartiesNow(); render(); }
 }
 
 /* =====================================================================
@@ -3355,7 +3355,7 @@ function dropSlot(e, partyId, slotIdx) {
   if (drag.type === "member") {
     placeAtSlot(drag.payload.memberId, partyId, slotIdx);
   }
-  save(); render();
+  commitPartiesNow(); render();
 }
 function dropPartyNum(e, partyId) {
   e.preventDefault();
@@ -3372,7 +3372,7 @@ function dropPartyNum(e, partyId) {
     if (emptyIdx >= 0) target.slots[emptyIdx] = memId;
     else toast("ตี้ " + partyId + " เต็มแล้ว", "error");
   }
-  save(); render();
+  commitPartiesNow(); render();
 }
 
 function setupSidebarDrop() {
@@ -3382,7 +3382,7 @@ function setupSidebarDrop() {
     e.preventDefault();
     if (drag.type === "member" && drag.payload.from === "slot") {
       removeFromSlot(drag.payload.partyId, drag.payload.slotIdx);
-      save(); render();
+      commitPartiesNow(); render();
     }
   });
 }
@@ -4147,7 +4147,7 @@ function buildPartyRowHtml(p) {
             <span class="slot-name">${escapeHtml(m.name)}</span>
             ${cpHtml}
           </div>
-          <span class="slot-del" onclick="event.stopPropagation(); removeFromSlot(${p.id}, ${i}); save(); render();" title="ลบจากตี้">×</span>
+          <span class="slot-del" onclick="event.stopPropagation(); removeFromSlot(${p.id}, ${i}); commitPartiesNow(); render();" title="ลบจากตี้">×</span>
         </div>`;
   }).join("");
   const tc = teamColor(p.id);
@@ -4576,12 +4576,16 @@ function sortPartyByJob(partyId) {
 /** Write the active mode's parties to Firebase IMMEDIATELY (bypassing the
  *  300ms debounce) and arm the local-mutation guard so an in-flight echo
  *  of a previous edit can't overwrite our change before our own write
- *  lands. Used by sort which is a multi-slot atomic change — a debounced
- *  push leaves a 300ms window where the sort can silently revert. */
+ *  lands. Used by sort AND every drag/drop handler — a debounced push
+ *  leaves a 300ms window where a quick page refresh kills the timer and
+ *  the change never reaches Firebase. */
 function commitPartiesNow() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
   if (!_fbDB || !isAdmin()) return;
-  clearTimeout(_fbPushTimer);  // kill any older queued push with stale state
+  // Note: we do NOT clearTimeout(_fbPushTimer) here — other state paths
+  // (auction inputs, markers, job targets) may have a queued debounce we
+  // shouldn't drop. We push parties directly and let the debounce keep
+  // handling everything else.
   _localPartiesGuardUntil = Date.now() + 2000;
   const writes = [];
   if (state.partiesLeague)  writes.push(_fbDB.ref("parties/league").set(state.partiesLeague));
