@@ -1872,6 +1872,18 @@
   }
   .map-card .map-title button:hover,
   .map-card .map-title label.btn:hover { border-color: var(--accent); }
+  /* Map filter dropdown — focus on one team on the map. Goes amber when
+     a specific team is selected so it's obvious other markers are hidden. */
+  .map-card .map-title .map-filter-select {
+    background: var(--bg-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 3px 6px; font-size: 11px; font-family: inherit;
+    max-width: 180px;
+  }
+  .map-card .map-title .map-filter-select:focus { outline: none; border-color: var(--accent); }
+  .map-card .map-title .map-filter-select.filter-active {
+    background: rgba(251,191,36,0.18); border-color: #fbbf24; color: #fbbf24; font-weight: 700;
+  }
 
   /* Fullscreen map modal */
   .map-card-backdrop {
@@ -2854,6 +2866,31 @@ let drag = { type: null, payload: null };
 // — listeners check this and defer their render until the drag finishes.
 let _isDragging = false;
 let _pendingRenderAfterDrag = false;
+// Map filter state — when non-zero, the League map (parties 1-16) or Overrun
+// map (groups 1-4) renders only the selected team's marker + arrow, hiding
+// everyone else. Lets admin focus on one team's movements without clutter.
+// Filter resets to 0 ("all") on every page load (in-memory only).
+let _mapFilterLeague  = 0;
+let _mapFilterOverrun = 0;
+function setMapFilterLeague(val) {
+  _mapFilterLeague = parseInt(val, 10) || 0;
+  // Sync any sibling dropdown (map 1 + map 2 share the same filter) + add
+  // an amber "filter-active" class when something is selected so the
+  // dropdown visually pops while a team is in focus.
+  document.querySelectorAll(".map-filter-league").forEach(el => {
+    el.value = String(_mapFilterLeague);
+    el.classList.toggle("filter-active", _mapFilterLeague !== 0);
+  });
+  if (typeof renderMarkers === "function") renderMarkers();
+}
+function setMapFilterOverrun(val) {
+  _mapFilterOverrun = parseInt(val, 10) || 0;
+  document.querySelectorAll(".map-filter-overrun").forEach(el => {
+    el.value = String(_mapFilterOverrun);
+    el.classList.toggle("filter-active", _mapFilterOverrun !== 0);
+  });
+  if (typeof renderOverrunMarkers === "function") renderOverrunMarkers();
+}
 function setDragging(on) {
   _isDragging = !!on;
   if (!on && _pendingRenderAfterDrag) {
@@ -3421,6 +3458,8 @@ function renderMarkers() {
     wrap.querySelectorAll(".marker").forEach(n => n.remove());
     const range = mapNum === 1 ? [1,2,3,4,5,6,7,8] : [9,10,11,12,13,14,15,16];
     for (const i of range) {
+      // Map filter — when set, only render the selected party's marker.
+      if (_mapFilterLeague && i !== _mapFilterLeague) continue;
       const pos = state.markers[i] || { x: 50, y: 50, path: [] };
       const p = state.parties.find(p => p.id === i);
       const filled = p && p.slots.some(s => s);
@@ -3462,6 +3501,7 @@ function renderArrows(mapNum) {
   svg.appendChild(defs);
 
   for (const i of range) {
+    if (_mapFilterLeague && i !== _mapFilterLeague) continue;
     const m = state.markers[i];
     if (!m || !m.path || m.path.length === 0) continue;
     const color = teamColor(i);
@@ -3560,6 +3600,8 @@ function renderOverrunMarkers() {
       const row = Math.floor((i - 1) / 2);
       state.overrunMarkers[i] = { x: 25 + col * 50, y: 35 + row * 35, path: [] };
     }
+    // Map filter — when set, only render the selected group's marker.
+    if (_mapFilterOverrun && i !== _mapFilterOverrun) continue;
     const pos = state.overrunMarkers[i];
     const g = OVERRUN_GROUPS[i - 1];
     const total = g.ids.reduce((s, id) => {
@@ -3612,6 +3654,7 @@ function renderOverrunArrows() {
 
   if (!state.overrunMarkers) return;
   for (let i = 1; i <= 4; i++) {
+    if (_mapFilterOverrun && i !== _mapFilterOverrun) continue;
     const m = state.overrunMarkers[i];
     if (!m || !m.path || m.path.length === 0) continue;
     const color = OVERRUN_GROUPS[i - 1].color;
@@ -4246,11 +4289,23 @@ function buildOverrunHtml() {
 }
 
 function buildOverrunMapHtml() {
+  // Overrun map filter — 4 colored groups (Red/Yellow/Green/Blue). Same
+  // shared-dropdown pattern: selecting a group hides the other three
+  // markers + arrows on the map.
+  const filterOpts = ['<option value="0">🔍 ทุกกลุ่ม</option>']
+    .concat(OVERRUN_GROUPS.map((g, idx) => {
+      const groupId = idx + 1;
+      const selected = _mapFilterOverrun === groupId ? " selected" : "";
+      return `<option value="${groupId}"${selected}>● ${escapeHtml(g.name)} Party</option>`;
+    })).join("");
   return `
     <div class="map-card" style="margin-top:10px">
       <div class="map-title overrun-map">
         <span>🗺️ Overrun Map · 4 ปาร์ตี้ใหญ่</span>
         <span class="actions">
+          <select class="map-filter-overrun map-filter-select${_mapFilterOverrun ? " filter-active" : ""}" onchange="setMapFilterOverrun(this.value)" title="โฟกัสที่กลุ่มเดียว — ซ่อนกลุ่มอื่น">
+            ${filterOpts}
+          </select>
           <button onclick="toggleMapFullscreen(3)" class="btn-expand-3" title="ขยายเต็มจอ">⛶ Expand</button>
           <button onclick="clearArrows(3)" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>
           <!-- Map image embedded as static asset; upload removed -->
@@ -4268,11 +4323,26 @@ function buildMapHtml(mapNum) {
   const subWrapCls = mapNum === 2 ? 'sub-map' : '';
   const icon = '🗺️';
   const title = mapNum === 1 ? 'Main Battlefield Map' : 'Sub Battlefield Map';
+  // League map filter — single shared dropdown across both maps. Includes
+  // every party with its current name so admin sees "ตี้ 5 — ราชสีห์" etc.
+  // Selecting a party hides every other marker + arrow on whichever map
+  // they live on.
+  const filterOpts = ['<option value="0">🔍 ทุกตี้</option>']
+    .concat(Array.from({ length: PARTIES }, (_, idx) => {
+      const partyId = idx + 1;
+      const p = (state.partiesLeague || [])[idx];
+      const nm = (p && p.name) ? p.name : ("ตี้ " + partyId);
+      const selected = _mapFilterLeague === partyId ? " selected" : "";
+      return `<option value="${partyId}"${selected}>ตี้ ${partyId} — ${escapeHtml(nm)}</option>`;
+    })).join("");
   return `
     <div class="map-card">
       <div class="map-title ${cls}">
         <span>${icon} ${title} (ตี้ ${mapNum===1?'1–8':'9–16'})</span>
         <span class="actions">
+          <select class="map-filter-league map-filter-select${_mapFilterLeague ? " filter-active" : ""}" onchange="setMapFilterLeague(this.value)" title="โฟกัสที่ตี้เดียว — ซ่อนคนอื่น">
+            ${filterOpts}
+          </select>
           <button onclick="toggleMapFullscreen(${mapNum})" class="btn-expand-${mapNum}" title="ขยายเต็มจอ">⛶ Expand</button>
           <button onclick="clearArrows(${mapNum})" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>
           <label class="btn">📷 Upload<input type="file" accept="image/*" style="display:none" onchange="setMapBg(${mapNum},this)" /></label>
