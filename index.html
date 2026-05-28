@@ -1801,6 +1801,30 @@
   }
   .party-actions:hover { color: var(--danger); background: rgba(248,81,73,0.15); }
 
+  /* Per-party row trailing-button cluster: 🔀 sort + ✕ clear. The wrapper
+     adopts the same grid-area as .party-actions used to live in, so the
+     mobile party-row layout (which positions clear via grid-area) still
+     works with the wrapper substituted in. */
+  .party-row-actions {
+    display: flex; align-items: stretch; background: var(--panel-2);
+  }
+  .party-row-actions .party-actions { background: transparent; }
+  .party-sort {
+    background: transparent; border: 0; color: var(--muted);
+    padding: 0 8px; cursor: pointer; font-size: 14px;
+    border-right: 1px solid var(--border);
+  }
+  .party-sort:hover { color: #60a5fa; background: rgba(96,165,250,0.12); }
+  body.viewer-mode .party-sort { display: none; }
+  .header-sort-btn {
+    background: rgba(96,165,250,0.18); color: #fff;
+    border: 1px solid #60a5fa; border-radius: 6px;
+    padding: 3px 10px; font-size: 11px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+  }
+  .header-sort-btn:hover { background: rgba(96,165,250,0.32); }
+  body.viewer-mode .header-sort-btn { display: none; }
+
   /* ===== Maps (inline in scrolling center) ===== */
   .maps-row {
     display: grid;
@@ -2244,20 +2268,20 @@
        Header row = party-num + clear button side-by-side.
        Below = 5 slots stacked full-width for easy reading + drag-drop. */
     .party-row {
-      grid-template-columns: 1fr 36px;
+      grid-template-columns: 1fr 72px;
       grid-template-rows: 30px repeat(5, auto);
       grid-template-areas:
-        "num  clear"
-        "s0   s0"
-        "s1   s1"
-        "s2   s2"
-        "s3   s3"
-        "s4   s4";
+        "num    clear"
+        "s0     s0"
+        "s1     s1"
+        "s2     s2"
+        "s3     s3"
+        "s4     s4";
       gap: 0;
       border-top: 2px solid var(--border-2);
     }
-    .party-row > .party-num      { grid-area: num; }
-    .party-row > .party-actions  { grid-area: clear; }
+    .party-row > .party-num         { grid-area: num; }
+    .party-row > .party-row-actions { grid-area: clear; }
     /* Slots are direct children in source order (party-num, slot1..5, clear).
        Use :nth-child to map to grid-areas s0..s4. */
     .party-row > .slot:nth-child(2) { grid-area: s0; }
@@ -4131,7 +4155,10 @@ function buildPartyRowHtml(p) {
            ondrop="dropPartyNum(event, ${p.id})"
            ondblclick="renameParty(${p.id})">${p.id}</div>
       ${slotsHtml}
-      <div class="party-actions" onclick="clearParty(${p.id})" title="เคลียร์ตี้นี้">✕</div>
+      <div class="party-row-actions">
+        <button class="party-sort admin-only" onclick="sortPartyByJob(${p.id})" title="จัดเรียงตามอาชีพ (Knight → Paladin → Wizard → …)">🔀</button>
+        <div class="party-actions" onclick="clearParty(${p.id})" title="เคลียร์ตี้นี้">✕</div>
+      </div>
     </div>`;
 }
 
@@ -4166,11 +4193,18 @@ function buildBfHtml(bfIdx) {
   }).join("");
   const totalInBf = range.reduce((s, idx) =>
     s + state.parties.find(p=>p.id===idx).slots.filter(Boolean).length, 0);
+  // Admin-only "🔀 Sort all" button on the Main Battlefield header only —
+  // it sorts ALL 16 parties (League uses one state.parties array shared
+  // between Main and Sub cards, so we only need the button in one place).
+  const sortAllBtn = (bfIdx === 0 && typeof isAdmin === "function" && isAdmin())
+    ? `<button class="header-sort-btn" onclick="sortAllPartiesByJob()" title="จัดเรียงทุกตี้ตามอาชีพ (Knight → Paladin → Wizard → …)">🔀 จัดเรียงทุกตี้</button>`
+    : "";
   return `
     <div class="bf ${bfIdx===1?'sub':''}">
       <div class="bf-head">
         <span>${bfIdx===0?'🏰':'🏯'} ${title}</span>
         <span class="count">${totalInBf} คน</span>
+        ${sortAllBtn ? '<div style="flex:1"></div>' + sortAllBtn : ''}
       </div>
       ${partiesHtml}
       ${buildBfJobSummary(range)}
@@ -4185,11 +4219,17 @@ function buildOverrunHtml() {
     }).join("");
     const total = g.ids.reduce((s, idx) =>
       s + state.parties.find(p=>p.id===idx).slots.filter(Boolean).length, 0);
+    // Same shared parties array → put the global "🔀 Sort all" button on
+    // the first card only so we don't render four duplicates.
+    const sortAllBtn = (gi === 0 && typeof isAdmin === "function" && isAdmin())
+      ? `<button class="header-sort-btn" onclick="sortAllPartiesByJob()" title="จัดเรียงทุกตี้ตามอาชีพ (Knight → Paladin → Wizard → …)">🔀 จัดเรียงทุกตี้</button>`
+      : "";
     return `
       <div class="bg-card" style="--gc:${g.color}">
         <div class="bg-head">
           <span>● ${g.name} Party</span>
           <span class="count">${total} คน</span>
+          ${sortAllBtn ? '<div style="flex:1"></div>' + sortAllBtn : ''}
         </div>
         ${rows}
         ${buildBfJobSummary(g.ids)}
@@ -4455,6 +4495,76 @@ const JOB_LIST = [
   "Sniper", "Bard", "Summoner",
   "High Priest", "Dancer"
 ];
+
+// Job ordering for the "🔀 จัดเรียงตามอาชีพ" feature. Lower number = earlier
+// slot in the party. The user-requested order maps both transcendent
+// class names (used by JOB_LIST + Roster) and the shorter aliases the
+// guild speaks colloquially. Any unknown job sinks to the bottom.
+const JOB_PRIORITY = {
+  "Lord Knight":  1,  "Knight":        1,
+  "Paladin":      2,
+  "Wizard":       3,
+  "Professor":    4,
+  "Summoner":     5,
+  "Sniper":       6,
+  "Assassin":     7,
+  "Stalker":      8,
+  "Mastersmith":  9,  "MasterSmith":   9,
+  "Biochemist":  10,  "Bioalchemist": 10,
+  "Champion":    11,  "Monk":         11,
+  "Bard":        12,
+  "Dancer":      13,
+  "High Priest": 14,  "Priest":       14
+};
+function jobOrderOf(memberId) {
+  const m = findMember(memberId);
+  if (!m) return 999;
+  return JOB_PRIORITY[m.job] != null ? JOB_PRIORITY[m.job] : 999;
+}
+
+/** Reorder one party's slots by job priority. Empty slots sink to the
+ *  end. Mutates p.slots in place; caller is responsible for save()+render. */
+function sortPartySlotsByJob(p) {
+  if (!p || !Array.isArray(p.slots)) return false;
+  const filled = p.slots.filter(id => !!id);
+  const before = p.slots.join("|");
+  filled.sort((a, b) => {
+    const oa = jobOrderOf(a), ob = jobOrderOf(b);
+    if (oa !== ob) return oa - ob;
+    // Stable tiebreak by member name so two same-class members order
+    // alphabetically rather than swapping on every sort click.
+    const na = (findMember(a) || {}).name || "";
+    const nb = (findMember(b) || {}).name || "";
+    return na.localeCompare(nb, "th");
+  });
+  while (filled.length < PARTY_SLOTS) filled.push(null);
+  p.slots = filled.slice(0, PARTY_SLOTS);
+  return p.slots.join("|") !== before;
+}
+
+/** Sort EVERY party in the active mode by job priority. Admin only.
+ *  League sorts the 16 parties; Overrun sorts the 16 parties (same data
+ *  shape) — both call sites are wired below. */
+function sortAllPartiesByJob() {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  if (!Array.isArray(state.parties)) return;
+  let changed = 0;
+  state.parties.forEach(p => { if (sortPartySlotsByJob(p)) changed++; });
+  if (changed === 0) { toast("ทุกตี้เรียงตามอาชีพอยู่แล้ว", ""); return; }
+  save();
+  render();
+  toast(`🔀 จัดเรียงแล้ว ${changed} ตี้`, "success");
+}
+
+/** Sort one party only — used by the per-row 🔀 button. */
+function sortPartyByJob(partyId) {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  const p = state.parties.find(p => p.id === partyId);
+  if (!p) return;
+  if (!sortPartySlotsByJob(p)) { toast("ตี้นี้เรียงอยู่แล้ว", ""); return; }
+  save();
+  render();
+}
 
 // Auction search query — guest types own name to find only their rows
 let _auctionSearch = "";
