@@ -4870,9 +4870,19 @@ function fbToFixedArray(v, len, fillValue) {
     }
   } else if (v && typeof v === "object") {
     Object.keys(v).forEach(k => {
+      // Only accept strict integer keys — Firebase sparse arrays come back
+      // as objects keyed by index strings ("0","1","4"). parseInt would
+      // happily accept "4abc" / "4.7" too, which could let a malformed
+      // upstream value clobber a legitimate slot. Require /^\d+$/.
+      if (!/^\d+$/.test(k)) return;
       const i = parseInt(k, 10);
-      if (!isNaN(i) && i >= 0 && i < len) out[i] = v[k];
+      if (i >= 0 && i < len) out[i] = v[k];
     });
+  } else if (v != null) {
+    // Primitive / unexpected shape — log once so a manual Firebase Console
+    // edit that produces e.g. /parties/league = "x" doesn't silently wipe
+    // local state without anyone noticing.
+    console.warn("[fbToFixedArray] unexpected shape (returning fill):", v);
   }
   return out;
 }
@@ -5032,9 +5042,18 @@ function fbSubscribeAll() {
     _fbApplyingRemote = true;
     state.partiesLeague = partiesRaw.map((p, i) => {
       // Empty slot in the parties array (Firebase dropped a leading
-      // entry) — synthesize a blank party so the index/id pairing
-      // stays stable.
-      if (!p) return { id: i + 1, name: "ตี้ " + (i + 1), slots: Array(PARTY_SLOTS).fill(null) };
+      // entry, or a trailing all-null/empty party). Synthesize a blank
+      // party so the index/id pairing stays stable — but preserve any
+      // existing local name first so a renamed-but-empty party (e.g.
+      // "นักล่า A" with no slots filled yet) doesn't get reset back to
+      // the default "ตี้ N" on every roundtrip.
+      if (!p) {
+        const localList = (snap.ref.toString().endsWith("/parties/league")
+          ? state.partiesLeague
+          : state.partiesOverrun) || [];
+        const keepName = (localList[i] && localList[i].name) || ("ตี้ " + (i + 1));
+        return { id: i + 1, name: keepName, slots: Array(PARTY_SLOTS).fill(null) };
+      }
       return {
         id: p.id || (i + 1), name: p.name || "",
         slots: fbToFixedArray(p.slots, PARTY_SLOTS, null)
@@ -5136,14 +5155,23 @@ function fbSubscribeAll() {
   // works even if /admins is empty.
   _fbDB.ref("admins").on("value", snap => {
     const v = snap.val() || {};
+    const wasAdmin = isAdmin();
     _fbApplyingRemote = true;
     state.admins = v;
     _fbApplyingRemote = false;
-    // Admin status may have changed — refresh the auth UI + viewer mode +
-    // active page render.
+    // Refresh auth chrome unconditionally (it doesn't rip focus — just
+    // toggles classes / body attrs).
     applyViewerMode();
     updateAuthUI();
-    if (typeof render === "function") render();
+    // Full render() is expensive and tears down inputs (e.g. a guest mid-
+    // typing CP into the Roster loses focus). Only do it when EITHER our
+    // own admin status flipped OR we're on a page that actually displays
+    // the admin list. Other pages don't depend on /admins content.
+    const nowAdmin = isAdmin();
+    const onAdminAwarePage = state.mode === "users" || state.mode === "auction-request";
+    if (wasAdmin !== nowAdmin || onAdminAwarePage) {
+      if (typeof render === "function") render();
+    }
   });
 
   // users: admin-managed list of app-created accounts (one entry per
@@ -5195,16 +5223,25 @@ function autoCheckResets() {
   // Daily reset: clear manual-leave flags on members. We do this on EVERY
   // calendar day in BKK that hasn't been stamped yet.
   if (state.system.lastDailyReset !== today) {
+    // Only admins can actually do the reset work (write /members, clear
+    // /auction_requests, reset auction pages). Guests must NOT stamp the
+    // local clock to today — if they did, an admin signing into the same
+    // tab later in the day would see lastDailyReset === today and never
+    // run the reset, leaving manual-leave flags + yesterday's auction
+    // data in place until the next page reload. So bail out for guests
+    // and wait for the /system listener to bring us the real stamp.
+    if (!isAdmin()) {
+      console.log("[reset] daily: guest skipping — wait for admin");
+      return;
+    }
     let cleared = 0;
-    // Stamp first to claim ownership of this reset (prevents two clients
-    // from racing the work).
+    // Stamp first to claim ownership of this reset (prevents two admin
+    // clients from racing the work).
     _fbDB.ref("system/lastDailyReset").set(today).catch(()=>{});
     state.system.lastDailyReset = today;
     // Clear the per-member manual flags. We must touch each member because
-    // the field lives inside /members/{id} which has admin-only write on
-    // most paths. For now, we ONLY clear if admin — guest clients will let
-    // the next admin login do it. This keeps Rules simple.
-    if (isAdmin() && state.members && state.members.length) {
+    // the field lives inside /members/{id}.
+    if (state.members && state.members.length) {
       state.members.forEach(m => {
         const upd = {};
         if (m.onLeaveLeague)  upd.onLeaveLeague  = false;
@@ -5215,16 +5252,13 @@ function autoCheckResets() {
         }
       });
       if (cleared) console.log(`[reset] daily: cleared manual leave on ${cleared} members`);
-    } else if (!isAdmin()) {
-      // Guests can't write to /members. The next admin login will pick this up.
-      console.log("[reset] daily: skipped (guest cannot clear manual flags) — admin will clear on next login");
     }
     // Auction-request: drop any past-date auction request branches so /auction_requests
-    // never grows unbounded. Admin-only; guests skip and the next admin login picks it up.
+    // never grows unbounded.
     if (typeof arAutoClearPast === "function") arAutoClearPast();
     // Reset the Auction GL + Overrun pages so each event day starts fresh
-    // — guild rules say the auction is a per-day activity. Admin-only.
-    if (isAdmin() && typeof arResetAuctionPages === "function") arResetAuctionPages();
+    // — guild rules say the auction is a per-day activity.
+    if (typeof arResetAuctionPages === "function") arResetAuctionPages();
   }
   // Weekly reset: wipe /leaves/ every Monday 00:00 BKK. Stamp uses the
   // Monday ISO so "lastWeeklyReset = <this Monday>" means we're up to date.
@@ -6790,6 +6824,10 @@ function arAutoClearPast() {
  */
 function arResetAuctionPages() {
   if (!isAdmin() || !_fbDB) { toast("ต้องเป็น admin", "error"); return; }
+  // Kill any queued debounced fbPushAll so a stale snapshot (from a drag
+  // or CP edit in the last 300ms) can't echo back AFTER we've reset and
+  // re-clobber yesterday's data into auction_gl/overrun.
+  clearTimeout(_fbPushTimer);
   const fresh = () => ({
     cards: 0, illusion: 0, white: 0, black: 0, bonusPercent: 0,
     assignments: {
@@ -6797,9 +6835,13 @@ function arResetAuctionPages() {
       sub:  { cards: [], illusion: [], white: [], black: [] }
     }
   });
-  _fbDB.ref("auction_gl").set(fresh())
+  // Also seed local state to the fresh values so any subsequent write
+  // (post-listener echo) uses fresh, not stale.
+  state.auctionGL      = fresh();
+  state.auctionOverrun = fresh();
+  _fbDB.ref("auction_gl").set(state.auctionGL)
     .catch(e => { toast(`ล้าง Auction GL ไม่สำเร็จ: ${e.message}`, "error"); console.error(e); });
-  _fbDB.ref("auction_overrun").set(fresh())
+  _fbDB.ref("auction_overrun").set(state.auctionOverrun)
     .catch(e => { toast(`ล้าง Auction Overrun ไม่สำเร็จ: ${e.message}`, "error"); console.error(e); });
 }
 
