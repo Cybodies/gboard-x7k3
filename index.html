@@ -5532,9 +5532,12 @@ function rosterAdd() {
 
 function rosterUpdate(id, field, value) {
   if (!_fbMembersRef) return;
-  // Frontend gating: name/job/discord/discordId restricted to admin; cp open to everyone
-  if ((field === "name" || field === "job" || field === "discord" || field === "discordId") && !isAdmin()) {
-    toast("เพิ่ม/แก้ ชื่อ + Job + Discord ทำได้เฉพาะ Admin", "error");
+  // Frontend gating: name/discord/discordId restricted to admin; job + cp
+  // open to everyone with auth (matching the relaxed permissions on those
+  // subpaths in Database Rules — players need to be able to swap their own
+  // job mid-event without bothering an admin).
+  if ((field === "name" || field === "discord" || field === "discordId") && !isAdmin()) {
+    toast("เพิ่ม/แก้ ชื่อ + Discord ทำได้เฉพาะ Admin", "error");
     renderBattlefields();
     return;
   }
@@ -5758,20 +5761,21 @@ function buildRosterRowsHtml() {
       <td data-label="ชื่อ">${admin
         ? `<input class="r-input" value="${escapeHtml(m.name)}" onchange="rosterUpdate('${m.id}','name',this.value)" />`
         : `<div class="r-cell-static">${escapeHtml(m.name)}</div>`}</td>
-      <td data-label="Job">${admin
-        ? (() => {
-            const cur = m.job || "";
-            const inList = JOB_LIST.includes(cur);
-            const opts = JOB_LIST.map(j =>
-              `<option value="${j}" ${j === cur ? "selected" : ""}>${j}</option>`).join("");
-            const customOpt = (cur && !inList)
-              ? `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (custom)</option>`
-              : `<option value="" ${!cur ? "selected" : ""}>— เลือก Job —</option>`;
-            return `<select class="r-input r-job-select" onchange="rosterUpdate('${m.id}','job',this.value)">
-              ${customOpt}${opts}
-            </select>`;
-          })()
-        : `<div class="r-cell-static r-job">${escapeHtml(m.job)}</div>`}</td>
+      <td data-label="Job">${(() => {
+        // Job dropdown is editable by anyone with auth (admin or guest) —
+        // matches the relaxed Database Rule on /members/$id/job. Players
+        // can self-update mid-event without admin intervention.
+        const cur = m.job || "";
+        const inList = JOB_LIST.includes(cur);
+        const opts = JOB_LIST.map(j =>
+          `<option value="${j}" ${j === cur ? "selected" : ""}>${j}</option>`).join("");
+        const customOpt = (cur && !inList)
+          ? `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (custom)</option>`
+          : `<option value="" ${!cur ? "selected" : ""}>— เลือก Job —</option>`;
+        return `<select class="r-input r-job-select" onchange="rosterUpdate('${m.id}','job',this.value)">
+          ${customOpt}${opts}
+        </select>`;
+      })()}</td>
       <td data-label="Discord">${admin
         ? `<input class="r-input" value="${escapeHtml(m.discord || "")}" placeholder="@username" onchange="rosterUpdate('${m.id}','discord',this.value)" />`
         : `<div class="r-cell-static r-discord">${m.discord ? escapeHtml(m.discord) : '<span style="color:var(--muted)">—</span>'}</div>`}</td>
