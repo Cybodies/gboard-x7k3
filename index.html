@@ -3961,11 +3961,18 @@ function hasScheduledLeaveToday(memberId) {
 function isOnLeave(m) {
   if (!m) return false;
   const f = leaveField();
-  if (f && m[f]) return true;
-  // Scheduled leaves apply on League AND Overrun pages (and their auction
-  // siblings) — they're "ลาวันนี้" regardless of which event. Skip on
-  // leave/roster/summary pages where the visual mark doesn't make sense.
-  if (f) return hasScheduledLeaveToday(m.id);
+  if (!f) return false;             // not on a leave-aware page
+  if (m[f]) return true;            // manual per-mode flag — admin marked them
+  // Scheduled leave for TODAY's date — but only counts if today's event
+  // type matches the current mode. Previously a Thursday-GL leave would
+  // ALSO show as "on leave" while viewing Overrun, because hasScheduled
+  // LeaveToday didn't know which mode the leave was intended for. Fix:
+  // derive the leave's target mode from isEventDay(today) and match it
+  // against leaveField(); only return true when they line up.
+  if (!hasScheduledLeaveToday(m.id)) return false;
+  const todayEvent = isEventDay(todayBkkISO());
+  if (todayEvent === "GL"      && f === "onLeaveLeague")  return true;
+  if (todayEvent === "Overrun" && f === "onLeaveOverrun") return true;
   return false;
 }
 
