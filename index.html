@@ -747,6 +747,7 @@
   }
   .roster-table .r-cell-static.r-job { color: var(--accent); font-weight: 600; }
   .roster-table .r-cell-static.r-discord { color: #a78bfa; font-family: monospace; font-size: 12px; }
+  .roster-table .r-cell-static.r-discord-name { color: #fbbf24; font-size: 12px; }
   .roster-table button.r-del {
     background: transparent;
     border: 1px solid var(--border);
@@ -4866,16 +4867,17 @@ function fbSubscribeAll() {
     rosterCache = Object.entries(v)
       .map(([id, r]) => ({
         id,
-        name:    r.name    || "",
-        job:     r.job     || "",
-        discord: r.discord || "",
-        cp:      r.cp      || 0,
-        updatedAt: r.updatedAt || 0
+        name:        r.name        || "",
+        job:         r.job         || "",
+        discord:     r.discord     || "",
+        discordName: r.discordName || "",
+        cp:          r.cp          || 0,
+        updatedAt:   r.updatedAt   || 0
       }))
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
     _fbApplyingRemote = true;
     state.members = rosterCache.map(r => ({
-      id: r.id, name: r.name, job: r.job, discord: r.discord, cp: r.cp, source: "firebase"
+      id: r.id, name: r.name, job: r.job, discord: r.discord, discordName: r.discordName, cp: r.cp, source: "firebase"
     }));
     _fbApplyingRemote = false;
     rebuildJobFilter();
@@ -5493,21 +5495,23 @@ function rosterAdd() {
   if (!_fbMembersRef) { toast("Firebase ยังไม่ตั้งค่า", "error"); return; }
   const name = prompt("ชื่อตัวละคร (Guild Member):");
   if (!name || !name.trim()) return;
-  const job     = prompt(`Job (ปล่อยว่างได้ — เลือกจาก dropdown หลังเพิ่ม):\n\n${JOB_LIST.join(" / ")}`, "") || "";
-  const discord = prompt("Discord username:", "") || "";
+  const job         = prompt(`Job (ปล่อยว่างได้ — เลือกจาก dropdown หลังเพิ่ม):\n\n${JOB_LIST.join(" / ")}`, "") || "";
+  const discord     = prompt("Discord username (เช่น @johnny):", "") || "";
+  const discordName = prompt("ชื่อใน Discord (display name):", "") || "";
   _fbMembersRef.push({
-    name:    name.trim(),
-    job:     job.trim(),
-    discord: discord.trim(),
-    cp:      0,
-    updatedAt: Date.now()
+    name:        name.trim(),
+    job:         job.trim(),
+    discord:     discord.trim(),
+    discordName: discordName.trim(),
+    cp:          0,
+    updatedAt:   Date.now()
   });
 }
 
 function rosterUpdate(id, field, value) {
   if (!_fbMembersRef) return;
-  // Frontend gating: name/job/discord restricted to admin; cp open to everyone
-  if ((field === "name" || field === "job" || field === "discord") && !isAdmin()) {
+  // Frontend gating: name/job/discord/discordName restricted to admin; cp open to everyone
+  if ((field === "name" || field === "job" || field === "discord" || field === "discordName") && !isAdmin()) {
     toast("เพิ่ม/แก้ ชื่อ + Job + Discord ทำได้เฉพาะ Admin", "error");
     renderBattlefields();
     return;
@@ -5636,9 +5640,10 @@ function buildRosterRowsHtml() {
   const search = _rosterSearch;
   const filtered = !search ? rosterCache
     : rosterCache.filter(m =>
-        (m.name    || "").toLowerCase().includes(search) ||
-        (m.job     || "").toLowerCase().includes(search) ||
-        (m.discord || "").toLowerCase().includes(search));
+        (m.name        || "").toLowerCase().includes(search) ||
+        (m.job         || "").toLowerCase().includes(search) ||
+        (m.discord     || "").toLowerCase().includes(search) ||
+        (m.discordName || "").toLowerCase().includes(search));
   if (!filtered.length) {
     if (!rosterCache.length) {
       return `<tr><td colspan="6" class="roster-empty">
@@ -5672,6 +5677,9 @@ function buildRosterRowsHtml() {
       <td data-label="Discord">${admin
         ? `<input class="r-input" value="${escapeHtml(m.discord || "")}" placeholder="@username" onchange="rosterUpdate('${m.id}','discord',this.value)" />`
         : `<div class="r-cell-static r-discord">${m.discord ? escapeHtml(m.discord) : '<span style="color:var(--muted)">—</span>'}</div>`}</td>
+      <td data-label="Discord Name">${admin
+        ? `<input class="r-input" value="${escapeHtml(m.discordName || "")}" placeholder="ชื่อใน Discord" onchange="rosterUpdate('${m.id}','discordName',this.value)" />`
+        : `<div class="r-cell-static r-discord-name">${m.discordName ? escapeHtml(m.discordName) : '<span style="color:var(--muted)">—</span>'}</div>`}</td>
       <td data-label="CP">
         <input class="r-input r-cp" type="text" inputmode="numeric" pattern="[0-9]*"
                value="${m.cp || 0}" onchange="rosterUpdate('${m.id}','cp',this.value)" />
@@ -5794,6 +5802,7 @@ function buildRosterHtml() {
               <th>ชื่อ${!admin ? '<span class="badge">admin only</span>' : ""}</th>
               <th>Job${!admin ? '<span class="badge">admin only</span>' : ""}</th>
               <th>Discord${!admin ? '<span class="badge">admin only</span>' : ""}</th>
+              <th>Discord Name${!admin ? '<span class="badge">admin only</span>' : ""}</th>
               <th style="width:140px;text-align:right">CP</th>
               <th style="width:50px"></th>
             </tr>
@@ -6450,6 +6459,10 @@ function arCreateRequest({ date, mode, items, note }) {
   if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
   const m = findMember(memberId);
   if (!m) { toast("ไม่พบสมาชิก", "error"); return; }
+  if (date > todayBkkISO()) {
+    toast(`ยังไม่ถึงวันที่ ${date} — ขอได้เฉพาะวันปัจจุบันเท่านั้น`, "error");
+    return;
+  }
   if (arHasLeaveOnDate(memberId, date)) {
     toast(`คุณลงลาวันที่ ${date} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูล (ถ้าเข้าได้ ยกเลิกลาก่อนในแท็บ "🌴 ลา")`, "error");
     return;
@@ -6626,6 +6639,10 @@ function arOpenRequestModal(date, mode) {
   const memberId = arGetClaimedMemberId();
   if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
   if (!findMember(memberId)) { toast("ไม่พบสมาชิก — เลือกใหม่", "error"); return; }
+  if (date > todayBkkISO()) {
+    toast(`ยังไม่ถึงวันที่ ${date} — ขอได้เฉพาะวันปัจจุบันเท่านั้น`, "error");
+    return;
+  }
   if (arHasLeaveOnDate(memberId, date)) {
     toast(`คุณลงลาวันที่ ${date} ไว้ — ไม่มีสิทธิ์ขอประมูล`, "error");
     return;
@@ -6706,14 +6723,23 @@ function buildAuctionRequestHtml() {
   `;
 
   // ---- Day tabs ----
+  const today = todayBkkISO();
   const dayTabs = `
     <div class="ar-day-tabs">
       ${dateRange.map(d => {
-        const cls = ["ar-day-tab", d === date ? "active" : "", "has-both"].filter(Boolean).join(" ");
+        const isToday  = d === today;
+        const isFuture = d > today;
+        const cls = [
+          "ar-day-tab",
+          d === date ? "active" : "",
+          isToday ? "has-both" : "",
+          isFuture ? "closed" : ""
+        ].filter(Boolean).join(" ");
         const label = formatDayShortBkk(d);
+        const tag = isToday ? "เปิดรับ" : isFuture ? "🔒 ล็อค" : "";
         return `<div class="${cls}" onclick="arSelectDate('${d}')">
           <span class="ar-day-num">${label}</span>
-          <span class="ar-day-mode">เปิดรับ</span>
+          <span class="ar-day-mode">${tag}</span>
         </div>`;
       }).join("")}
     </div>`;
@@ -6733,17 +6759,34 @@ function buildAuctionRequestHtml() {
 
   // ---- Guest: request button + my list ----
   const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= todayBkkISO()) : [];
-  const onLeave = claimedId && arHasLeaveOnDate(claimedId, date);
+  const onLeave    = claimedId && arHasLeaveOnDate(claimedId, date);
+  // Only today's request window is open. Future dates show but are locked
+  // — guests can browse them but can't submit until that day arrives.
+  const isFutureDate = date > todayBkkISO();
+  const lockReason = onLeave
+    ? "leave"
+    : isFutureDate ? "future" : null;
+  const lockedTitle = lockReason === "leave"
+    ? "คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล"
+    : lockReason === "future" ? `ยังไม่ถึงวันที่ ${date} — รอวันนั้นก่อนถึงจะขอได้`
+    : "";
+  const lockedTag = lockReason === "leave" ? " (🌴 ลา)"
+                  : lockReason === "future" ? " (🔒 ยังไม่ถึงวัน)"
+                  : "";
   const requestButtons = claimedId ? `
     <div class="ar-bulk-bar">
-      <button class="ar-request-btn" ${onLeave ? "disabled" : ""}
-        title="${onLeave ? "คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล" : ""}"
-        onclick="arOpenRequestModal('${date}','gl')">🙋 ขอประมูล GL วันที่ ${date}${onLeave ? " (🌴 ลา)" : ""}</button>
-      <button class="ar-request-btn" ${onLeave ? "disabled" : ""}
-        title="${onLeave ? "คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล" : ""}"
-        onclick="arOpenRequestModal('${date}','overrun')">🙋 ขอประมูล Overrun วันที่ ${date}${onLeave ? " (🌴 ลา)" : ""}</button>
+      <button class="ar-request-btn" ${lockReason ? "disabled" : ""}
+        title="${escapeHtml(lockedTitle)}"
+        onclick="arOpenRequestModal('${date}','gl')">🙋 ขอประมูล GL วันที่ ${date}${lockedTag}</button>
+      <button class="ar-request-btn" ${lockReason ? "disabled" : ""}
+        title="${escapeHtml(lockedTitle)}"
+        onclick="arOpenRequestModal('${date}','overrun')">🙋 ขอประมูล Overrun วันที่ ${date}${lockedTag}</button>
     </div>
-    ${onLeave ? `<div style="text-align:center;color:#fb923c;padding:10px;font-size:13px;background:rgba(249,115,22,0.1);border:1px solid #f97316;border-radius:6px;margin-top:8px">🌴 คุณลงลาวันที่ ${date} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูลวันนี้ <br><span style="font-size:11px">ถ้าเข้าได้ ให้ยกเลิกลาก่อนในแท็บ "🌴 ลา"</span></div>` : ""}
+    ${lockReason === "leave"
+      ? `<div style="text-align:center;color:#fb923c;padding:10px;font-size:13px;background:rgba(249,115,22,0.1);border:1px solid #f97316;border-radius:6px;margin-top:8px">🌴 คุณลงลาวันที่ ${date} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูลวันนี้ <br><span style="font-size:11px">ถ้าเข้าได้ ให้ยกเลิกลาก่อนในแท็บ "🌴 ลา"</span></div>`
+      : lockReason === "future"
+        ? `<div style="text-align:center;color:#94a3b8;padding:10px;font-size:13px;background:rgba(148,163,184,0.08);border:1px solid #475569;border-radius:6px;margin-top:8px">🔒 ยังไม่ถึงวันที่ ${date} — ขอได้เฉพาะวันปัจจุบัน <br><span style="font-size:11px">ดูได้แต่กดขอไม่ได้ จนกว่าจะถึงวันนั้น</span></div>`
+        : ""}
   ` : "";
   const mySection = claimedId ? `
     <div class="ar-section">
