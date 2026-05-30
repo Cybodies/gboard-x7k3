@@ -10,7 +10,7 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
-## [2026.05.30]
+## [2026.05.30.2]
 ### Added
 - **Auction page-map (supply-based):** each Auction GL/Overrun page now shows the
   real in-game auction pages computed from the **item pool** — a top ruler

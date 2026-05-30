@@ -348,9 +348,9 @@ t("badge re-anchor: white person shows real page with cards column empty of peop
 });
 
 console.log("\n[version stamp]");
-t("APP_VERSION exists and is calendar-versioned YYYY.MM.DD", () => {
+t("APP_VERSION exists and is calendar-versioned YYYY.MM.DD[.n]", () => {
   ok(typeof app.appVersion === "string", "APP_VERSION should be a string");
-  ok(/^\d{4}\.\d{2}\.\d{2}$/.test(app.appVersion), "format, got " + JSON.stringify(app.appVersion));
+  ok(/^\d{4}\.\d{2}\.\d{2}(\.\d+)?$/.test(app.appVersion), "format, got " + JSON.stringify(app.appVersion));
 });
 t("buildVersionStamp() returns v<APP_VERSION>", () => {
   eq(app.call("buildVersionStamp"), "v" + app.appVersion);
