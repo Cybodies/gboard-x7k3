@@ -1,0 +1,7 @@
+# CodeGraph local index — tooling, rebuilt per machine, not for the repo
+.codegraph/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.bak-*

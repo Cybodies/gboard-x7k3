@@ -896,6 +896,20 @@
     color: var(--muted); font-size: 11px; text-align: center;
   }
   .auction-input-card .ai-rate b { color: var(--text); }
+  /* Editable per-person rate (admin) — small inline number field + unit suffix */
+  .auction-input-card .ai-rate-edit {
+    display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 4px;
+  }
+  .auction-input-card .ai-rate-edit input {
+    width: 48px; padding: 2px 6px; font-size: 13px; font-weight: 700;
+    text-align: center; margin: 0;
+    background: rgba(251,191,36,0.08); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--accent);
+  }
+  .auction-input-card .ai-rate-edit input:focus {
+    border-color: var(--accent); outline: none;
+  }
+  .auction-input-card .ai-rate-suffix { font-size: 11px; color: var(--muted); }
   .auction-input-card .ai-effective {
     text-align: center;
     font-size: 12px;
@@ -4550,7 +4564,11 @@ function buildSummaryHtml() {
 /* =====================================================================
  * Auction (GL / Overrun)
  * ===================================================================== */
-const AUCTION_RATES = {
+// Default per-person allocation rates. These seed each auction's editable
+// `rates` (state.auctionGL.rates / state.auctionOverrun.rates) — admins can
+// override them per event via the input on each item card. getAuctionRates()
+// reads the live (possibly overridden) values; this const is the fallback.
+const AUCTION_DEFAULT_RATES = {
   gl:      { card: 1, illusion: 1, white: 3,  black: 5  },
   overrun: { card: 1, illusion: 1, white: 10, black: 10 }
 };
@@ -4755,8 +4773,8 @@ function applySyncedState(synced) {
   // Normalize auction state shape on viewer side (saved state might be from
   // older app version → fill in missing illusion/sub buckets etc.)
   if (typeof normalizeAuctionState === "function") {
-    state.auctionGL      = normalizeAuctionState(state.auctionGL);
-    state.auctionOverrun = normalizeAuctionState(state.auctionOverrun);
+    state.auctionGL      = normalizeAuctionState(state.auctionGL, "gl");
+    state.auctionOverrun = normalizeAuctionState(state.auctionOverrun, "overrun");
   }
   // Rebind state.parties to the active mode after replacing party arrays.
   if (state.mode === "overrun") state.parties = state.partiesOverrun;
@@ -5326,7 +5344,7 @@ function fbSubscribeAll() {
     const v = snap.val();
     if (!v || typeof v !== "object") return;
     _fbApplyingRemote = true;
-    state.auctionGL = normalizeAuctionState(v);
+    state.auctionGL = normalizeAuctionState(v, "gl");
     _fbApplyingRemote = false;
     if (typeof render === "function" && state.mode === "auction-gl") render();
   });
@@ -5336,7 +5354,7 @@ function fbSubscribeAll() {
     const v = snap.val();
     if (!v || typeof v !== "object") return;
     _fbApplyingRemote = true;
-    state.auctionOverrun = normalizeAuctionState(v);
+    state.auctionOverrun = normalizeAuctionState(v, "overrun");
     _fbApplyingRemote = false;
     if (typeof render === "function" && state.mode === "auction-overrun") render();
   });
@@ -6247,6 +6265,17 @@ function getAuctionAssignments(kind) {
   return obj.assignments;
 }
 
+/** Live per-person allocation rates for an auction (admin-editable, synced).
+ *  Falls back to AUCTION_DEFAULT_RATES for any missing/invalid key. Keys are
+ *  card/illusion/white/black (note: "card" singular, matching ITEM_META.rateKey). */
+function getAuctionRates(kind) {
+  const def = AUCTION_DEFAULT_RATES[kind] || AUCTION_DEFAULT_RATES.gl;
+  const obj = kind === "gl" ? state.auctionGL : state.auctionOverrun;
+  const r = (obj && obj.rates) || {};
+  const pick = (k) => (typeof r[k] === "number" && isFinite(r[k]) && r[k] >= 1) ? r[k] : def[k];
+  return { card: pick("card"), illusion: pick("illusion"), white: pick("white"), black: pick("black") };
+}
+
 /** Compute effective totals + per-person allocation + shortage/leftover.
  *  GL bonus formula (derived from base × multiplier — no separate inputs):
  *    - % > 0: cards + illusion ×2 (so bonus = base), feathers ×(1 + %/100)
@@ -6260,7 +6289,7 @@ function getAuctionAssignments(kind) {
 function computeAuction(kind) {
   const members = getAuctionMembers(kind);
   const people = members.length;
-  const rate = AUCTION_RATES[kind];
+  const rate = getAuctionRates(kind);
   const assignments = getAuctionAssignments(kind);
 
   // Prune stale member IDs (member-set changed via sheet refresh / delete /
@@ -6432,12 +6461,59 @@ function setAuctionPercent(kind, value) {
   renderBattlefields();
 }
 
+/** Admin-editable per-person allocation rate (จำนวนของที่ได้รับต่อคน).
+ *  `rateKey` is card/illusion/white/black. Minimum 1 per person. Mirrors
+ *  setAuctionField's focus/cursor/scroll preservation so admins can keep
+ *  typing across the re-render without the page jumping. */
+function setAuctionRate(kind, rateKey, value) {
+  if (!isAdmin()) { toast("ต้องเป็น admin ถึงจะแก้จำนวนต่อคนได้", "error"); return; }
+  const cleaned = String(value).replace(/[^0-9]/g, "");
+  let n = parseInt(cleaned, 10);
+  if (isNaN(n) || n < 1) n = 1;          // at least 1 item per person
+  const obj = kind === "gl" ? state.auctionGL : state.auctionOverrun;
+  if (!obj.rates) obj.rates = { ...(AUCTION_DEFAULT_RATES[kind] || AUCTION_DEFAULT_RATES.gl) };
+  if (obj.rates[rateKey] === n) return;
+  obj.rates[rateKey] = n;
+  save();
+  let cursorPos = null;
+  const focused = document.activeElement;
+  if (focused && focused.tagName === "INPUT") {
+    try { cursorPos = focused.selectionStart; } catch (e) {}
+  }
+  const scrollX = window.scrollX, scrollY = window.scrollY;
+  renderBattlefields();
+  const newInput = document.querySelector(
+    `input[data-auction-rate-kind="${kind}"][data-auction-rate-item="${rateKey}"]`
+  );
+  if (newInput) {
+    try { newInput.focus({ preventScroll: true }); } catch (e) { newInput.focus(); }
+    const pos = (cursorPos != null) ? Math.min(cursorPos, newInput.value.length) : newInput.value.length;
+    try { newInput.setSelectionRange(pos, pos); } catch (e) {}
+  }
+  window.scrollTo(scrollX, scrollY);
+}
+
 function buildAuctionInputCard(opts) {
-  const { icon, label, value, rate, perPersonLabel, effective, status, statusCls, kind, field } = opts;
+  const { icon, label, value, rate, perPersonLabel, effective, status, statusCls,
+          kind, field, rateItemKey, rateEditable } = opts;
   const effectiveLine = effective != null
     ? `<div class="ai-effective">= ${effective} (ใช้จริง)</div>` : "";
   const statusLine = status
     ? `<div class="ai-status ${statusCls || ""}">${status}</div>` : "";
+  // Per-person rate: editable input for admins (synced), read-only text for
+  // viewers. rateItemKey is the rates key (card/illusion/white/black).
+  let rateLine = "";
+  if (rate != null) {
+    rateLine = rateEditable
+      ? `<div class="ai-rate ai-rate-edit">
+           <input type="text" inputmode="numeric" pattern="[0-9]*" value="${rate}"
+                  data-auction-rate-kind="${kind}" data-auction-rate-item="${rateItemKey}"
+                  oninput="setAuctionRate('${kind}','${rateItemKey}',this.value)"
+                  onfocus="this.select()" />
+           <span class="ai-rate-suffix">${perPersonLabel}</span>
+         </div>`
+      : `<div class="ai-rate"><b>${rate}</b> ${perPersonLabel}</div>`;
+  }
   return `
     <div class="auction-input-card">
       <div class="ai-label"><span class="ai-icon">${icon}</span>${label}</div>
@@ -6445,7 +6521,7 @@ function buildAuctionInputCard(opts) {
              data-auction-kind="${kind}" data-auction-field="${field}"
              oninput="setAuctionField('${kind}','${field}',this.value)"
              onfocus="this.select()" />
-      ${rate != null ? `<div class="ai-rate"><b>${rate}</b> ${perPersonLabel}</div>` : ""}
+      ${rateLine}
       ${effectiveLine}
       ${statusLine}
     </div>`;
@@ -6468,12 +6544,16 @@ function buildAuctionView(kind) {
       black:    ["🪶","ขนดำ",          "ขน/คน"  ]
     };
     const [icon, lbl, ppLbl] = labelMap[field];
+    // Map the item field → its rates key ("cards" item uses the "card" rate).
+    const RATE_KEY = { cards: "card", illusion: "illusion", white: "white", black: "black" };
     return buildAuctionInputCard({
       icon, label: lbl,
       value: it.base,
       rate: it.rate,
       perPersonLabel: ppLbl,
-      kind, field
+      kind, field,
+      rateItemKey: RATE_KEY[field],
+      rateEditable: isAdmin()
     });
   }).join("");
 
@@ -6784,7 +6864,6 @@ function buildAuctionOverrunHtml() { return buildAuctionView("overrun"); }
  *     rejectReason
  *   }
  */
-const AR_MAX_DAYS_AHEAD = 7;            // can request up to today+7 days
 const AR_CLAIMED_KEY    = "roo_party_claimed_member";
 const AR_ITEM_META = {
   cards:    { label: "🎴 การ์ด",         rateKey: "card",     unit: "ใบ"   },
@@ -6817,25 +6896,16 @@ function arHasLeaveOnDate(memberId, date) {
 }
 
 function arGetDateRange() {
-  // Today plus next AR_MAX_DAYS_AHEAD days, BKK timezone
-  const out = [];
-  for (let i = 0; i < AR_MAX_DAYS_AHEAD; i++) {
-    out.push(addDaysBkkISO(todayBkkISO(), i));
-  }
-  return out;
+  // Auction requests are accepted for the CURRENT event day only — never in
+  // advance. So the range is just today (BKK). Non-event days (and any future
+  // date) render a locked page; see buildAuctionRequestHtml / isEventDay.
+  return [todayBkkISO()];
 }
 
-// Add N days to an ISO yyyy-mm-dd string (BKK). N can be 0.
-function addDaysBkkISO(iso, n) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + n);
-  return dt.toISOString().slice(0, 10);
-}
-
-// Auction Request is always open for the next AR_MAX_DAYS_AHEAD days —
-// no per-day enable required. Daily reset wipes the auction pages at
-// 00:00 BKK so each event day starts with a fresh sheet.
+// Auction Request opens ONLY on the current event day (อังคาร/พฤหัส = GL,
+// อาทิตย์ = Overrun via isEventDay), and only for that day's event — no
+// requesting a future event in advance. Non-event days are locked. Daily
+// reset wipes the auction pages at 00:00 BKK so each event day starts fresh.
 
 /** Detect main/sub for a member in a given mode. Returns "main" | "sub" | null. */
 function arDetectField(memberId, mode) {
@@ -6880,14 +6950,10 @@ function arCreateRequest({ date, mode, items, note }) {
   if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return false; }
   const m = findMember(memberId);
   if (!m) { toast("ไม่พบสมาชิก", "error"); return false; }
-  if (date > todayBkkISO()) {
-    toast(`ยังไม่ถึงวันที่ ${date} — ขอได้เฉพาะวันปัจจุบันเท่านั้น`, "error");
-    return false;
-  }
-  if (arHasLeaveOnDate(memberId, date)) {
-    toast(`คุณลงลาวันที่ ${date} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูล (ถ้าเข้าได้ ยกเลิกลาก่อนในแท็บ "🌴 ลา")`, "error");
-    return false;
-  }
+  // Event-day + mode + leave gate (current day only, GL/Overrun must match
+  // today's event — see arRequestBlockReason).
+  const block = arRequestBlockReason(memberId, date, mode);
+  if (block) { toast(block, "error"); return false; }
   if (!Array.isArray(items) || items.length === 0) { toast("เลือกของอย่างน้อย 1 อย่าง", "error"); return false; }
 
   // Block duplicate: same member + same date+mode + overlapping items
@@ -7064,8 +7130,11 @@ function arResetAuctionPages() {
   // or CP edit in the last 300ms) can't echo back AFTER we've reset and
   // re-clobber yesterday's data into auction_gl/overrun.
   clearTimeout(_fbPushTimer);
-  const fresh = () => ({
+  // Preserve each mode's editable per-person rates across the reset — they're
+  // config, not per-event tallies, so a daily wipe shouldn't clobber them.
+  const fresh = (kind) => ({
     cards: 0, illusion: 0, white: 0, black: 0, bonusPercent: 0,
+    rates: getAuctionRates(kind),
     assignments: {
       main: { cards: [], illusion: [], white: [], black: [] },
       sub:  { cards: [], illusion: [], white: [], black: [] }
@@ -7073,8 +7142,8 @@ function arResetAuctionPages() {
   });
   // Also seed local state to the fresh values so any subsequent write
   // (post-listener echo) uses fresh, not stale.
-  state.auctionGL      = fresh();
-  state.auctionOverrun = fresh();
+  state.auctionGL      = fresh("gl");
+  state.auctionOverrun = fresh("overrun");
   _fbDB.ref("auction_gl").set(state.auctionGL)
     .catch(e => { toast(`ล้าง Auction GL ไม่สำเร็จ: ${e.message}`, "error"); console.error(e); });
   _fbDB.ref("auction_overrun").set(state.auctionOverrun)
@@ -7082,18 +7151,26 @@ function arResetAuctionPages() {
 }
 
 /* ---------- Modal helpers ---------- */
+/** Shared gate for opening / submitting a request. Returns an error string
+ *  (to toast) if the request is not allowed, or null if it's OK. Enforces:
+ *  current day only, must be an event day, and the request mode must match
+ *  that day's event (GL on อังคาร/พฤหัส, Overrun on อาทิตย์), plus leave. */
+function arRequestBlockReason(memberId, date, mode) {
+  if (date !== todayBkkISO()) return "ขอประมูลได้เฉพาะวันปัจจุบันเท่านั้น — ขอล่วงหน้าไม่ได้";
+  const ev = isEventDay(date);  // "GL" | "Overrun" | null
+  if (!ev) return "วันนี้ไม่ใช่วันกิจกรรม — ขอประมูลได้เฉพาะวันกิจ (อังคาร/พฤหัส = GL, อาทิตย์ = Overrun)";
+  const allowedMode = ev === "GL" ? "gl" : "overrun";
+  if (mode !== allowedMode) return `วันนี้เป็นกิจ ${ev} — ขอได้เฉพาะของกิจ ${ev} เท่านั้น`;
+  if (arHasLeaveOnDate(memberId, date)) return `คุณลงลาวันที่ ${date} ไว้ — ไม่มีสิทธิ์ขอประมูล`;
+  return null;
+}
+
 function arOpenRequestModal(date, mode) {
   const memberId = arGetClaimedMemberId();
   if (!memberId) { toast("กรุณาเลือกชื่อตัวเองก่อน", "error"); return; }
   if (!findMember(memberId)) { toast("ไม่พบสมาชิก — เลือกใหม่", "error"); return; }
-  if (date > todayBkkISO()) {
-    toast(`ยังไม่ถึงวันที่ ${date} — ขอได้เฉพาะวันปัจจุบันเท่านั้น`, "error");
-    return;
-  }
-  if (arHasLeaveOnDate(memberId, date)) {
-    toast(`คุณลงลาวันที่ ${date} ไว้ — ไม่มีสิทธิ์ขอประมูล`, "error");
-    return;
-  }
+  const block = arRequestBlockReason(memberId, date, mode);
+  if (block) { toast(block, "error"); return; }
   _arModalState = { date, mode, items: new Set(), note: "" };
   render();
 }
@@ -7140,7 +7217,7 @@ function buildAuctionRequestHtml() {
     <div class="ar-hero">
       <div>
         <h2>🙋 Auction Request</h2>
-        <div class="ar-meta">ขอประมูลล่วงหน้า — แอดมินจัดให้ลงสนามหลัก/รองอัตโนมัติ</div>
+        <div class="ar-meta">ขอได้เฉพาะวันกิจวันนี้ — แอดมินจัดให้ลงสนามหลัก/รองอัตโนมัติ</div>
       </div>
       <div style="flex:1"></div>
       <div class="ar-meta">
@@ -7175,26 +7252,19 @@ function buildAuctionRequestHtml() {
     </div>
   `;
 
-  // ---- Day tabs ----
-  const today = todayBkkISO();
+  // ---- Today's event banner ----
+  // Requests open for the current event day only (อังคาร/พฤหัส = GL,
+  // อาทิตย์ = Overrun). Any other day = no event → page locked.
+  const today      = todayBkkISO();
+  const todayEvent = isEventDay(today);                              // "GL" | "Overrun" | null
+  const eventMode  = todayEvent === "GL" ? "gl"
+                   : todayEvent === "Overrun" ? "overrun" : null;
   const dayTabs = `
     <div class="ar-day-tabs">
-      ${dateRange.map(d => {
-        const isToday  = d === today;
-        const isFuture = d > today;
-        const cls = [
-          "ar-day-tab",
-          d === date ? "active" : "",
-          isToday ? "has-both" : "",
-          isFuture ? "closed" : ""
-        ].filter(Boolean).join(" ");
-        const label = formatDayShortBkk(d);
-        const tag = isToday ? "เปิดรับ" : isFuture ? "🔒 ล็อค" : "";
-        return `<div class="${cls}" onclick="arSelectDate('${d}')">
-          <span class="ar-day-num">${label}</span>
-          <span class="ar-day-mode">${tag}</span>
-        </div>`;
-      }).join("")}
+      <div class="ar-day-tab active ${eventMode ? (eventMode === "gl" ? "has-gl" : "has-overrun") : "closed"}">
+        <span class="ar-day-num">${formatDayShortBkk(today)}</span>
+        <span class="ar-day-mode">${todayEvent ? "🟢 วันกิจ " + todayEvent : "🔒 ไม่มีกิจวันนี้"}</span>
+      </div>
     </div>`;
 
   // ---- Admin tools (manual clear, in case admin wants to wipe before midnight) ----
@@ -7202,7 +7272,7 @@ function buildAuctionRequestHtml() {
     <div class="ar-section">
       <h3>⚙️ Admin tools</h3>
       <div class="ar-bulk-bar">
-        <span style="font-size:12px;color:var(--muted)">เปิดรับทุกวัน — เคลียร์อัตโนมัติ 00:00 ตามเวลา BKK</span>
+        <span style="font-size:12px;color:var(--muted)">เปิดรับเฉพาะวันกิจ (อังคาร/พฤหัส = GL · อาทิตย์ = Overrun) — เคลียร์อัตโนมัติ 00:00 BKK</span>
         <div style="flex:1"></div>
         <button class="danger" onclick="arClearDay('${date}')">🧹 ล้างคำขอวันนี้ (${date})</button>
         <button class="danger" onclick="arResetAuctionPages()">🧹 ล้างหน้า Auction GL+Overrun</button>
@@ -7211,34 +7281,27 @@ function buildAuctionRequestHtml() {
   ` : "";
 
   // ---- Guest: request button + my list ----
-  const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= todayBkkISO()) : [];
-  const onLeave    = claimedId && arHasLeaveOnDate(claimedId, date);
-  // Only today's request window is open. Future dates show but are locked
-  // — guests can browse them but can't submit until that day arrives.
-  const isFutureDate = date > todayBkkISO();
-  const lockReason = onLeave
-    ? "leave"
-    : isFutureDate ? "future" : null;
-  const lockedTitle = lockReason === "leave"
-    ? "คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล"
-    : lockReason === "future" ? `ยังไม่ถึงวันที่ ${date} — รอวันนั้นก่อนถึงจะขอได้`
+  const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= today) : [];
+  const onLeave    = claimedId && arHasLeaveOnDate(claimedId, today);
+  // Requests open ONLY on the current event day, ONLY for that day's event.
+  // Lock priority: no event today → on leave → open.
+  const lockReason = !eventMode ? "noevent" : onLeave ? "leave" : null;
+  const lockedTitle = lockReason === "noevent"
+    ? "วันนี้ไม่ใช่วันกิจกรรม — ขอประมูลได้เฉพาะวันกิจ (อังคาร/พฤหัส = GL, อาทิตย์ = Overrun)"
+    : lockReason === "leave" ? "คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล"
     : "";
-  const lockedTag = lockReason === "leave" ? " (🌴 ลา)"
-                  : lockReason === "future" ? " (🔒 ยังไม่ถึงวัน)"
-                  : "";
   const requestButtons = claimedId ? `
     <div class="ar-bulk-bar">
+      ${eventMode ? `
       <button class="ar-request-btn" ${lockReason ? "disabled" : ""}
         title="${escapeHtml(lockedTitle)}"
-        onclick="arOpenRequestModal('${date}','gl')">🙋 ขอประมูล GL วันที่ ${date}${lockedTag}</button>
-      <button class="ar-request-btn" ${lockReason ? "disabled" : ""}
-        title="${escapeHtml(lockedTitle)}"
-        onclick="arOpenRequestModal('${date}','overrun')">🙋 ขอประมูล Overrun วันที่ ${date}${lockedTag}</button>
+        onclick="arOpenRequestModal('${today}','${eventMode}')">🙋 ขอประมูล ${todayEvent} วันนี้ (${formatDayShortBkk(today)})</button>
+      ` : ""}
     </div>
-    ${lockReason === "leave"
-      ? `<div style="text-align:center;color:#fb923c;padding:10px;font-size:13px;background:rgba(249,115,22,0.1);border:1px solid #f97316;border-radius:6px;margin-top:8px">🌴 คุณลงลาวันที่ ${date} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูลวันนี้ <br><span style="font-size:11px">ถ้าเข้าได้ ให้ยกเลิกลาก่อนในแท็บ "🌴 ลา"</span></div>`
-      : lockReason === "future"
-        ? `<div style="text-align:center;color:#94a3b8;padding:10px;font-size:13px;background:rgba(148,163,184,0.08);border:1px solid #475569;border-radius:6px;margin-top:8px">🔒 ยังไม่ถึงวันที่ ${date} — ขอได้เฉพาะวันปัจจุบัน <br><span style="font-size:11px">ดูได้แต่กดขอไม่ได้ จนกว่าจะถึงวันนั้น</span></div>`
+    ${lockReason === "noevent"
+      ? `<div style="text-align:center;color:#94a3b8;padding:14px;font-size:13px;background:rgba(148,163,184,0.08);border:1px solid #475569;border-radius:6px;margin-top:8px">🔒 วันนี้ไม่ใช่วันกิจกรรม<br><span style="font-size:11px">ขอประมูลได้เฉพาะวันกิจ — อังคาร/พฤหัส = GL · อาทิตย์ = Overrun · ขอล่วงหน้าไม่ได้</span></div>`
+      : lockReason === "leave"
+        ? `<div style="text-align:center;color:#fb923c;padding:10px;font-size:13px;background:rgba(249,115,22,0.1);border:1px solid #f97316;border-radius:6px;margin-top:8px">🌴 คุณลงลาวันที่ ${today} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูลวันนี้ <br><span style="font-size:11px">ถ้าเข้าได้ ให้ยกเลิกลาก่อนในแท็บ "🌴 ลา"</span></div>`
         : ""}
   ` : "";
   const mySection = claimedId ? `
@@ -8162,14 +8225,23 @@ if (!state.jobTargets || typeof state.jobTargets !== "object") state.jobTargets 
 // Normalize one auction object: ensure shape + migrate legacy flat assignments
 // (cards/white/black at top level → main bucket, fresh sub bucket). Also
 // backfills "illusion" key on saves that pre-date the Illusion Fragment item.
-function normalizeAuctionState(obj) {
+function normalizeAuctionState(obj, kind) {
+  const defRates = AUCTION_DEFAULT_RATES[kind] || AUCTION_DEFAULT_RATES.gl;
   if (!obj || typeof obj !== "object") {
     return { cards: 0, illusion: 0, white: 0, black: 0, bonusPercent: 0,
+      rates: { ...defRates },
       assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } };
   }
   delete obj.bonusCards; delete obj.bonusWhite; delete obj.bonusBlack;
   if (typeof obj.bonusPercent !== "number") obj.bonusPercent = 0;
   if (typeof obj.illusion !== "number") obj.illusion = 0;
+  // Backfill / validate editable per-person rates (added 2026-05). Any missing
+  // or invalid (<1) key falls back to this mode's default.
+  if (!obj.rates || typeof obj.rates !== "object") obj.rates = {};
+  ["card", "illusion", "white", "black"].forEach(k => {
+    const v = obj.rates[k];
+    if (typeof v !== "number" || !isFinite(v) || v < 1) obj.rates[k] = defRates[k];
+  });
   let a = obj.assignments;
   if (!a || typeof a !== "object") a = {};
   // Legacy flat shape → migrate into main
@@ -8186,8 +8258,8 @@ function normalizeAuctionState(obj) {
   obj.assignments = a;
   return obj;
 }
-state.auctionGL      = normalizeAuctionState(state.auctionGL);
-state.auctionOverrun = normalizeAuctionState(state.auctionOverrun);
+state.auctionGL      = normalizeAuctionState(state.auctionGL, "gl");
+state.auctionOverrun = normalizeAuctionState(state.auctionOverrun, "overrun");
 if (!state.overrunMarkers || typeof state.overrunMarkers !== "object") state.overrunMarkers = {};
 if (!state.mapBg) state.mapBg = { 1: null, 2: null, 3: null };
 if (!(3 in state.mapBg)) state.mapBg[3] = null;
