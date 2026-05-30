@@ -1,0 +1,29 @@
+name: CI
+
+# Runs the dependency-free QA gate on every push to main and on PRs.
+# No `npm install` — the app and tests have zero runtime/dev dependencies,
+# so a lockfile-less `npm ci` would fail. We just need Node + the repo.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Parse check (inline <script> syntax)
+        run: node test/parse-check.js
+
+      - name: Test suite (behavior + simulation)
+        run: node test/run.js

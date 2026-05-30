@@ -4562,6 +4562,26 @@ function buildSummaryHtml() {
 
 
 /* =====================================================================
+ * App version — calendar-versioned (YYYY.MM.DD). Bump on every user-visible
+ * index.html change and add a CHANGELOG entry. Rendered in the footer so a
+ * guild bug report maps to a deployed version and stale caches are visible.
+ * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
+ * ===================================================================== */
+const APP_VERSION = "2026.05.30";
+function buildVersionStamp() { return "v" + APP_VERSION; }
+function renderVersionStamp() {
+  if (typeof document === "undefined" || !document.body) return;
+  let el = document.getElementById("versionStamp");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "versionStamp";
+    el.className = "version-stamp";
+    document.body.appendChild(el);
+  }
+  el.textContent = buildVersionStamp();
+}
+
+/* =====================================================================
  * Auction (GL / Overrun)
  * ===================================================================== */
 // Default per-person allocation rates. These seed each auction's editable
@@ -8277,6 +8297,7 @@ if (state.members.length) {
 }
 
 render();
+renderVersionStamp();
 applyMapBg(1); applyMapBg(2); applyMapBg(3);
 tryAutoLoadMapImages();
 if (state.mode === "league") renderMarkers();

@@ -90,6 +90,7 @@ function loadApp() {
   Object.defineProperty(globalThis, "__T_state", { configurable: true, get: function(){ return state; } });
   globalThis.__T_ADR  = AUCTION_DEFAULT_RATES;
   globalThis.__T_AIPP = AUCTION_ITEMS_PER_PAGE;
+  globalThis.__T_APP_VERSION = (typeof APP_VERSION !== "undefined") ? APP_VERSION : null;
   globalThis.__T_setSearch = function(v){ _auctionSearch = v; };
   globalThis.__T_setAdmin  = function(v){ isAdmin = function(){ return !!v; }; };
   globalThis.__T_setToday  = function(v){ todayBkkISO = function(){ return v; }; };
@@ -166,6 +167,7 @@ function loadApp() {
     get state() { return context.__T_state; },
     AUCTION_DEFAULT_RATES: context.__T_ADR,
     AUCTION_ITEMS_PER_PAGE: context.__T_AIPP,
+    appVersion: context.__T_APP_VERSION,
     setAdmin: context.__T_setAdmin,
     setToday: context.__T_setToday,
     setSearch: context.__T_setSearch,

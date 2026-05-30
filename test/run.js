@@ -270,5 +270,14 @@ t("end-to-end GL flow stays consistent", () => {
   eq(badges, ["หน้า 1 · ชิ้น 1-4", "หน้า 2 · ชิ้น 1-3"], "rate-7 chain across 2 pages");
 });
 
+console.log("\n[version stamp]");
+t("APP_VERSION exists and is calendar-versioned YYYY.MM.DD", () => {
+  ok(typeof app.appVersion === "string", "APP_VERSION should be a string");
+  ok(/^\d{4}\.\d{2}\.\d{2}$/.test(app.appVersion), "format, got " + JSON.stringify(app.appVersion));
+});
+t("buildVersionStamp() returns v<APP_VERSION>", () => {
+  eq(app.call("buildVersionStamp"), "v" + app.appVersion);
+});
+
 console.log("\n=== " + pass + " passed, " + fail + " failed ===\n");
 if (fail) { console.log("FAILURES:\n  - " + failures.join("\n  - ") + "\n"); process.exit(1); }

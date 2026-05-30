@@ -5,6 +5,9 @@
 node_modules/
 package-lock.json
 
+# Local RTDB backups exported before destructive ops (see RUNBOOK.md) — keep off-repo
+backups/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

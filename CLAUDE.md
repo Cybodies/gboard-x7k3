@@ -57,7 +57,11 @@ reference: state shape, sync flow, line map).
   syntax check ได้ แต่ยังต้องอ่านทบทวนเอง
 - **Revert pure** (ย้อน commit เก่า) → skip QA review ได้ แต่ต้องบอก user ว่าย้อนอะไร
 - **Emergency hotfix** (กรณีคนใช้งานอยู่จริงๆ แล้วเกิด production down) → ทำ minimal
-  fix, push, แล้วทำ QA review หลัง (post-mortem)
+  fix, push, แล้วทำ QA review หลัง (post-mortem). ดูขั้นตอน revert / rollback rules /
+  restore data ที่ [`RUNBOOK.md`](RUNBOOK.md); ถ้าแตะข้อมูล ให้ทำ backup ก่อนเสมอ
+- **Deploy / release / incident** → `RUNBOOK.md` (release steps, rollback, pre-destructive
+  backup). Firebase security rules เป็น code ที่ `database.rules.json` (+ คู่มือ deploy ที่
+  `docs/firebase-rules-audit.md`) — แก้ rules ต้อง review + deploy + บันทึก CHANGELOG
 
 ---
 
@@ -72,7 +76,7 @@ time through Firebase so the guild leader edits and members watch live.
 
 ```
 woe-party/
-├── index.html          # the entire app (~8,200 lines)
+├── index.html          # the entire app (~8,300 lines)
 ├── maps/               # battlefield background images
 │   ├── main.png
 │   ├── sub.png
