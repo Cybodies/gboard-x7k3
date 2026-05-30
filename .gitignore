@@ -12,3 +12,6 @@ backups/
 .DS_Store
 Thumbs.db
 *.bak-*
+
+# Scratch / throwaway helper files used during a session (never commit these)
+_*
