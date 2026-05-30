@@ -1,6 +1,6 @@
 ---
 name: woe-qa
-description: Run the mandatory pre-deploy QA gate for the woe-party repo before any commit/push to index.html. Use right after finishing a code change and before committing, or whenever the user says "QA", "ตรวจก่อนขึ้น", "pre-deploy check", "พร้อม push ยัง". Runs the dependency-free test suite (parse check + behavior + simulation), then drives the /code-review and (when relevant) /security-review gates, and ends with a smoke-test checklist. Enforces CLAUDE.md's "no commit if tests fail / no merge without QA" rules.
+description: Run the mandatory pre-deploy QA gate for the woe-party repo before any commit/push to app.html. Use right after finishing a code change and before committing, or whenever the user says "QA", "ตรวจก่อนขึ้น", "pre-deploy check", "พร้อม push ยัง". Runs the dependency-free test suite (parse check + behavior + simulation), then drives the /code-review and (when relevant) /security-review gates, and ends with a smoke-test checklist. Enforces CLAUDE.md's "no commit if tests fail / no merge without QA" rules.
 ---
 
 # woe-party pre-deploy QA gate
@@ -14,7 +14,7 @@ Stop at the first hard failure — do **not** commit/push past a red gate.
 
 - **Doc-only** (`.md`, comments) → skip step 1's behavior suite (still eyeball
   the diff); steps 2–4 optional.
-- **Behavior change** (any JS in `index.html`) → all steps; step 1 MUST pass.
+- **Behavior change** (any JS in `app.html`) → all steps; step 1 MUST pass.
 - **Touches auth / Firebase rules / user-input→HTML / localStorage / URL/
   sharing** → step 3 is REQUIRED, not optional.
 - **Revert / emergency hotfix** → see CLAUDE.md special cases (QA after).
@@ -27,7 +27,7 @@ node test/run.js
 
 - Exit 0 + "N passed, 0 failed" → proceed.
 - Exit 1 → **STOP.** Read the `✗` lines. If it's a real app bug, fix
-  `index.html` and re-run. If it's a harness stub gap (a browser API the
+  `app.html` and re-run. If it's a harness stub gap (a browser API the
   sandbox doesn't implement), fix `test/harness.js` — never weaken a test to
   make it pass.
 - Behavior changed but no test covers it? Add one to `test/run.js` now. The

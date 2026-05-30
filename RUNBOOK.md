@@ -15,11 +15,11 @@ without it:
 2. Save under `backups/woe-party-<node>-<YYYYMMDD-HHmm>.json` (the `backups/` dir is
    gitignored — keep these local / off-repo).
 
-## Release (ship a change to index.html)
+## Release (ship a change to app.html)
 
 1. On a feature branch: make the change **+ a test**, run `node test/run.js` (green) — or
    `/woe-qa` for the full gate.
-2. Bump `APP_VERSION` in `index.html` to today's date `YYYY.MM.DD` and add a `CHANGELOG.md`
+2. Bump `APP_VERSION` in `app.html` to today's date `YYYY.MM.DD` and add a `CHANGELOG.md`
    entry.
 3. Fast-forward merge to `main`, push. GitHub Actions runs the suite; GitHub Pages
    redeploys automatically (~1–2 min).

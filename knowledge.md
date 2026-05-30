@@ -3,7 +3,7 @@
 Deeper reference. Use this when `CLAUDE.md` isn't enough — it expands on
 state shape, sync flow, and the trickier corners of the single-file app.
 
-## File anatomy (`index.html`, ~8,230 lines)
+## File anatomy (`app.html`, ~8,230 lines)
 
 | Range | Contents |
 |---|---|
@@ -98,7 +98,7 @@ Where `AuctionState` is:
 }
 ```
 
-`normalizeAuctionState(obj, kind)` (`index.html` ~8228) migrates legacy flat
+`normalizeAuctionState(obj, kind)` (`app.html` ~8228) migrates legacy flat
 shapes (pre-main/sub split) into the current shape on load, and backfills /
 validates `rates` (any missing or <1 value falls back to the mode default).
 Pass `kind` (`"gl"` | `"overrun"`) so the right defaults are used.
@@ -125,7 +125,7 @@ Pass `kind` (`"gl"` | `"overrun"`) so the right defaults are used.
   snapshots, not merged.
 - The `_fbApplyingRemote` flag guards listeners from triggering re-writes
   during a snapshot apply (debounced by `_fbPushTimer`).
-- `SYNC_KEYS` (`index.html:4169`) is a legacy whitelist; new persistent
+- `SYNC_KEYS` (`app.html:4169`) is a legacy whitelist; new persistent
   fields should be added to both the listener + writer.
 
 ## Auth + admin gating
@@ -182,11 +182,11 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
   from Sheet" flow used during initial roster bootstrap. The main data
   source is Firebase.
 - `initSync()` is a **no-op stub**. The real sync is `initFirebase()`. Both
-  are called from the boot block (`index.html:6319-6320`); keep it that way
+  are called from the boot block (`app.html:6319-6320`); keep it that way
   in case external callers reference `initSync`.
 - `state.parties` duplicates either `partiesLeague` or `partiesOverrun`
   depending on `state.mode`. This is intentional (mode-mirrored view) — see
-  `switchMode()` (`index.html:2449`).
+  `switchMode()` (`app.html:2449`).
 - `setupTooltip()`, `showTooltipFor()`, `pinTooltipFor()` — disabled
   no-ops. Tooltip system was removed; the stubs stay so call sites
   compile.
@@ -232,7 +232,7 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
 - **`node test/run.js`** — parse check + full behavior/simulation suite. Exit 1
   on any failure → use it as the pre-commit gate. `node test/parse-check.js`
   runs just the inline-script syntax check.
-- **`test/harness.js`** loads the REAL inline `<script>` from `index.html` into
+- **`test/harness.js`** loads the REAL inline `<script>` from `app.html` into
   a Node `vm` context with light DOM/Firebase/localStorage stubs. Function
   declarations leak onto the context global (callable directly); `let state` /
   `const`s are bridged out via a small `__T_*` shim injected right before the

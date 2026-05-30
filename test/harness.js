@@ -2,7 +2,7 @@
 /**
  * Test harness for the single-file woe-party app.
  *
- * Loads the REAL inline <script> from index.html into a Node `vm` context with
+ * Loads the REAL inline <script> from app.html into a Node `vm` context with
  * lightweight stubs for the browser APIs the app touches (DOM, Firebase,
  * localStorage, timers, etc.), then exposes the app's functions + live `state`
  * so tests can drive real code paths — no build step, no npm dependencies.
@@ -18,7 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const INDEX_HTML = path.join(__dirname, "..", "index.html");
+const INDEX_HTML = path.join(__dirname, "..", "app.html");
 
 /** Extract the concatenated inline (non-src) <script> contents from the HTML. */
 function extractInlineScript(html) {
@@ -143,7 +143,7 @@ function loadApp() {
   sandbox.innerWidth = 1280; sandbox.innerHeight = 800;
   sandbox.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
   sandbox.getComputedStyle = () => ({ getPropertyValue: () => "" });
-  sandbox.location = { href: "http://localhost/index.html", search: "", hash: "", reload() {}, assign() {}, replace() {} };
+  sandbox.location = { href: "http://localhost/app.html", search: "", hash: "", reload() {}, assign() {}, replace() {} };
 
   const context = vm.createContext(sandbox);
 

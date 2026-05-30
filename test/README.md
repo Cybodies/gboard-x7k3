@@ -16,7 +16,7 @@ CI gate). This is **step 1 of the mandatory QA gate** in `../CLAUDE.md`.
 
 | File | Purpose |
 |---|---|
-| `harness.js` | Loads the real inline `<script>` from `../index.html` into a Node `vm` context with light DOM / Firebase / localStorage stubs, and exposes the app's functions + live `state` for assertions. |
+| `harness.js` | Loads the real inline `<script>` from `../app.html` into a Node `vm` context with light DOM / Firebase / localStorage stubs, and exposes the app's functions + live `state` for assertions. |
 | `parse-check.js` | `new Function(src)` over the concatenated inline scripts — fails on any syntax error. |
 | `run.js` | The suite: a tiny `t()/eq()/ok()` runner plus all the tests. |
 

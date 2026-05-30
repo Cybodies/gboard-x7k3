@@ -10,12 +10,12 @@ reference: state shape, sync flow, line map).
 
 ### ขั้นตอนบังคับหลังเขียน code ทุกครั้ง
 
-1. **Syntax check** — รัน Node parse check ของ inline scripts ใน `index.html`
+1. **Syntax check** — รัน Node parse check ของ inline scripts ใน `app.html`
    ก่อน (รันจาก repo root):
    ```bash
    node -e "
    const fs = require('fs');
-   const html = fs.readFileSync('index.html','utf8');
+   const html = fs.readFileSync('app.html','utf8');
    const re = /<script\b[^>]*>([\s\S]*?)<\/script>/g;
    let m, all = '';
    while ((m = re.exec(html))) {
@@ -67,7 +67,7 @@ reference: state shape, sync flow, line map).
 
 ## What this project is
 
-A single-file web app (`index.html`) that helps a Ragnarok Online guild
+A single-file web app (`app.html`) that helps a Ragnarok Online guild
 organize War of Emperium (WoE) parties and run post-war loot auctions.
 Everything — markup, styles, logic — lives in one HTML file. It syncs in real
 time through Firebase so the guild leader edits and members watch live.
@@ -76,7 +76,7 @@ time through Firebase so the guild leader edits and members watch live.
 
 ```
 woe-party/
-├── index.html          # the entire app (~8,300 lines)
+├── app.html          # the entire app (~8,300 lines)
 ├── maps/               # battlefield background images
 │   ├── main.png
 │   ├── sub.png
@@ -85,8 +85,8 @@ woe-party/
 ├── knowledge.md        # deeper architecture reference (state, sync, line map)
 ├── README.md           # user-facing description
 └── .claude/
-    ├── agents/woe-coder.md       # agent: implement features / fix bugs in index.html
-    └── skills/woe-edit/SKILL.md  # skill: safe-edit workflow for index.html
+    ├── agents/woe-coder.md       # agent: implement features / fix bugs in app.html
+    └── skills/woe-edit/SKILL.md  # skill: safe-edit workflow for app.html
 ```
 
 ## Stack
@@ -150,7 +150,7 @@ Never use `new Date()` directly for date math (off-by-one outside Bangkok).
 
 ## Critical files
 
-- `index.html` — entire app (~8,300 lines). `APP_VERSION` constant = footer version
+- `app.html` — entire app (~8,300 lines). `APP_VERSION` constant = footer version
   stamp; bump on every user-visible change + add a `CHANGELOG.md` entry.
 - `maps/main.png`, `maps/sub.png`, `maps/overrun.png` — battlefield map images.
 - `test/` — dependency-free test harness + suite (`node test/run.js`); the pre-commit gate.

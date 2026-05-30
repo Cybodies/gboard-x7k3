@@ -10,6 +10,19 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.05.30.4]
+### Added
+- **Branded landing page (front door).** A new static `index.html` is now the front
+  page — the "one o clock — Ragnarok Origin Classic" logo, a feature overview, the weekly
+  event schedule (อังคาร/พฤหัส = GL · อาทิตย์ = Overrun, today highlighted), and a CTA into
+  the tool. Open Graph tags make shared links preview the logo (Discord/LINE). Logo at
+  `assets/one-o-clock.png`.
+### Changed
+- **The app moved from `index.html` to `app.html`** so the landing can own the root URL.
+  GitHub Pages now serves the landing at `/` and the organizer at `/app.html`. Weekly users
+  can bookmark `/app.html` to skip the intro. Test harness + parse check follow the rename;
+  a `[landing]` test group guards the front-door wiring.
+
 ## [2026.05.30.3]
 ### Fixed
 - **Auction page-map — each item type now starts on its own fresh page** (matches

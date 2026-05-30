@@ -19,17 +19,17 @@ post-WoE auctions. Used by a single Ragnarok Online guild.
 ## Data source
 
 All shared state lives in **Firebase Realtime Database** (project
-`woe-party`, region `asia-southeast1`). The `index.html` is the only
+`woe-party`, region `asia-southeast1`). The `app.html` is the only
 client — sign-in is via Google for admins, anonymous for viewers.
 
 - Admin allowlist: `ADMIN_EMAILS` near the top of the Firebase block in
-  `index.html`. Editors must be on that list.
+  `app.html`. Editors must be on that list.
 - Anonymous viewers see live state but can't write.
 - `localStorage` (`roo_party_v2`) is a local cache for offline reloads.
 
 ## Deploy
 
-Static — copy `index.html` and the `maps/` folder to any static host
+Static — copy `app.html` and the `maps/` folder to any static host
 (GitHub Pages, etc.). No build step.
 
 ## Documentation for contributors
