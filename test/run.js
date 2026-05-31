@@ -498,6 +498,44 @@ t("Non-event day (Wed): neither allocate button; clear-old stays", () => {
   ok(h.includes("arAutoClearPast()"), "clear-old button still present");
 });
 
+console.log("\n[reject history — same-day, with re-approve]");
+// Rejected requests stay visible in the admin queue for the rest of the day (so
+// admins see who was turned down and can re-approve a mistake). They're cleared
+// together with the whole date by arClearDay (same-day scope). Seed state.auctionRequests
+// directly and assert via arBuildAdminQueue; match by ASCII onclick (Thai-proof).
+function seedReq(date) {
+  app.setAdmin(true);
+  app.setToday(date);
+  reset(app, mkMembers(["m1", "m2", "m3"]));
+  app.state.auctionRequests = { [date]: { gl: {
+    r_rej: { id: "r_rej", memberId: "m1", memberName: "m1", items: ["white"], status: "rejected", rejectReason: "on leave", computedField: "main", requestedAt: 1 },
+    r_app: { id: "r_app", memberId: "m2", memberName: "m2", items: ["cards"], status: "approved", computedField: "main", requestedAt: 2 },
+    r_pen: { id: "r_pen", memberId: "m3", memberName: "m3", items: ["black"], status: "pending", computedField: "main", requestedAt: 3 },
+  } } };
+}
+t("rejected request stays in the admin queue (same-day history)", () => {
+  const date = "2026-06-02"; // Tue = GL
+  seedReq(date);
+  const h = app.call("arBuildAdminQueue", date, "gl");
+  ok(h.includes("ar-section-rejected"), "rejected section rendered");
+  ok(/onclick="arApproveRequest\('2026-06-02','gl','r_rej'\)"/.test(h), "rejected row offers re-approve");
+  ok(h.includes("on leave"), "reject reason shown");
+});
+t("arGetRequests exposes rejected; pending/approved still present", () => {
+  const date = "2026-06-02";
+  seedReq(date);
+  const byStatus = s => app.call("arGetRequests", date, "gl").filter(r => r.status === s).length;
+  eq([byStatus("pending"), byStatus("approved"), byStatus("rejected")], [1, 1, 1], "one of each status");
+});
+t("clearing the day removes rejected history too (same-day scope)", () => {
+  const date = "2026-06-02";
+  seedReq(date);
+  // arClearDay confirms + writes to Firebase (stubbed). Simulate the daily-scope
+  // clear the same way the cron path does: drop the whole date node.
+  delete app.state.auctionRequests[date];
+  eq(app.call("arGetRequests", date, "gl").length, 0, "no requests of any status remain after day clear");
+});
+
 console.log("\n[css coverage — themed controls have their CSS]");
 (function () {
   const appHtml = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
@@ -511,6 +549,7 @@ console.log("\n[css coverage — themed controls have their CSS]");
     ["ac-pagemap",            /class="ac-pagemap/,             /\.ac-pagemap\s*\{/],
     ["ac-coverage",           /class="ac-coverage/,            /\.ac-coverage\s*\{/],
     ["auction-pagemap-strip", /class="auction-pagemap-strip/,  /\.auction-pagemap-strip\s*\{/],
+    ["ar-section-rejected",   /class="ar-section ar-section-rejected"/, /\.ar-section-rejected\s*\{/],
   ];
   pairs.forEach(function (p) {
     t("CSS exists for ." + p[0] + " (used in markup)", function () {

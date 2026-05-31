@@ -433,6 +433,9 @@
     border-radius: 10px; padding: 14px;
   }
   .ar-section h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--text); }
+  /* Rejected-history section reads as secondary (still visible, clearly de-emphasized). */
+  .ar-section-rejected { opacity: 0.85; border-style: dashed; }
+  .ar-section-rejected h3 { color: var(--danger); }
   .ar-claim {
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   }
@@ -4620,7 +4623,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.05.30.9";
+const APP_VERSION = "2026.05.30.10";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -7594,6 +7597,10 @@ function arRenderRow(r, asAdmin) {
     actions = `<button class="ar-action-btn reject" onclick="arWithdrawRequest('${r.date}','${r.mode}','${r.id}')">🗑 ถอน</button>`;
   } else if (asAdmin && r.status === "approved") {
     actions = `<button class="ar-action-btn reject" onclick="arPromptReject('${r.date}','${r.mode}','${r.id}')">↩ ยกเลิก</button>`;
+  } else if (asAdmin && r.status === "rejected") {
+    // Re-consider a rejected request (e.g. rejected by mistake) — approve it
+    // back into the auction. History stays until the day is cleared.
+    actions = `<button class="ar-action-btn approve" onclick="arApproveRequest('${r.date}','${r.mode}','${r.id}')">✓ อนุมัติ</button>`;
   }
 
   return `<div class="ar-req-row ${r.status}">
@@ -7622,6 +7629,8 @@ function arBuildAdminQueue(date, eventMode) {
   const pendingOverrun = arGetRequests(date, "overrun").filter(r => r.status === "pending");
   const approvedGl     = arGetRequests(date, "gl").filter(r => r.status === "approved");
   const approvedOver   = arGetRequests(date, "overrun").filter(r => r.status === "approved");
+  const rejectedGl     = arGetRequests(date, "gl").filter(r => r.status === "rejected");
+  const rejectedOver   = arGetRequests(date, "overrun").filter(r => r.status === "rejected");
   const totalPending = pendingGl.length + pendingOverrun.length;
 
   const renderGroup = (title, mode, reqs) => {
@@ -7665,7 +7674,17 @@ function arBuildAdminQueue(date, eventMode) {
       ${renderGroup("🏆 Overrun", "overrun", approvedOver)}
     </div>` : "";
 
-  return pendingSection + approvedSection;
+  // Rejected history — kept for the rest of the day so admins can see who was
+  // turned down (and re-approve if it was a mistake). Cleared together with the
+  // whole date by arClearDay / arAutoClearPast / the daily reset (same-day scope).
+  const rejectedSection = (rejectedGl.length || rejectedOver.length) ? `
+    <div class="ar-section ar-section-rejected">
+      <h3>❌ ปฏิเสธวันนี้ (${rejectedGl.length + rejectedOver.length})</h3>
+      ${renderGroup("⚔️ GL", "gl", rejectedGl)}
+      ${renderGroup("🏆 Overrun", "overrun", rejectedOver)}
+    </div>` : "";
+
+  return pendingSection + approvedSection + rejectedSection;
 }
 
 function arBuildModal() {

@@ -10,6 +10,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.05.30.10]
+### Added
+- **ประวัติคำขอที่ถูกปฏิเสธ (same-day).** หน้า ขอประมูล ฝั่งแอดมินมี section ใหม่
+  "❌ ปฏิเสธวันนี้" แสดงคำขอที่กดปฏิเสธไป (พร้อมเหตุผล) ค้างไว้ให้ดูตลอดวัน — แอดมิน
+  เห็นว่าใครโดนปฏิเสธและกด "✓ อนุมัติ" ย้อนได้ถ้าปฏิเสธพลาด ประวัตินี้ถูกล้างพร้อม
+  ทั้งวันโดย "ล้างคำขอทั้งหมดของวันนี้" / ล้างวันที่ผ่านมา / รีเซ็ตรายวัน (ขอบเขตวันเดียว
+  เหมือนข้อมูลประมูลอื่น). (`arBuildAdminQueue` ดึง `rejected` เพิ่ม; `arRenderRow` ปุ่ม
+  re-approve สำหรับ rejected row.)
+
 ## [2026.05.30.9]
 ### Changed
 - **Auction page-map now packs items CONTINUOUSLY instead of starting each item type on a
