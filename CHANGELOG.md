@@ -10,6 +10,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.05.30.12]
+### Fixed
+- **ช่องค้นหารายชื่อสมาชิก (sidebar) ไม่เด้งขึ้นบนแล้วตอนพิมพ์.** `renderMembers` เขียน
+  `#memberList.innerHTML` ใหม่ทุกตัวอักษรที่พิมพ์ ซึ่ง reset `scrollTop` ของ `.member-list`
+  (เป็น scroll container เดียวของ pool) กลับเป็น 0 → รายชื่อเด้งขึ้นบนสุด. แก้โดยเก็บ
+  `scrollTop` ก่อน re-render แล้วคืนค่าหลัง (ช่อง input เป็น sibling ไม่ถูกสร้างใหม่
+  focus/caret จึงอยู่ครบอยู่แล้ว). คนละจุดกับ fix v.7 ที่แก้ `auctionSearchInput` (ช่อง
+  ค้นหาในหน้าประมูล) — อันนั้นคนละช่องกัน. +2 เทสต์ใน `[search box scroll-jump guard]`
+  (รวม 82).
+
 ## [2026.05.30.11]
 ### Changed
 - **ขอประมูลได้ 1 คน 1 อย่าง ต่อกิจ.** เดิมสมาชิกติ๊กขอได้หลายชนิดในคำขอเดียว ตอนนี้

@@ -4146,6 +4146,12 @@ function renderMembers() {
     .filter(m => !search || m.name.toLowerCase().includes(search) || m.job.toLowerCase().includes(search))
     .filter(m => !hideAssigned || !isAssigned(m.id))
     .filter(m => !hideLeave || !isOnLeave(m));
+  // Preserve the member-list scroll position across this re-render: .member-list
+  // is the ONLY scroll container for the pool, and reassigning innerHTML resets
+  // its scrollTop to 0 — that was the "list jumps to the top while typing in the
+  // search box" bug. The search input is a sibling (not re-created), so its
+  // focus + caret are already preserved; only the list's scroll needs restoring.
+  const _mlScrollTop = list ? list.scrollTop : 0;
   list.innerHTML = filtered.map(m => {
     const assigned = isAssigned(m.id);
     const onLeave = isOnLeave(m);
@@ -4623,7 +4629,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.05.30.11";
+const APP_VERSION = "2026.05.30.12";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;

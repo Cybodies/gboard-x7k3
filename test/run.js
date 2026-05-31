@@ -607,6 +607,22 @@ console.log("\n[search box scroll-jump guard]");
     ok(m && !/setTimeout\s*\(/.test(m[0]), "auctionSearchInput must not defer the restore in a setTimeout() call");
     ok(m && /window\.scrollTo\(scrollX, scrollY\)/.test(m[0]), "must restore scroll synchronously");
   });
+  // The sidebar member search (#searchInput → renderMembers) re-renders #memberList,
+  // which is its OWN scroll container (.member-list overflow-y:auto). Reassigning
+  // innerHTML resets that container's scrollTop to 0 → the list jumped to the top
+  // while typing. renderMembers must capture scrollTop before and restore it after.
+  const rm = /function renderMembers\(\)\s*\{[\s\S]*?\n\}/.exec(appHtml);
+  t("renderMembers exists", function () { ok(rm, "function not found"); });
+  t("member search preserves the list scroll (no jump to top while typing)", function () {
+    ok(rm && /list\.scrollTop/.test(rm[0]), "renderMembers must read list.scrollTop");
+    ok(rm && /const _mlScrollTop = list \? list\.scrollTop : 0;/.test(rm[0]), "must capture scrollTop before re-render");
+    ok(rm && /if \(list\) list\.scrollTop = _mlScrollTop;/.test(rm[0]), "must restore scrollTop after re-render");
+    // capture must come before the innerHTML reassignment, restore after it
+    const cap = rm[0].indexOf("_mlScrollTop = list ?");
+    const set = rm[0].indexOf("list.innerHTML");
+    const res = rm[0].lastIndexOf("list.scrollTop = _mlScrollTop");
+    ok(cap >= 0 && set >= 0 && res >= 0 && cap < set && set < res, "order: capture → innerHTML → restore");
+  });
 })();
 
 console.log("\n[per-column page chip — slot range]");
