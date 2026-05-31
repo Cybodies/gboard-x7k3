@@ -10,6 +10,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.05.30.13]
+### Fixed
+- **ทำให้ fix v.12 (ช่องค้นหาสมาชิกเด้งขึ้นบน) สมบูรณ์.** v.12 ใส่บรรทัด "เก็บค่า
+  `scrollTop`" ลงไป แต่บรรทัด "คืนค่า" ดัน apply ไม่ติด (anchor ไม่ตรง) — เลยเก็บแต่ไม่คืน
+  รายชื่อจึงยังเด้งขึ้นบนเหมือนเดิม. v.13 เพิ่มบรรทัดคืนค่า `list.scrollTop = _mlScrollTop`
+  หลัง re-render ครบถ้วน + เทสต์ `[search box scroll-jump guard]` เช็คลำดับ capture → innerHTML
+  → restore แล้ว (ตอนนี้ผ่าน). _หมายเหตุ: v.12 ที่ขึ้นไปก่อนหน้ามีเทสต์แดง 1 ตัว — ผิดพลาด
+  ของผมเองที่ push ทั้งที่ยังไม่เขียว v.13 แก้ให้เรียบร้อย._
+
 ## [2026.05.30.12]
 ### Fixed
 - **ช่องค้นหารายชื่อสมาชิก (sidebar) ไม่เด้งขึ้นบนแล้วตอนพิมพ์.** `renderMembers` เขียน

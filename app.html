@@ -4173,6 +4173,10 @@ function renderMembers() {
   }).join("") || `<div style="padding:20px;color:var(--muted);font-size:12px;text-align:center">
       ไม่มีรายชื่อ<br><br>กด <b>Refresh จาก Sheet</b> หรือ <b>+ เพิ่ม</b>
     </div>`;
+  // Re-render done — restore the pool's scroll so it stays where the user was
+  // (reassigning innerHTML above reset .member-list scrollTop to 0; that was the
+  // "list jumps to the top while typing in the search box" bug).
+  if (list) list.scrollTop = _mlScrollTop;
   let cnt = `(${filtered.length}/${state.members.length})`;
   if (leaveOn) {
     const lf = leaveField();
@@ -4629,7 +4633,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.05.30.12";
+const APP_VERSION = "2026.05.30.13";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
