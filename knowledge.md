@@ -72,6 +72,10 @@ Use this lookup before grep:
   markers: { [partyId]: { mapNum, x, y } },
   mapBg: { 1: url, 2: url, 3: url }, // resolved via tryAutoLoadMapImages
   overrunMarkers: { ... },
+  rangeCircles: [ {x,y,r} × 3 ],     // GL Main map zones (center/left/right), % units;
+                                     // synced via `range_circles` node, admin-drag/resize,
+                                     // GL main only. clampRangeCircle/initRangeCircles keep
+                                     // 3 clamped circles; _rangeCirclesOn toggles the view.
   jobTargets: { [jobName]: number },
   auctionGL: AuctionState,
   auctionOverrun: AuctionState,

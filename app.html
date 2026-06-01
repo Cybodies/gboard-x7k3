@@ -11,6 +11,8 @@
     --bg-2: #161b22;
     --panel: #1c2128;
     --panel-2: #232a33;
+    --gold: #d9b56b;
+    --gold-2: #f0d896;
     --border: #30363d;
     --border-2: #444c56;
     --text: #e6edf3;
@@ -2052,6 +2054,26 @@
     pointer-events: none;
     width: 100%; height: 100%;
   }
+  /* Range circles (GL Main map zones). Drawn in the SVG overlay; the rings are
+     non-interactive, the handles opt back into pointer events so admins can grab. */
+  .rc-ring {
+    fill: rgba(217,181,107,0.10);
+    stroke: var(--gold, #d9b56b);
+    stroke-width: 2;
+    stroke-dasharray: 5 4;
+    pointer-events: none;
+  }
+  .rc-handle {
+    fill: var(--gold, #d9b56b);
+    stroke: #1a1500;
+    stroke-width: 1.5;
+    pointer-events: auto;
+    cursor: grab;
+  }
+  .rc-handle.resize { cursor: nesw-resize; }
+  .rc-handle:hover { fill: var(--gold-2, #f0d896); }
+  /* Map header range toggle, lit when circles are on */
+  .map-title .rc-toggle-on { background: var(--gold, #d9b56b); color: #1a1500; }
   .map-arrows line {
     stroke-width: 2.5;
     stroke-dasharray: 6 4;
@@ -2750,6 +2772,10 @@ let state = {
   markers: {},
   mapBg: { 1: null, 2: null, 3: null },
   overrunMarkers: {},
+  // Range circles on the GL Main battlefield map (mapNum 1). Array of exactly 3
+  // zones { x, y, r } in percent of the map wrap (r = % of width). Synced via the
+  // `range_circles` Firebase node; admin drags to move / resize. See initRangeCircles.
+  rangeCircles: [],
   jobTargets: {},
   auctionGL: { cards: 0, illusion: 0, white: 0, black: 0, bonusPercent: 0, splitMainPercent: 70,
     assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } },
@@ -2953,6 +2979,17 @@ function setMapFilterSub(val) {
 function setMapFilterOverrun(val) {
   _mapFilterOverrun = parseInt(val, 10) || 0;
   if (typeof renderOverrunMarkers === "function") renderOverrunMarkers();
+}
+// Range-circle overlay (GL Main map). Per-viewer view state — NOT synced, so each
+// person toggles their own view (same pattern as the map filters above).
+let _rangeCirclesOn = false;
+function rangeCirclesOn() { return _rangeCirclesOn; }   // testable getter
+function toggleRangeCircles() {
+  _rangeCirclesOn = !_rangeCirclesOn;
+  // Full render so the map header chrome updates too (toggle highlight + the
+  // admin-only reset button appear/disappear), not just the SVG circles.
+  if (typeof render === "function") render();
+  else if (typeof renderMarkers === "function") renderMarkers();
 }
 function setDragging(on) {
   _isDragging = !!on;
@@ -3488,6 +3525,51 @@ function setupSidebarDrop() {
 }
 
 /* =====================================================================
+ * Range circles — GL Main battlefield map (mapNum 1) zone radii
+ * ===================================================================== */
+// Defaults positioned over the three "square" landmarks in maps/main.png
+// (center / left / right). x,y = percent of the wrap; r = percent of width.
+const DEFAULT_RANGE_CIRCLES = [
+  { x: 50, y: 48, r: 10 },   // center (emperium)
+  { x: 27, y: 48, r: 8 },    // left square
+  { x: 73, y: 48, r: 8 }     // right square
+];
+const RC_MIN_R = 2, RC_MAX_R = 60;
+
+// Pure: coerce one circle to a sane {x,y,r} (x,y in 0..100; r in RC_MIN_R..RC_MAX_R).
+// Used by both initRangeCircles (load/migrate) and the drag/resize handlers, so the
+// clamp logic is unit-testable without a DOM.
+function clampRangeCircle(c) {
+  const num = (v, d) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  c = c || {};
+  return {
+    x: clamp(num(c.x, 50), 0, 100),
+    y: clamp(num(c.y, 50), 0, 100),
+    r: clamp(num(c.r, 10), RC_MIN_R, RC_MAX_R)
+  };
+}
+
+// Backfill/repair state.rangeCircles to exactly 3 clamped circles. If the stored
+// value is missing or the wrong length (e.g. older app version, or wiped node),
+// reset to DEFAULT_RANGE_CIRCLES; otherwise clamp the existing 3 in place.
+function initRangeCircles() {
+  if (!Array.isArray(state.rangeCircles) || state.rangeCircles.length !== 3) {
+    state.rangeCircles = DEFAULT_RANGE_CIRCLES.map(c => ({ ...c }));
+    return;
+  }
+  state.rangeCircles = state.rangeCircles.map(clampRangeCircle);
+}
+
+function resetRangeCircles() {
+  if (!isAdmin()) { toast("ต้องเป็น admin ถึงจะรีเซ็ตวงระยะได้", "error"); return; }
+  state.rangeCircles = DEFAULT_RANGE_CIRCLES.map(c => ({ ...c }));
+  save();
+  renderMarkers();
+  toast("รีเซ็ตวงระยะแล้ว", "success");
+}
+
+/* =====================================================================
  * Map markers — bound to frame + movement arrows
  * ===================================================================== */
 function initMarkers() {
@@ -3542,7 +3624,116 @@ function renderMarkers() {
       wrap.appendChild(div);
     }
     renderArrows(mapNum);
+    // Range circles live only on the GL Main map. Draw AFTER renderArrows (which
+    // does svg.innerHTML="") so they aren't wiped, and so they sit on top.
+    if (mapNum === 1) renderRangeCircles();
   }
+}
+
+/* =====================================================================
+ * Range circles — render + admin drag/resize on the GL Main map SVG
+ * ===================================================================== */
+function renderRangeCircles() {
+  // GL Main map only. The circles are drawn into the same SVG overlay as the
+  // arrows (#mapArrows1). renderArrows() already cleared it this frame.
+  const svg = document.getElementById("mapArrows1");
+  const wrap = document.getElementById("mapWrap1");
+  if (!svg || !wrap) return;
+  if (!_rangeCirclesOn) return;
+  if (!Array.isArray(state.rangeCircles) || state.rangeCircles.length !== 3) initRangeCircles();
+  const ns = "http://www.w3.org/2000/svg";
+  const admin = typeof isAdmin === "function" && isAdmin();
+
+  state.rangeCircles.forEach((raw, idx) => {
+    const c = clampRangeCircle(raw);
+    // True circle on the 1:1 wrap: ellipse rx/ry both = r% so it tracks both axes.
+    const ell = document.createElementNS(ns, "ellipse");
+    ell.setAttribute("cx", c.x + "%");
+    ell.setAttribute("cy", c.y + "%");
+    ell.setAttribute("rx", c.r + "%");
+    ell.setAttribute("ry", c.r + "%");
+    ell.setAttribute("class", "rc-ring");
+    svg.appendChild(ell);
+
+    if (!admin) return;   // viewers: rings only, no grab handles
+
+    // Center move-handle
+    const center = document.createElementNS(ns, "circle");
+    center.setAttribute("cx", c.x + "%");
+    center.setAttribute("cy", c.y + "%");
+    center.setAttribute("r", "7");
+    center.setAttribute("class", "rc-handle move");
+    attachRangeCircleDrag(center, wrap, idx, "move");
+    svg.appendChild(center);
+
+    // Edge resize-handle at (x + r, y)
+    const edge = document.createElementNS(ns, "circle");
+    edge.setAttribute("cx", (c.x + c.r) + "%");
+    edge.setAttribute("cy", c.y + "%");
+    edge.setAttribute("r", "7");
+    edge.setAttribute("class", "rc-handle resize");
+    attachRangeCircleDrag(edge, wrap, idx, "resize");
+    svg.appendChild(edge);
+  });
+}
+
+// Drag a range-circle handle. kind "move" repositions (x,y); kind "resize" changes
+// the radius = distance from center to cursor (in % of wrap width). Admin-only —
+// the handles are only rendered for admins, and the push is admin-gated anyway.
+function attachRangeCircleDrag(handle, wrap, idx, kind) {
+  let dragging = false;
+  const onDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    e.preventDefault();
+    const ev = e.touches ? e.touches[0] : e;
+    const rect = wrap.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const xPct = ((ev.clientX - rect.left) / rect.width) * 100;
+    const yPct = ((ev.clientY - rect.top) / rect.height) * 100;
+    const c = state.rangeCircles[idx];
+    if (!c) return;
+    if (kind === "move") {
+      c.x = Math.max(0, Math.min(100, xPct));
+      c.y = Math.max(0, Math.min(100, yPct));
+    } else {
+      // radius from center to cursor, in % of width (x axis is the reference)
+      const dx = xPct - c.x, dy = yPct - c.y;
+      c.r = Math.max(RC_MIN_R, Math.min(RC_MAX_R, Math.sqrt(dx * dx + dy * dy)));
+    }
+    state.rangeCircles[idx] = clampRangeCircle(c);
+    renderRangeCircles_live();
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("touchend", onUp);
+    save();              // → debounced Firebase push (admin-gated)
+    renderMarkers();     // full redraw (re-anchors handles cleanly)
+  };
+  handle.addEventListener("mousedown", onDown);
+  handle.addEventListener("touchstart", onDown, { passive: false });
+}
+
+// Lightweight in-drag redraw: only the range-circle layer, so the handle tracks the
+// cursor smoothly without rebuilding all markers/arrows each mousemove. Clears just
+// the rc-* nodes from the SVG and re-draws them.
+function renderRangeCircles_live() {
+  const svg = document.getElementById("mapArrows1");
+  if (!svg) return;
+  svg.querySelectorAll(".rc-ring, .rc-handle").forEach(n => n.remove());
+  renderRangeCircles();
 }
 
 function renderArrows(mapNum) {
@@ -4411,6 +4602,13 @@ function buildMapHtml(mapNum) {
       const selected = currentFilter === partyId ? " selected" : "";
       return `<option value="${partyId}"${selected}>ตี้ ${partyId} — ${escapeHtml(nm)}</option>`;
     })).join("");
+  // Range-circle controls — GL Main map (mapNum 1) only. Toggle for everyone; the
+  // reset button appears only when circles are on AND the viewer is an admin.
+  const rangeCircleBtns = mapNum === 1
+    ? `<button onclick="toggleRangeCircles()" class="${_rangeCirclesOn ? "rc-toggle-on" : ""}" title="วงระยะ 3 จุด (กลาง/ซ้าย/ขวา)">◯ ระยะ</button>` +
+      ((_rangeCirclesOn && typeof isAdmin === "function" && isAdmin())
+        ? `<button onclick="resetRangeCircles()" title="คืนวงระยะกลับค่าเริ่มต้น">↺ รีเซ็ตวงระยะ</button>` : "")
+    : "";
   return `
     <div class="map-card">
       <div class="map-title ${cls}">
@@ -4419,6 +4617,7 @@ function buildMapHtml(mapNum) {
           <select class="map-filter-select" onchange="${setterFnName}(this.value)" title="โฟกัสที่ตี้เดียว — ซ่อนคนอื่น">
             ${filterOpts}
           </select>
+          ${rangeCircleBtns}
           <button onclick="toggleMapFullscreen(${mapNum})" class="btn-expand-${mapNum}" title="ขยายเต็มจอ">⛶ Expand</button>
           <button onclick="clearArrows(${mapNum})" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>
           <label class="btn">📷 Upload<input type="file" accept="image/*" style="display:none" onchange="setMapBg(${mapNum},this)" /></label>
@@ -4633,7 +4832,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.05.30.14";
+const APP_VERSION = "2026.05.30.15";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5473,6 +5672,17 @@ function fbSubscribeAll() {
     if (typeof renderOverrunMarkers === "function" && state.mode === "overrun") renderOverrunMarkers();
   });
 
+  // range_circles (GL Main map zone radii — synced like markers). Firebase stores
+  // the array; normalize to exactly 3 clamped circles before rendering.
+  _fbDB.ref("range_circles").on("value", snap => {
+    const v = snap.val();
+    _fbApplyingRemote = true;
+    state.rangeCircles = Array.isArray(v) ? v : [];
+    if (typeof initRangeCircles === "function") initRangeCircles();
+    _fbApplyingRemote = false;
+    if (typeof renderMarkers === "function" && state.mode === "league") renderMarkers();
+  });
+
   // leaves (scheduled leave registrations — anyone can read/write to their own
   // entries). Listener fires whenever someone in the guild adds/removes a leave
   // so the page updates realtime.
@@ -5644,6 +5854,7 @@ function fbPushAll() {
     _fbDB.ref("job_targets").set(state.jobTargets || {});
     _fbDB.ref("markers").set(state.markers || {});
     _fbDB.ref("overrun_markers").set(state.overrunMarkers || {});
+    _fbDB.ref("range_circles").set(state.rangeCircles || []);
     // map_urls intentionally not pushed — images are embedded as static assets
     setTimeout(() => flashSyncIndicator("done"), 200);
   } catch (e) {
@@ -8537,6 +8748,7 @@ if (!(3 in state.mapBg)) state.mapBg[3] = null;
 updateModeToggleUI();
 document.body.dataset.mode = state.mode;
 initMarkers();
+initRangeCircles();
 rebuildJobFilter();
 setupSidebarDrop();
 setupTooltip();

@@ -590,6 +590,10 @@ console.log("\n[css coverage — themed controls have their CSS]");
     ["ac-coverage",           /class="ac-coverage/,            /\.ac-coverage\s*\{/],
     ["auction-pagemap-strip", /class="auction-pagemap-strip/,  /\.auction-pagemap-strip\s*\{/],
     ["ar-section-rejected",   /class="ar-section ar-section-rejected"/, /\.ar-section-rejected\s*\{/],
+    // Range circles: classes are set via setAttribute("class","rc-…") on SVG nodes,
+    // so the "used" probe matches the JS string literal form, not class="…".
+    ["rc-ring",   /"rc-ring"/,        /\.rc-ring\s*\{/],
+    ["rc-handle", /"rc-handle move"/, /\.rc-handle\s*\{/],
   ];
   pairs.forEach(function (p) {
     t("CSS exists for ." + p[0] + " (used in markup)", function () {
@@ -642,6 +646,50 @@ t("single-item column shows a single slot", function () {
   const html = app.call("buildAuctionView", "gl");
   const chips = [...html.matchAll(/ac-pagemap[^>]*>([^<]+)</g)].map(function (m) { return m[1]; });
   ok(chips.some(function (cc) { return cc.indexOf("หน้า 1 · ชิ้น 1 ") >= 0; }), "got: " + JSON.stringify(chips));
+});
+
+console.log("\n[range circles — GL main map]");
+// 3 admin-draggable/resizable zone circles on the GL Main map, synced via the
+// range_circles node. The harness stubs the DOM/SVG, so we assert the pure state
+// logic (init/clamp/toggle), not pixels. clampRangeCircle is the single source of
+// truth for bounds (x,y in 0..100; r in 2..60), reused by init + the drag handlers.
+t("initRangeCircles backfills exactly 3 default circles from empty", () => {
+  app.state.rangeCircles = [];
+  app.call("initRangeCircles");
+  eq(app.state.rangeCircles.length, 3, "three circles");
+  eq(app.state.rangeCircles, [{x:50,y:48,r:10},{x:27,y:48,r:8},{x:73,y:48,r:8}], "center/left/right defaults");
+});
+t("initRangeCircles is idempotent on a valid array", () => {
+  app.state.rangeCircles = [];
+  app.call("initRangeCircles");
+  const before = JSON.stringify(app.state.rangeCircles);
+  app.call("initRangeCircles");
+  eq(JSON.stringify(app.state.rangeCircles), before, "unchanged on re-run");
+});
+t("initRangeCircles resets a malformed / wrong-length value to defaults", () => {
+  app.state.rangeCircles = [{ x: 1, y: 2, r: 3 }];   // wrong length
+  app.call("initRangeCircles");
+  eq(app.state.rangeCircles.length, 3, "reset to 3");
+  app.state.rangeCircles = null;                      // not an array
+  app.call("initRangeCircles");
+  eq(app.state.rangeCircles.length, 3, "reset from null");
+});
+t("clampRangeCircle bounds x,y to 0..100 and r to 2..60; NaN → safe defaults", () => {
+  eq(app.call("clampRangeCircle", { x: -5, y: 200, r: 999 }), { x: 0, y: 100, r: 60 }, "over/under clamped");
+  eq(app.call("clampRangeCircle", { x: "foo", y: null, r: undefined }), { x: 50, y: 0, r: 10 }, "NaN→defaults (y null coerces to 0)");
+  eq(app.call("clampRangeCircle", { x: 27, y: 48, r: 8 }), { x: 27, y: 48, r: 8 }, "in-range unchanged");
+});
+t("initRangeCircles clamps an existing 3-element array in place", () => {
+  app.state.rangeCircles = [{ x: -9, y: 9, r: 1 }, { x: 50, y: 50, r: 8 }, { x: 500, y: 50, r: 80 }];
+  app.call("initRangeCircles");
+  eq(app.state.rangeCircles, [{x:0,y:9,r:2},{x:50,y:50,r:8},{x:100,y:50,r:60}], "each clamped, still 3");
+});
+t("toggleRangeCircles flips the per-viewer on/off flag", () => {
+  const start = app.call("rangeCirclesOn");
+  app.call("toggleRangeCircles");
+  eq(app.call("rangeCirclesOn"), !start, "flipped");
+  app.call("toggleRangeCircles");
+  eq(app.call("rangeCirclesOn"), start, "flipped back");
 });
 
 console.log("\n[version stamp]");
