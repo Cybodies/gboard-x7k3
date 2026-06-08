@@ -744,6 +744,46 @@ t("buildMapHtml renders multi-select chips with the active ones lit", () => {
   ok(/map-filter-chip"[^>]*toggleMapFilterMain\(6\)/.test(html), "chip 6 NOT active");
 });
 
+console.log("\n[audit log]");
+const AC_MS = 60000;
+t("coalesceAuditLog caps at max, dropping the oldest", () => {
+  let log = [];
+  // distinct `what` + timestamps far apart → no coalescing, pure append+cap
+  for (let i = 1; i <= 60; i++) log = app.call("coalesceAuditLog", log, { at: i * AC_MS, by: "a", what: "#" + i }, 50, AC_MS);
+  eq(log.length, 50, "should cap at 50");
+  eq(log[0].what, "#11", "oldest kept is the 11th (1..10 dropped)");
+  eq(log[49].what, "#60", "newest is the 60th");
+  eq(log[49].n, 1, "non-coalesced rows have n=1");
+});
+t("coalesceAuditLog collapses a same-actor same-action burst (bump time + n)", () => {
+  let log = [];
+  log = app.call("coalesceAuditLog", log, { at: 1000, by: "a@x", what: "แก้ทีม Overrun" }, 50, AC_MS);
+  log = app.call("coalesceAuditLog", log, { at: 2000, by: "a@x", what: "แก้ทีม Overrun" }, 50, AC_MS);
+  log = app.call("coalesceAuditLog", log, { at: 3000, by: "a@x", what: "แก้ทีม Overrun" }, 50, AC_MS);
+  eq(log.length, 1, "a burst collapses into one row");
+  eq(log[0].n, 3, "count reflects the burst size");
+  eq(log[0].at, 3000, "time bumped to the latest edit");
+});
+t("coalesceAuditLog does NOT collapse across actor, action, or the time window", () => {
+  let log = [];
+  log = app.call("coalesceAuditLog", log, { at: 1000,  by: "a", what: "แก้ทีม Overrun" }, 50, AC_MS);
+  log = app.call("coalesceAuditLog", log, { at: 2000,  by: "b", what: "แก้ทีม Overrun" }, 50, AC_MS); // diff actor
+  log = app.call("coalesceAuditLog", log, { at: 3000,  by: "b", what: "แก้ทีม League"  }, 50, AC_MS); // diff action
+  log = app.call("coalesceAuditLog", log, { at: 70000, by: "b", what: "แก้ทีม League"  }, 50, AC_MS); // outside window
+  eq(log.length, 4, "distinct actor / action / late edits each get their own row");
+});
+t("coalesceAuditLog tolerates a non-array starting log", () => {
+  const log = app.call("coalesceAuditLog", null, { at: 1, by: "a", what: "x" }, 50, AC_MS);
+  eq(log.length, 1);
+  eq(log[0].n, 1);
+});
+t("auditBoardLabel maps mode → board; non-board modes are explicit, not mislabelled", () => {
+  eq(app.call("auditBoardLabel", "league"), "League");
+  eq(app.call("auditBoardLabel", "overrun"), "Overrun");
+  eq(app.call("auditBoardLabel", "auction-gl"), "(จากนอกหน้าทีม)", "member-delete from auction page");
+  eq(app.call("auditBoardLabel", "roster"), "(จากนอกหน้าทีม)");
+});
+
 console.log("\n[version stamp]");
 t("APP_VERSION exists and is calendar-versioned YYYY.MM.DD[.n]", () => {
   ok(typeof app.appVersion === "string", "APP_VERSION should be a string");

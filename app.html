@@ -2799,7 +2799,7 @@ let state = {
   leaves: {},
   // Bookkeeping for the auto-clear job. Strings are BKK dates so they're
   // stable across timezones / DST.
-  system: { lastDailyReset: "", lastWeeklyReset: "" },
+  system: { lastDailyReset: "", lastWeeklyReset: "", auditLog: [] },
   auctionRequests: {},
   // Admin list mirrored from Firebase /admins/. Keyed by the email with
   // dots replaced by underscores (Firebase RTDB doesn't allow "." in keys).
@@ -4873,7 +4873,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.05.30.16";
+const APP_VERSION = "2026.06.08.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -4997,6 +4997,11 @@ function commitPartiesNow() {
   // shouldn't drop. We push parties directly and let the debounce keep
   // handling everything else.
   _localPartiesGuardUntil = Date.now() + 2000;
+  // Audit: a team was just edited locally by this admin. Record who + which
+  // board. Drag/sort/rename run on a battlefield (state.mode = league|overrun);
+  // a member-delete can reach here from a non-board page → auditBoardLabel
+  // labels that generically instead of mislabelling it as a specific board.
+  logAudit("แก้ทีม " + auditBoardLabel(state.mode));
   const writes = [];
   if (state.partiesLeague)  writes.push(_fbDB.ref("parties/league").set(state.partiesLeague));
   if (state.partiesOverrun) writes.push(_fbDB.ref("parties/overrun").set(state.partiesOverrun));
@@ -5222,6 +5227,9 @@ function openSyncSettings() {
       <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
       <div style="font-weight:700;margin-bottom:6px">👥 จัดการ Admin</div>
       ${buildAdminManagePanel()}
+      <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+      <div style="font-weight:700;margin-bottom:6px">📜 ประวัติการแก้ทีม (ใครแก้ล่าสุด)</div>
+      ${buildAuditLogPanel()}
     `;
     btn.style.display = "";
     btn.textContent = "🚪 Sign Out";
@@ -5315,6 +5323,28 @@ function buildAdminManagePanel() {
       ⓘ บัญชีต้องสร้างใน Firebase Console ก่อน เพิ่มที่นี่จะให้สิทธิ์ admin ทันที
     </div>
   `;
+}
+
+// Read-only list of recent team edits (newest first). Renders from the synced
+// state.system.auditLog; written by logAudit() on every admin team change.
+function buildAuditLogPanel() {
+  const log = (state.system && Array.isArray(state.system.auditLog)) ? state.system.auditLog : [];
+  if (!log.length) {
+    return `<div style="color:var(--muted);font-size:12px;font-style:italic">— ยังไม่มีบันทึก (จะเริ่มบันทึกเมื่อมีการแก้ทีมครั้งถัดไป) —</div>`;
+  }
+  const rows = log.slice(-15).reverse().map(e => {
+    const when = fmtUpdatedAt(e.at);
+    const who  = escapeHtml(String(e.by || "?"));
+    const what = escapeHtml(String(e.what || ""));
+    const nTimes = Number(e.n) || 1;
+    const times = (nTimes > 1) ? ` <span style="color:var(--muted)">×${nTimes}</span>` : "";
+    return `<div style="display:flex;gap:8px;align-items:baseline;padding:5px 8px;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:12px">
+      <span style="color:var(--muted);white-space:nowrap">${when}</span>
+      <span style="flex:1">${what}${times}</span>
+      <span style="font-weight:700;word-break:break-all">${who}</span>
+    </div>`;
+  }).join("");
+  return rows + `<div style="color:var(--muted);font-size:11px;margin-top:6px">แสดง ${Math.min(15, log.length)} รายการล่าสุด (เก็บสูงสุด ${AUDIT_LOG_MAX})</div>`;
 }
 
 /* Legacy stubs (no-op) — kept so older calls don't crash */
@@ -5787,7 +5817,7 @@ function fbSubscribeAll() {
   _fbDB.ref("system").on("value", snap => {
     const v = snap.val() || {};
     _fbApplyingRemote = true;
-    state.system = { lastDailyReset: v.lastDailyReset || "", lastWeeklyReset: v.lastWeeklyReset || "" };
+    state.system = { lastDailyReset: v.lastDailyReset || "", lastWeeklyReset: v.lastWeeklyReset || "", auditLog: Array.isArray(v.auditLog) ? v.auditLog.slice(-AUDIT_LOG_MAX) : [] };
     _fbApplyingRemote = false;
     // Whenever we hear about the system stamps, run a reset check — if our
     // local clock has crossed a boundary the remote stamp hasn't caught yet,
@@ -5863,6 +5893,58 @@ function autoCheckResets() {
 setInterval(() => {
   if (typeof autoCheckResets === "function") autoCheckResets();
 }, 60 * 1000);
+
+/* ---------- Audit log: record WHO changed a team (system/auditLog) ----------
+ * Logged at the mutation site: commitPartiesNow() is THE path every team edit
+ * (drag/drop, sort, rename, slot delete) takes — it already knows the edit is
+ * admin-only and which board via state.mode (state.parties mirrors the active
+ * mode). Stored under the existing admin-write /system node, so NO change to
+ * database.rules.json is needed. A run of edits by the same admin on the same
+ * board within AUDIT_COALESCE_MS collapses into one row (time bumped + ×count)
+ * to keep the list readable. Limitation: logAudit does a read-modify-write of
+ * the whole array, so two admins editing in the same instant can last-write-win
+ * one entry — accepted for a single trusted guild (the model is one leader
+ * edits, members watch). Out of scope: automatic ghost-slot cleanup (sanitize)
+ * and the repairGhostSlots() console helper write parties without a row — they
+ * are remediation, not human edits; the human action that triggers them (member
+ * delete) IS logged here. After a "team got messed up" incident, open the login
+ * dialog → "📜 ประวัติการแก้ทีม" to see who. */
+const AUDIT_LOG_MAX = 50;
+const AUDIT_COALESCE_MS = 60 * 1000;
+
+// Pure (testable): append `entry` to `log`; if the previous row is the SAME
+// actor + SAME action within `coalesceMs`, collapse into it (bump time, ++n)
+// instead of adding a row; otherwise push and cap to `max` (oldest dropped).
+function coalesceAuditLog(log, entry, max, coalesceMs) {
+  const out = Array.isArray(log) ? log.map(e => ({ ...e })) : [];
+  const last = out[out.length - 1];
+  if (last && last.by === entry.by && last.what === entry.what && (entry.at - (last.at || 0)) < coalesceMs) {
+    last.at = entry.at;
+    last.n = (last.n || 1) + 1;
+  } else {
+    out.push({ at: entry.at, by: entry.by, what: entry.what, n: 1 });
+    while (out.length > max) out.shift();
+  }
+  return out;
+}
+
+// Pure (testable): map state.mode → the team-board label for an audit row.
+// Battlefield modes name the board; anything else (e.g. a member-delete fired
+// from the auction/roster page) is labelled generically, not mislabelled.
+function auditBoardLabel(mode) {
+  return mode === "league" ? "League" : mode === "overrun" ? "Overrun" : "(จากนอกหน้าทีม)";
+}
+
+// Write an audit entry to /system/auditLog (admin-only; reuses the admin-write
+// /system node). Called from commitPartiesNow() on every admin team edit.
+function logAudit(what) {
+  if (!_fbDB || !isAdmin()) return;
+  if (!state.system) state.system = { lastDailyReset: "", lastWeeklyReset: "", auditLog: [] };
+  const entry = { at: Date.now(), by: (_fbUser && _fbUser.email) || "admin", what: what };
+  const next = coalesceAuditLog(state.system.auditLog, entry, AUDIT_LOG_MAX, AUDIT_COALESCE_MS);
+  state.system.auditLog = next;
+  _fbDB.ref("system/auditLog").set(next).catch(e => console.warn("[audit] write failed", e));
+}
 
 /* ---------- Firebase writes (admin only) ---------- */
 function fbPushDebounced() {
