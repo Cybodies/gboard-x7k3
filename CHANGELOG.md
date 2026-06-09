@@ -10,6 +10,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.09.3]
+### Fixed
+- **ปุ่ม "📷 Upload" ในการ์ดแมพ League กดแล้ว error (`setMapBg is not defined`).** handler `setMapBg`/`uploadMapToStorage`
+  ถูก retire ไปแล้ว (รูปแมพฝังเป็น static asset) แต่ปุ่มยังค้างใน `buildMapHtml` (แมพ 1/2/4/5) จึง throw เวลากด.
+  เอาปุ่มออกให้ตรงกับการ์ด Overrun ที่เอาออกไปก่อนแล้ว + ลบ CSS `label.btn` ที่ตายแล้ว. ไม่กระทบการแสดงผล/sync แมพ
+  (`state.mapBg` + `EMBEDDED_MAPS` เหมือนเดิม).
+
 ## [2026.06.09.2]
 ### Added
 - **แผนเกิดบน/เกิดล่าง — แมพ Guild League เป็น 4 การ์ด.** GL สปอว์นได้ทั้งฝั่งบน/ล่าง เลยต้องวาง 2 แผน.

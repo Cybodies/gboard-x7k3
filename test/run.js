@@ -744,6 +744,23 @@ t("buildMapHtml renders multi-select chips with the active ones lit", () => {
   ok(/map-filter-chip"[^>]*toggleMapFilterMain\(6\)/.test(html), "chip 6 NOT active");
 });
 
+t("map cards have NO upload button (setMapBg retired; maps are static assets)", () => {
+  app.setAdmin(true);
+  app.state.mode = "league";
+  const mapCards = [
+    ["GL main (top)", app.call("buildMapHtml", 1)],
+    ["GL sub (top)", app.call("buildMapHtml", 2)],
+    ["GL main (bottom)", app.call("buildMapHtml", 4)],
+    ["GL sub (bottom)", app.call("buildMapHtml", 5)],
+    ["Overrun", app.call("buildOverrunMapHtml")],
+  ];
+  for (const [label, html] of mapCards) {
+    ok(!html.includes("setMapBg"), label + " must not reference retired setMapBg");
+    ok(!html.includes('type="file"'), label + " must not render a file input");
+    ok(!html.includes("Upload"), label + " must not render an Upload control");
+  }
+});
+
 console.log("\n[audit log]");
 const AC_MS = 60000;
 t("coalesceAuditLog caps at max, dropping the oldest", () => {
@@ -835,6 +852,12 @@ console.log("\n[landing — front door wiring]");
     ok(/buildMapHtml\(4\)/.test(appHtml) && /buildMapHtml\(5\)/.test(appHtml), "cards 4 & 5 emitted");
     ok(/4:\s*"maps\/main\.png"/.test(appHtml) && /5:\s*"maps\/sub\.png"/.test(appHtml), "EMBEDDED_MAPS 4/5 reuse same images");
     ok(/function leagueMarkerStore/.test(appHtml), "leagueMarkerStore helper exists");
+  });
+
+  t("map upload retired: no setMapBg() call site, no <input type=file> anywhere", () => {
+    ok(!appHtml.includes("setMapBg("), "setMapBg() call site must be gone (handler retired)");
+    ok(!appHtml.includes('type="file"'), "no <input type=file> may remain in the app");
+    ok(appHtml.includes("upload removed"), "map cards keep the 'upload removed' breadcrumb");
   });
   t("parties: auto-sanitize must NOT write back to Firebase (silent-wipe guard)", () => {
     // Fix A: the members + /parties listeners used to .set() the sanitized parties
