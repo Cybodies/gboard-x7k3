@@ -826,6 +826,22 @@ console.log("\n[landing — front door wiring]");
     eq(landV, appV, "landing footer must equal APP_VERSION");
     eq(clV, appV, "top CHANGELOG entry must equal APP_VERSION");
   });
+  t("parties: auto-sanitize must NOT write back to Firebase (silent-wipe guard)", () => {
+    // Fix A: the members + /parties listeners used to .set() the sanitized parties
+    // back, so a sanitize against stale/racey data silently PERSISTED a wipe of
+    // valid slots ("arranged names reset on their own"). Persistent cleanup is now
+    // the manual repairGhostSlots() button only.
+    ok(!/sanitizeSlots\([^)]*\)\s*&&\s*isAdmin\(\)/.test(appHtml),
+       "no auto sanitize+isAdmin write-back to /parties may remain");
+  });
+  t("parties: members-listener re-sanitize is gated on loaded snapshot (Fix B)", () => {
+    ok(/let _fbPartiesLeagueLoaded\s*=\s*false/.test(appHtml), "League loaded flag declared");
+    ok(/let _fbPartiesOverrunLoaded\s*=\s*false/.test(appHtml), "Overrun loaded flag declared");
+    ok(/_fbPartiesLeagueLoaded\s*=\s*true/.test(appHtml), "League flag set when /parties loads");
+    ok(/_fbPartiesOverrunLoaded\s*=\s*true/.test(appHtml), "Overrun flag set when /parties loads");
+    ok(/if \(_fbPartiesLeagueLoaded && state\.partiesLeague\) sanitizeSlots/.test(appHtml),
+       "members-listener League sanitize gated on loaded flag");
+  });
 })();
 
 console.log("\n=== " + pass + " passed, " + fail + " failed ===\n");

@@ -10,6 +10,17 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.09.1]
+### Fixed
+- **ชื่อที่จัดเข้าตี้ "เด้ง"/หายเอง (เงียบๆ ไม่มี toast/audit).** จัดตี้ไว้ เข้าออกหลายรอบก็อยู่ แต่บางทีเปิด
+  เข้ามาแล้วชื่อหายเอง. ต้นเหตุ: auto-sanitize ตัด slot ที่ `findMember(id)` หาไม่เจอ (`!m`) แล้ว **`.set()`
+  เขียนทับ Firebase ถาวร** โดยไม่มี guard รอ `/parties` snapshot จริง — พอ members listener ชนะ race จะ
+  sanitize ทับ parties จาก localStorage (ที่อ้าง member ที่ถูกลบไปแล้ว) ลบ slot ที่ valid แล้วเซฟทับ เงียบๆ
+  (ไม่มี toast, ไม่ลง audit เพราะ sanitize write-back ไม่เรียก `logAudit`). **แก้ A:** auto-sanitize เป็น
+  display-only ไม่ `.set()` กลับ Firebase อีก — ล้าง orphan ถาวรผ่านปุ่ม `repairGhostSlots()` (admin กดเอง).
+  **แก้ B:** เพิ่ม `_fbPartiesLeagueLoaded`/`_fbPartiesOverrunLoaded` กั้นไม่ให้ members-listener sanitize
+  ก่อน snapshot จริงของ `/parties` โหลด. การจัดตี้ปกติ (`commitPartiesNow`) ไม่กระทบ.
+
 ## [2026.06.08.1]
 ### Added
 - **Audit log: บันทึกว่า "ใครแก้ทีม".** เดิมข้อมูลมีแค่ `updatedAt` (เวลา) แต่ไม่มี "ใคร" →

@@ -4873,7 +4873,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.08.1";
+const APP_VERSION = "2026.06.09.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5403,6 +5403,13 @@ let _fbPushTimer = null;
 // could land mid-sort and wipe the sort result before our own push lands.
 let _localPartiesGuardUntil = 0;
 
+// Fix B (parties silent-wipe): gate the members-listener re-sanitize until each
+// board's authoritative /parties snapshot has applied — so we never sanitize the
+// stale localStorage copy (which may reference members removed since) and blank
+// valid slots. Flipped true in the /parties listeners below.
+let _fbPartiesLeagueLoaded = false;
+let _fbPartiesOverrunLoaded = false;
+
 let rosterCache = [];          // sorted by name asc
 
 function firebaseConfigured() {
@@ -5510,12 +5517,14 @@ function fbSubscribeAll() {
     rebuildJobFilter();
     // Now that members are loaded, re-sanitize party slots — first listener
     // run may have skipped because members weren't ready yet.
-    if (state.partiesLeague && sanitizeSlots(state.partiesLeague) && isAdmin()) {
-      _fbDB.ref("parties/league").set(state.partiesLeague);
-    }
-    if (state.partiesOverrun && sanitizeSlots(state.partiesOverrun) && isAdmin()) {
-      _fbDB.ref("parties/overrun").set(state.partiesOverrun);
-    }
+    // Fix A/B: re-sanitize for DISPLAY only, and only after the authoritative
+    // /parties snapshot has applied. The old code .set() the sanitized parties
+    // back to Firebase, so a sanitize running against the stale localStorage
+    // copy (members snapshot winning the load race, referencing members removed
+    // since) silently PERSISTED a wipe of valid slots. Persistent orphan cleanup
+    // is admin-only now, via the manual repairGhostSlots() button.
+    if (_fbPartiesLeagueLoaded && state.partiesLeague) sanitizeSlots(state.partiesLeague);
+    if (_fbPartiesOverrunLoaded && state.partiesOverrun) sanitizeSlots(state.partiesOverrun);
     safeRender();
   }, e => console.warn("[firebase] members listener error", e));
 
@@ -5663,11 +5672,12 @@ function fbSubscribeAll() {
     });
     if (state.mode === "league") state.parties = state.partiesLeague;
     _fbApplyingRemote = false;
-    // Sanitize after applying — if anything was orphaned, push the cleaned
-    // version back (admin only). Avoids infinite loop via the dirty flag.
-    if (sanitizeSlots(state.partiesLeague) && isAdmin()) {
-      _fbDB.ref("parties/league").set(state.partiesLeague);
-    }
+    // Display-only sanitize of the freshly-loaded authoritative snapshot — it
+    // no longer writes the cleaned copy back to Firebase (that silent .set()
+    // was the parties-wipe bug). Mark this board loaded so the members listener
+    // may display-sanitize without racing the stale localStorage copy.
+    _fbPartiesLeagueLoaded = true;        // Fix B: authoritative League parties now loaded
+    sanitizeSlots(state.partiesLeague);   // Fix A: clean for DISPLAY only, never persist
     safeRender();
   });
 
@@ -5690,9 +5700,8 @@ function fbSubscribeAll() {
     });
     if (state.mode === "overrun") state.parties = state.partiesOverrun;
     _fbApplyingRemote = false;
-    if (sanitizeSlots(state.partiesOverrun) && isAdmin()) {
-      _fbDB.ref("parties/overrun").set(state.partiesOverrun);
-    }
+    _fbPartiesOverrunLoaded = true;        // Fix B: authoritative Overrun parties now loaded
+    sanitizeSlots(state.partiesOverrun);   // Fix A: clean for DISPLAY only, never persist
     safeRender();
   });
 
