@@ -205,12 +205,20 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
 
 ## Map images
 
-- The three PNGs in `maps/` are loaded via `tryAutoLoadMapImages()` and
-  also re-uploadable via Firebase Storage (admin only).
-- `applyMapBg(n)` sets the CSS `background-image` for map slot `n`
-  (`1`=main, `2`=sub, `3`=overrun).
-- Don't break the static fallback — `maps/*.png` must always work without
-  Firebase (used when Storage is empty).
+- Baseline = the PNGs in `maps/` (`EMBEDDED_MAPS`: 1/4=main, 2/5=sub,
+  3=overrun), loaded via `tryAutoLoadMapImages()` into `state.mapBg`.
+- **Custom upload (re-added 2026-06-12, NOT Firebase Storage):** admin
+  per-map "🖼 เปลี่ยนรูป" button → `compressMapImage()` (canvas JPEG,
+  ≤ `MAP_IMAGE_MAX_CHARS` ≈ 660KB) → `/map_images/{1..5}` data-URL
+  (rules: read authed, write admin, `beginsWith('data:image/')` +
+  length cap). Listener mirrors into `_customMapImages` — kept OUTSIDE
+  `state` so `save()` never serializes megabyte strings into
+  localStorage. `applyMapBg(n)` prefers `_customMapImages[n]`, falls
+  back to `state.mapBg[n]`; "↺ รูปเดิม" removes the node.
+- League page map order (2026-06-12): row 1 = maps 1+4 (both MAIN
+  plans), row 2 = maps 2+5 (both SUB plans).
+- Don't break the static fallback — `maps/*.png` must always work
+  without Firebase (used when `/map_images` is empty).
 
 ## Things that look wrong but aren't
 

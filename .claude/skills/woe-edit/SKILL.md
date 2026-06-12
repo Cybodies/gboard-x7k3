@@ -126,8 +126,9 @@ gives wrong results outside Asia/Bangkok.
   compat SDK.
 - Don't commit Firebase admin SDK keys or service-account JSON. The
   current `FIREBASE_CONFIG` is a public web key — that's fine.
-- Don't drop the `maps/*.png` static fallback — Firebase Storage is an
-  override, not a replacement.
+- Don't drop the `maps/*.png` static fallback — the admin upload override
+  lives at RTDB `/map_images` (data-URLs in `_customMapImages`, NOT
+  Firebase Storage, and never inside `state`/localStorage).
 - Don't reintroduce removed modes (`dimension`, `glsummary`); the
   load-time redirect at `app.html:6258` assumes they stay gone.
 

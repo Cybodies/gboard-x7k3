@@ -4305,8 +4305,10 @@ function attachMarkerDrag(el, wrap, idx, mapNum) {
 function applyMapBg(mapNum) {
   const wrap = document.getElementById("mapWrap" + mapNum);
   if (!wrap) return;
-  if (state.mapBg[mapNum]) {
-    wrap.style.backgroundImage = `url("${state.mapBg[mapNum]}")`;
+  // Admin-uploaded custom image wins; embedded static is the fallback.
+  const src = _customMapImages[mapNum] || state.mapBg[mapNum];
+  if (src) {
+    wrap.style.backgroundImage = `url("${src}")`;
     wrap.classList.remove("no-image");
     const img = new Image();
     img.onload = () => {
@@ -4315,7 +4317,7 @@ function applyMapBg(mapNum) {
         wrap.style.setProperty('--map-ar', ar);
       }
     };
-    img.src = state.mapBg[mapNum];
+    img.src = src;
   } else {
     wrap.style.backgroundImage = "";
     wrap.style.removeProperty('--map-ar');
@@ -4376,10 +4378,11 @@ const EMBEDDED_MAPS = {
 
 function tryAutoLoadMapImages() {
   for (const n of Object.keys(EMBEDDED_MAPS).map(Number)) {
-    // Embedded path always wins — overwrite anything the user may have uploaded
-    // before so everyone sees the same baseline maps. Skip if Firebase Storage
-    // URL is set (admin chose to override via map_urls).
-    if (typeof state.mapBg[n] === "string" && state.mapBg[n].startsWith("https://")) continue;
+    // Embedded path ALWAYS becomes the baseline — including over stale
+    // https:// Firebase-Storage URLs that the retired upload era may have
+    // left in old localStorage saves (those objects no longer exist, and
+    // honoring them blanked the map for exactly those users). Custom
+    // overrides live in _customMapImages now, never in state.mapBg.
     if (!EMBEDDED_MAPS[n]) continue;
     const img = new Image();
     img.onload = () => {
@@ -4389,6 +4392,86 @@ function tryAutoLoadMapImages() {
     img.onerror = () => { console.warn("[maps] failed to load " + EMBEDDED_MAPS[n]); };
     img.src = EMBEDDED_MAPS[n];
   }
+}
+
+/* ---- Custom map images (admin upload, 2026-06-12) ------------------- *
+ * Synced via /map_images/{mapNum} as a compressed JPEG data-URL.
+ * Deliberately lives OUTSIDE `state`: save() serializes state into
+ * localStorage on every edit, and megabyte image strings there would
+ * jank each save. A custom image wins over the embedded static one;
+ * removing it falls straight back (the static maps/*.png baseline must
+ * always keep working without Firebase).                                */
+let _customMapImages = {};
+const MAP_IMAGE_MAX_CHARS = 880000; // ~660KB binary; DB rules cap at 900k
+
+function compressMapImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error("ไฟล์ไม่ใช่รูปภาพ")); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        // A decodable file with no real dimensions (e.g. a unitless SVG)
+        // would silently become a 1×1 smear — reject it instead.
+        if (!img.naturalWidth || !img.naturalHeight) {
+          reject(new Error("อ่านขนาดรูปไม่ได้ — ใช้ไฟล์ PNG/JPG"));
+          return;
+        }
+        const attempt = (maxDim, q) => {
+          const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+          const w = Math.max(1, Math.round(img.naturalWidth * scale));
+          const h = Math.max(1, Math.round(img.naturalHeight * scale));
+          const cv = document.createElement("canvas");
+          cv.width = w; cv.height = h;
+          const ctx = cv.getContext("2d");
+          if (!ctx) throw new Error("เบราว์เซอร์บล็อก canvas (ปิด canvas blocker แล้วลองใหม่)");
+          ctx.fillStyle = "#0d1117"; ctx.fillRect(0, 0, w, h); // flatten PNG alpha
+          ctx.drawImage(img, 0, 0, w, h);
+          return cv.toDataURL("image/jpeg", q);
+        };
+        let out = attempt(1600, 0.72);
+        if (out.length > MAP_IMAGE_MAX_CHARS) out = attempt(1280, 0.6);
+        if (out.length > MAP_IMAGE_MAX_CHARS) { reject(new Error("รูปใหญ่เกินไปหลังบีบอัด — ลองรูปที่เล็กลง")); return; }
+        resolve(out);
+      } catch (e) {
+        // Without this, a canvas failure would leave the promise un-settled
+        // forever ("กำลังบีบอัดรูป…" with no outcome toast).
+        reject(e);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("อ่านไฟล์รูปไม่สำเร็จ")); };
+    img.src = url;
+  });
+}
+
+function uploadMapImage(mapNum, input) {
+  const file = input && input.files && input.files[0];
+  if (input) input.value = ""; // allow re-picking the same file later
+  if (!file) return;
+  if (!isAdmin() || !_fbDB) { toast("ต้องเป็น admin + ออนไลน์ถึงจะเปลี่ยนรูปได้", "error"); return; }
+  toast("กำลังบีบอัดรูป…", "");
+  compressMapImage(file)
+    .then(dataUrl => _fbDB.ref("map_images/" + mapNum).set(dataUrl))
+    .then(() => toast("✅ เปลี่ยนรูปแผนที่แล้ว — ทุกเครื่องเห็นทันที", "success"))
+    .catch(e => toast("เปลี่ยนรูปไม่สำเร็จ: " + (e && e.message || e), "error"));
+}
+
+function resetMapImage(mapNum) {
+  if (!isAdmin() || !_fbDB) return;
+  if (!confirm("กลับไปใช้รูปแผนที่มาตรฐาน?")) return;
+  _fbDB.ref("map_images/" + mapNum).remove()
+    .then(() => toast("กลับมาใช้รูปเดิมแล้ว", "success"))
+    .catch(e => toast("ลบรูปไม่สำเร็จ: " + (e && e.message || e), "error"));
+}
+
+// Admin-only header controls for a map card (shared by GL + Overrun).
+function buildMapUploadBtns(mapNum) {
+  if (typeof isAdmin !== "function" || !isAdmin()) return "";
+  const hasCustom = !!_customMapImages[mapNum];
+  return `<button onclick="document.getElementById('mapUpload${mapNum}').click()" title="อัปโหลดรูปแผนที่ใหม่ (ทุกเครื่องเห็นเหมือนกัน)">🖼 เปลี่ยนรูป</button>` +
+    `<input type="file" id="mapUpload${mapNum}" accept="image/*" style="display:none" onchange="uploadMapImage(${mapNum}, this)">` +
+    (hasCustom ? `<button onclick="resetMapImage(${mapNum})" title="ลบรูปที่อัปโหลด กลับไปใช้รูปมาตรฐาน">↺ รูปเดิม</button>` : "");
 }
 
 /* =====================================================================
@@ -4740,7 +4823,7 @@ function buildOverrunMapHtml() {
           <span class="map-filter-chips" title="ติ๊กได้หลายกลุ่มพร้อมกัน">${filterChips}</span>
           <button onclick="toggleMapFullscreen(3)" class="btn-expand-3" title="ขยายเต็มจอ">⛶ Expand</button>
           <button onclick="clearArrows(3)" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>
-          <!-- Map image embedded as static asset; upload removed -->
+          ${buildMapUploadBtns(3)}
         </span>
       </div>
       <div class="map-wrap overrun-wrap" id="mapWrap3">
@@ -4792,7 +4875,7 @@ function buildMapHtml(mapNum) {
           ${rangeCircleBtns}
           <button onclick="toggleMapFullscreen(${mapNum})" class="btn-expand-${mapNum}" title="ขยายเต็มจอ">⛶ Expand</button>
           <button onclick="clearArrows(${mapNum})" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>
-          <!-- Map image embedded as static asset; upload removed -->
+          ${buildMapUploadBtns(mapNum)}
         </span>
       </div>
       <div class="map-wrap ${subWrapCls}" id="mapWrap${mapNum}">
@@ -4804,8 +4887,10 @@ function buildMapHtml(mapNum) {
 
 function classifyJobStatus(count, target) {
   if (!target || target <= 0) return { status: "—", cls: "status-none" };
-  if (count > target + 1) return { status: "เยอะเกินไป", cls: "status-too-many" };
-  if (count < target - 1) return { status: "น้อยเกินไป", cls: "status-too-few" };
+  // EXACT match only (2026-06-12): any mismatch flags immediately with the
+  // exact gap — the old ±1 "ใกล้เคียง = สมดุล" tolerance hid real holes.
+  if (count > target) return { status: `เกิน ${count - target}`, cls: "status-too-many" };
+  if (count < target) return { status: `ขาด ${target - count}`, cls: "status-too-few" };
   return { status: "สมดุล", cls: "status-balanced" };
 }
 
@@ -4830,6 +4915,16 @@ function getMergedJobCounts() {
   return counts;
 }
 
+// Jobs shown in the breakdown = every job present PLUS every job that has a
+// target set — a targeted job whose member count dropped to 0 must surface
+// as "ขาด N", not silently vanish from the table, the target sum, and the
+// AI comment (the worst hidden hole of all).
+function getSummaryJobs(counts, targets) {
+  const set = new Set(Object.keys(counts));
+  Object.keys(targets || {}).forEach(j => { if ((targets[j] || 0) > 0) set.add(j); });
+  return [...set].sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
+}
+
 const JOB_PALETTE = [
   "#ef4444","#f97316","#f59e0b","#eab308",
   "#84cc16","#22c55e","#10b981","#14b8a6",
@@ -4849,7 +4944,7 @@ function buildPieSvg(jobs, counts, total) {
   let angle = -90;
   let paths = "";
   jobs.forEach((job, i) => {
-    const c = counts[job];
+    const c = counts[job] || 0;
     const sweep = (c / total) * 360;
     if (sweep <= 0) return;
     const start = angle;
@@ -4872,25 +4967,29 @@ function buildAiComment(jobs, counts, targets, total) {
   if (!total || !jobs.length) {
     return `<div class="ai-line">⚠️ ยังไม่มีสมาชิก — กด Refresh จาก Sheet เพื่อให้วิเคราะห์ได้</div>`;
   }
+  // EXACT comparison — สมดุล means count === target, nothing else. Any
+  // mismatch is reported immediately with its exact size (no ±1 grace).
   const tooMany = [], tooFew = [], balanced = [];
+  let haveSum = 0, targetSum = 0;
   for (const job of jobs) {
-    const c = counts[job];
+    const c = counts[job] || 0;
     const t = targets[job] || 0;
     if (t === 0) continue;
+    haveSum += c; targetSum += t;
     const diff = c - t;
-    if (diff > 1) tooMany.push({ job, c, t, by: diff });
-    else if (diff < -1) tooFew.push({ job, c, t, by: -diff });
+    if (diff > 0) tooMany.push({ job, c, t, by: diff });
+    else if (diff < 0) tooFew.push({ job, c, t, by: -diff });
     else balanced.push({ job, c, t });
   }
 
-  const sorted = jobs.slice().sort((a,b) => counts[b] - counts[a]);
+  const sorted = jobs.slice().sort((a,b) => (counts[b] || 0) - (counts[a] || 0));
   const top = sorted[0];
   const bottom = sorted[sorted.length - 1];
 
   const lines = [];
-  lines.push(`<div class="ai-line">🏆 อาชีพเยอะที่สุด: <b>${escapeHtml(top)}</b> (${counts[top]} คน · ${(counts[top]/total*100).toFixed(0)}%)</div>`);
+  lines.push(`<div class="ai-line">🏆 อาชีพเยอะที่สุด: <b>${escapeHtml(top)}</b> (${counts[top] || 0} คน · ${((counts[top] || 0)/total*100).toFixed(0)}%)</div>`);
   if (bottom !== top) {
-    lines.push(`<div class="ai-line">📉 อาชีพน้อยที่สุด: <b>${escapeHtml(bottom)}</b> (${counts[bottom]} คน)</div>`);
+    lines.push(`<div class="ai-line">📉 อาชีพน้อยที่สุด: <b>${escapeHtml(bottom)}</b> (${counts[bottom] || 0} คน)</div>`);
   }
 
   const hasTargets = tooMany.length || tooFew.length || balanced.length;
@@ -4898,6 +4997,16 @@ function buildAiComment(jobs, counts, targets, total) {
     lines.push(`<div class="ai-line" style="margin-top:6px;color:var(--muted)">⚠️ ยังไม่ได้ตั้งเป้าหมาย — กรอกช่อง "เป้าหมาย" เพื่อให้วิเคราะห์ส่วนเกิน/ขาด</div>`);
     return lines.join("");
   }
+
+  // Exact net position across every job that has a target.
+  const net = haveSum - targetSum;
+  const netTxt = net === 0
+    ? `<b class="balanced">ครบพอดี</b>`
+    : net > 0
+      ? `<b class="too-many">เกินสุทธิ ${net} คน</b>`
+      : `<b class="too-few">ขาดสุทธิ ${-net} คน</b>`;
+  lines.push(`<div class="ai-line" style="margin-top:6px">🎯 เทียบเป้ารวม (เฉพาะอาชีพที่ตั้งเป้า): มี <b>${haveSum}</b> / เป้า <b>${targetSum}</b> → ${netTxt}` +
+    ` <span style="color:var(--muted)">(ตรงเป้า ${balanced.length} · เกิน ${tooMany.length} · ขาด ${tooFew.length} อาชีพ)</span></div>`);
 
   if (tooMany.length) {
     lines.push(`<div class="ai-line" style="margin-top:8px">🔴 <b class="too-many">เยอะเกินไป (${tooMany.length}):</b></div>`);
@@ -4915,27 +5024,46 @@ function buildAiComment(jobs, counts, targets, total) {
     lines.push(`<div class="ai-line" style="margin-top:8px">🟢 <b class="balanced">สมดุล (${balanced.length}):</b> <span style="color:var(--muted)">${balanced.map(b=>escapeHtml(b.job)).join(", ")}</span></div>`);
   }
 
-  // Suggestion
+  // Suggestion — quantified: pair the biggest surplus into the biggest
+  // deficit with exact counts (no vague "ลองชวนเพิ่ม").
   if (tooMany.length && tooFew.length) {
-    lines.push(`<div class="ai-line" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">💡 <b>คำแนะนำ:</b> ลองชวนคนเปลี่ยนจาก <b class="too-many">${escapeHtml(tooMany[0].job)}</b> มาเล่น <b class="too-few">${escapeHtml(tooFew[0].job)}</b> เพิ่ม</div>`);
+    const moves = [];
+    const give = tooMany.map(x => ({ ...x }));   // sorted desc already
+    const take = tooFew.map(x => ({ ...x }));
+    for (const g of give) {
+      for (const k of take) {
+        if (g.by <= 0) break;
+        if (k.by <= 0) continue;
+        const n = Math.min(g.by, k.by);
+        moves.push(`ย้าย <b>${n}</b> คน: <b class="too-many">${escapeHtml(g.job)}</b> → <b class="too-few">${escapeHtml(k.job)}</b>`);
+        g.by -= n; k.by -= n;
+      }
+    }
+    lines.push(`<div class="ai-line" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">💡 <b>คำแนะนำ (ให้ตรงเป้าพอดี):</b></div>`);
+    // Render EVERY move — truncating would make the "exact plan" silently
+    // incomplete (the list is small: bounded by the number of jobs).
+    moves.forEach(m => lines.push(`<div class="ai-sub">• ${m}</div>`));
+    const leftShort = take.filter(k => k.by > 0);
+    if (leftShort.length) {
+      lines.push(`<div class="ai-sub">• ที่เหลือต้องหาเพิ่ม: ${leftShort.map(k => `<b class="too-few">${escapeHtml(k.job)}</b> อีก ${k.by} คน`).join(", ")}</div>`);
+    }
   } else if (tooFew.length) {
-    lines.push(`<div class="ai-line" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">💡 <b>คำแนะนำ:</b> รับสมัครหรือชวนเพิ่ม <b class="too-few">${escapeHtml(tooFew[0].job)}</b></div>`);
+    lines.push(`<div class="ai-line" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">💡 <b>คำแนะนำ:</b> ต้องหาเพิ่ม ${tooFew.map(k => `<b class="too-few">${escapeHtml(k.job)}</b> ${k.by} คน`).join(", ")} ถึงจะครบเป้า</div>`);
   } else if (tooMany.length) {
-    lines.push(`<div class="ai-line" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">💡 <b>คำแนะนำ:</b> <b class="too-many">${escapeHtml(tooMany[0].job)}</b> มีเกินกว่าที่ต้องการ ลองปรับเป้าหรือ rotate ตัวลง</div>`);
+    lines.push(`<div class="ai-line" style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">💡 <b>คำแนะนำ:</b> เกินเป้า ${tooMany.map(t => `<b class="too-many">${escapeHtml(t.job)}</b> ${t.by} คน`).join(", ")} — ปรับเป้าหรือ rotate ออก</div>`);
   }
   return lines.join("");
 }
 
 function buildSummaryHtml() {
   const counts = getMergedJobCounts();
-  const jobs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-  const total = state.members.length;
-
   if (!state.jobTargets) state.jobTargets = {};
   const targets = state.jobTargets;
+  const jobs = getSummaryJobs(counts, targets);
+  const total = state.members.length;
 
   const rows = jobs.map((job, i) => {
-    const count = counts[job];
+    const count = counts[job] || 0;
     const target = targets[job] || 0;
     const { status, cls } = classifyJobStatus(count, target);
     const safeJob = escapeHtml(job);
@@ -4952,7 +5080,7 @@ function buildSummaryHtml() {
 
   const pie = buildPieSvg(jobs, counts, total);
   const legend = jobs.map((job, i) =>
-    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${counts[job]})</span>`
+    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${counts[job] || 0})</span>`
   ).join("");
   const ai = buildAiComment(jobs, counts, targets, total);
 
@@ -4979,7 +5107,7 @@ function buildSummaryHtml() {
           ${jobs.length ? `<tfoot>
             <tr>
               <td class="label">${jobs.length} อาชีพ</td>
-              <td class="count">${jobs.reduce((s,j) => s + counts[j], 0)}</td>
+              <td class="count">${jobs.reduce((s,j) => s + (counts[j] || 0), 0)}</td>
               <td class="target" style="text-align:center">${jobs.reduce((s,j) => s + (targets[j] || 0), 0)}</td>
               <td class="status-cell">—</td>
             </tr>
@@ -5004,7 +5132,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.12.2";
+const APP_VERSION = "2026.06.12.3";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5962,6 +6090,28 @@ function fbSubscribeAll() {
     if (typeof render === "function" && state.mode === "wheel") render();
   });
 
+  // map_images: admin-uploaded custom map backgrounds (compressed data-URLs).
+  // Mirrored into _customMapImages (NOT state — see its comment), repainted
+  // live, and the page re-renders so the "↺ รูปเดิม" button tracks presence.
+  _fbDB.ref("map_images").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    _customMapImages = {};
+    Object.keys(v).forEach(k => {
+      // Strict shape gate on the client: only base64 raster data-URLs reach
+      // the CSS url("...") sink — kills both svg payloads and any quote/paren
+      // breakout, regardless of what an admin wrote to the node directly.
+      if (typeof v[k] === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v[k])) {
+        _customMapImages[k] = v[k];
+      }
+    });
+    _fbApplyingRemote = false;
+    [1, 2, 3, 4, 5].forEach(n => applyMapBg(n));
+    // safeRender (not raw render) — league/overrun ARE the drag-drop boards;
+    // a mid-drag rebuild would no-op the user's drop (see safeRender's note).
+    if (typeof safeRender === "function" && (state.mode === "league" || state.mode === "overrun")) safeRender();
+  });
+
   // auction_requests: per-date guest requests + admin queue. Lives entirely
   // in Firebase so multiple guests see updates instantly; we keep a local
   // mirror in state.auctionRequests for render.
@@ -6893,15 +7043,15 @@ function rosterStaticCell(cls, val) {
  * Embedded inside the Roster page so the two pages are unified. */
 function buildJobBreakdownSection() {
   const counts = (typeof getMergedJobCounts === "function") ? getMergedJobCounts() : {};
-  const jobs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-  const total = state.members.length;
-  if (!jobs.length) return "";
   if (!state.jobTargets) state.jobTargets = {};
   const targets = state.jobTargets;
+  const jobs = getSummaryJobs(counts, targets);
+  const total = state.members.length;
+  if (!jobs.length) return "";
   const admin = isAdmin();
 
   const rows = jobs.map((job, i) => {
-    const count = counts[job];
+    const count = counts[job] || 0;
     const target = targets[job] || 0;
     const { status, cls } = classifyJobStatus(count, target);
     const safeJob = escapeHtml(job);
@@ -6918,7 +7068,7 @@ function buildJobBreakdownSection() {
   }).join("");
   const pie = buildPieSvg(jobs, counts, total);
   const legend = jobs.map((job, i) =>
-    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${counts[job]})</span>`
+    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${counts[job] || 0})</span>`
   ).join("");
   const ai = buildAiComment(jobs, counts, targets, total);
 
@@ -8746,13 +8896,13 @@ function updateJobTarget(input) {
   }
   const tfootTargetCell = document.querySelector(".summary-table tfoot td.target");
   if (tfootTargetCell) {
-    const jobsList = Object.keys(counts);
+    const jobsList = getSummaryJobs(counts, state.jobTargets);
     const totalTarget = jobsList.reduce((s, j) => s + (state.jobTargets[j] || 0), 0);
     tfootTargetCell.textContent = totalTarget;
   }
   const aiBox = document.querySelector(".ai-comment");
   if (aiBox) {
-    const jobs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    const jobs = getSummaryJobs(counts, state.jobTargets);
     aiBox.innerHTML = `<div class="ai-title">💡 AI Comment</div>${buildAiComment(jobs, counts, state.jobTargets, state.members.length)}`;
   }
 }
@@ -9494,8 +9644,10 @@ function renderBattlefields() {
     center.innerHTML =
       buildBfHtml(0) +
       buildBfHtml(1) +
-      '<div class="maps-row">' + buildMapHtml(1) + buildMapHtml(2) + '</div>' +
-      '<div class="maps-row">' + buildMapHtml(4) + buildMapHtml(5) + '</div>';
+      // Row 1 = both MAIN plans, row 2 = both SUB plans (2026-06-12: was
+      // main/sub per plan, which interleaved sub between the two mains).
+      '<div class="maps-row">' + buildMapHtml(1) + buildMapHtml(4) + '</div>' +
+      '<div class="maps-row">' + buildMapHtml(2) + buildMapHtml(5) + '</div>';
     applyMapBg(1); applyMapBg(2); applyMapBg(4); applyMapBg(5);
   }
 }

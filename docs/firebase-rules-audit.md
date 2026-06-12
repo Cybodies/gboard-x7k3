@@ -46,6 +46,8 @@ auth != null && auth.token.email != null && (
 | `/system` | authed | **admin** | daily/weekly reset stamps |
 | `/admins` | authed | **admin** | privilege escalation surface — locked hard |
 | `/users` | authed | **admin** | app login accounts (no secrets stored) |
+| `/wheel_history` | authed | **admin** | 🎡 prize-wheel winner log; `$wid` shape-locked ({at,by,winnerId,winnerName,prize} + `$other:false`), client-trimmed to 200 |
+| `/map_images` | authed | **admin** | 🖼 custom map backgrounds; `$mapNum` 1-5 only, value must `beginsWith('data:image/')` + length < 900k (client re-filters to base64 raster before the CSS sink) |
 
 **Reads are `auth != null` everywhere** — viewers sign in anonymously, so the app can read
 all shared state. The admin keyset and the users list are not secrets (real credentials

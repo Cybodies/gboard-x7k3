@@ -744,21 +744,27 @@ t("buildMapHtml renders multi-select chips with the active ones lit", () => {
   ok(/map-filter-chip"[^>]*toggleMapFilterMain\(6\)/.test(html), "chip 6 NOT active");
 });
 
-t("map cards have NO upload button (setMapBg retired; maps are static assets)", () => {
+t("map cards: upload v2 controls on EVERY map for admin, NONE for guests", () => {
+  const cards = () => [
+    ["GL main (top)", 1, app.call("buildMapHtml", 1)],
+    ["GL sub (top)", 2, app.call("buildMapHtml", 2)],
+    ["GL main (bottom)", 4, app.call("buildMapHtml", 4)],
+    ["GL sub (bottom)", 5, app.call("buildMapHtml", 5)],
+    ["Overrun", 3, app.call("buildOverrunMapHtml")],
+  ];
   app.setAdmin(true);
   app.state.mode = "league";
-  const mapCards = [
-    ["GL main (top)", app.call("buildMapHtml", 1)],
-    ["GL sub (top)", app.call("buildMapHtml", 2)],
-    ["GL main (bottom)", app.call("buildMapHtml", 4)],
-    ["GL sub (bottom)", app.call("buildMapHtml", 5)],
-    ["Overrun", app.call("buildOverrunMapHtml")],
-  ];
-  for (const [label, html] of mapCards) {
+  for (const [label, n, html] of cards()) {
     ok(!html.includes("setMapBg"), label + " must not reference retired setMapBg");
-    ok(!html.includes('type="file"'), label + " must not render a file input");
-    ok(!html.includes("Upload"), label + " must not render an Upload control");
+    ok(html.includes(`uploadMapImage(${n}, this)`), label + " has its wired upload input");
+    ok(html.includes(`mapUpload${n}`), label + " file input id matches its map");
   }
+  app.setAdmin(false);
+  for (const [label, , html] of cards()) {
+    ok(!html.includes('type="file"'), label + " renders no file input for guests");
+    ok(!html.includes("uploadMapImage"), label + " renders no upload control for guests");
+  }
+  app.setAdmin(true);
 });
 
 console.log("\n[audit log]");
@@ -1041,10 +1047,31 @@ console.log("\n[landing — front door wiring]");
     ok(/function leagueMarkerStore/.test(appHtml), "leagueMarkerStore helper exists");
   });
 
-  t("map upload retired: no setMapBg() call site, no <input type=file> anywhere", () => {
-    ok(!appHtml.includes("setMapBg("), "setMapBg() call site must be gone (handler retired)");
-    ok(!appHtml.includes('type="file"'), "no <input type=file> may remain in the app");
-    ok(appHtml.includes("upload removed"), "map cards keep the 'upload removed' breadcrumb");
+  t("map upload v2 (2026-06-12): admin-gated, /map_images data-URL, static fallback kept", () => {
+    ok(!appHtml.includes("setMapBg("), "legacy setMapBg() stays gone");
+    ok(/type="file" id="mapUpload\$\{mapNum\}" accept="image\/\*"[^>]*onchange="uploadMapImage/.test(appHtml),
+       "hidden per-map file input wired to uploadMapImage");
+    ok(appHtml.includes('_fbDB.ref("map_images/" + mapNum).set(dataUrl)'), "upload writes /map_images/{n}");
+    ok(appHtml.includes("_customMapImages[mapNum] || state.mapBg[mapNum]"),
+       "custom image wins, embedded static stays the fallback");
+    ok(appHtml.includes('if (typeof isAdmin !== "function" || !isAdmin()) return "";'),
+       "upload buttons render for admins only");
+    ok(appHtml.includes("MAP_IMAGE_MAX_CHARS"), "client-side size cap exists");
+  });
+  t("map upload v2: rules node /map_images is admin-write + type/size locked", () => {
+    const rules = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "database.rules.json"), "utf8"));
+    const node = rules.rules.map_images;
+    ok(node, "map_images node exists");
+    eq(node[".read"], "auth != null", "authed read");
+    ok(String(node[".write"]).includes("root.child('admins')"), "admin-only write");
+    const v = node["$mapNum"][".validate"];
+    ok(v.includes("beginsWith('data:image/')"), "value must be an image data-URL");
+    ok(v.includes("length < 900000"), "size cap enforced server-side");
+    ok(v.includes("$mapNum.matches(/^[1-5]$/)"), "only map slots 1-5 allowed");
+  });
+  t("league maps render main+main row then sub+sub row (no sub between mains)", () => {
+    ok(/maps-row">' \+ buildMapHtml\(1\) \+ buildMapHtml\(4\)/.test(appHtml), "row 1 = maps 1+4 (both main)");
+    ok(/maps-row">' \+ buildMapHtml\(2\) \+ buildMapHtml\(5\)/.test(appHtml), "row 2 = maps 2+5 (both sub)");
   });
   t("parties: auto-sanitize must NOT write back to Firebase (silent-wipe guard)", () => {
     // Fix A: the members + /parties listeners used to .set() the sanitized parties
@@ -1061,6 +1088,60 @@ console.log("\n[landing — front door wiring]");
     ok(/_fbPartiesOverrunLoaded\s*=\s*true/.test(appHtml), "Overrun flag set when /parties loads");
     ok(/if \(_fbPartiesLeagueLoaded && state\.partiesLeague\) sanitizeSlots/.test(appHtml),
        "members-listener League sanitize gated on loaded flag");
+  });
+})();
+
+// --------------------------------------------------- summary exact targets
+// 2026-06-12: มี ≠ เป้า flags immediately with the exact gap — no ±1 grace.
+console.log("\n[summary exact targets]");
+(() => {
+  t("exact: off-by-one is NOT สมดุล anymore (the 15/16 screenshot case)", () => {
+    eq(app.call("classifyJobStatus", 15, 16), { status: "ขาด 1", cls: "status-too-few" });
+    eq(app.call("classifyJobStatus", 11, 10), { status: "เกิน 1", cls: "status-too-many" });
+    eq(app.call("classifyJobStatus", 10, 10), { status: "สมดุล", cls: "status-balanced" });
+    eq(app.call("classifyJobStatus", 10, 8),  { status: "เกิน 2", cls: "status-too-many" });
+    eq(app.call("classifyJobStatus", 14, 16), { status: "ขาด 2", cls: "status-too-few" });
+    eq(app.call("classifyJobStatus", 5, 0),   { status: "—", cls: "status-none" });
+  });
+
+  t("exact: AI comment reports off-by-one jobs + exact net totals", () => {
+    const jobs = ["High Priest", "Paladin", "Wizard"];
+    const counts = { "High Priest": 15, "Paladin": 11, "Wizard": 8 };
+    const targets = { "High Priest": 16, "Paladin": 10, "Wizard": 8 };
+    const html = app.call("buildAiComment", jobs, counts, targets, 34);
+    ok(html.includes("เทียบเป้ารวม"), "net summary line present");
+    ok(html.includes("<b>34</b> / เป้า <b>34</b>"), "exact have/target sums");
+    ok(html.includes("ครบพอดี"), "net zero stated precisely");
+    ok(html.includes("High Priest") && html.includes("ขาด 1 คน"), "off-by-one ขาด reported");
+    ok(html.includes("Paladin") && html.includes("เกิน 1 คน"), "off-by-one เกิน reported");
+    ok(html.includes("ย้าย <b>1</b> คน"), "quantified move suggestion");
+  });
+
+  t("exact: all-on-target comp reads as fully balanced", () => {
+    const html = app.call("buildAiComment", ["Wizard"], { Wizard: 8 }, { Wizard: 8 }, 8);
+    ok(html.includes("ครบพอดี"), "net = ครบพอดี");
+    ok(html.includes("สมดุล (1)"), "single balanced job listed");
+    ok(!html.includes("คำแนะนำ"), "no advice when nothing is off");
+  });
+
+  t("exact: targeted job with ZERO members still surfaces as ขาด N (worst hole)", () => {
+    // Gunslinger has a target but nobody plays it — it must NOT vanish.
+    const jobs = app.call("getSummaryJobs", { Wizard: 8 }, { Wizard: 8, Gunslinger: 3 });
+    eq(jobs.includes("Gunslinger"), true, "union includes the 0-member targeted job");
+    const html = app.call("buildAiComment", jobs, { Wizard: 8 }, { Wizard: 8, Gunslinger: 3 }, 8);
+    ok(html.includes("Gunslinger") && html.includes("ขาด 3 คน"), "0-member job reported with its exact gap");
+    ok(html.includes("เป้า <b>11</b>"), "target sum includes the invisible job's target");
+    eq(app.call("getSummaryJobs", { Wizard: 8 }, { Wizard: 8, Old: 0 }).includes("Old"), false,
+       "target 0 jobs stay excluded");
+  });
+
+  t("exact: move plan renders EVERY pair (no silent slice-4 truncation)", () => {
+    const jobs = ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5"];
+    const counts = { A1: 2, A2: 2, A3: 2, A4: 2, A5: 2, B1: 0, B2: 0, B3: 0, B4: 0, B5: 0 };
+    const targets = { A1: 1, A2: 1, A3: 1, A4: 1, A5: 1, B1: 1, B2: 1, B3: 1, B4: 1, B5: 1 };
+    const html = app.call("buildAiComment", jobs, counts, targets, 10);
+    eq((html.match(/ย้าย <b>/g) || []).length, 5, "all five moves rendered");
+    ok(!html.includes("ที่เหลือต้องหาเพิ่ม"), "no phantom leftover line when the plan is complete");
   });
 })();
 

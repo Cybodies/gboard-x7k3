@@ -124,6 +124,14 @@
         "prize":      { ".validate": "newData.isString() && newData.val().length <= 120" },
         "$other":     { ".validate": false }
       }
+    },
+
+    "map_images": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() == 'blankkardor@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', '_')).val() == true)",
+      "$mapNum": {
+        ".validate": "$mapNum.matches(/^[1-5]$/) && newData.isString() && newData.val().length < 900000 && newData.val().beginsWith('data:image/')"
+      }
     }
   }
 }
