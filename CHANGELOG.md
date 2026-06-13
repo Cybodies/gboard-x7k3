@@ -10,6 +10,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.13.2]
+### Fixed
+- **Overrun map: รูปที่อัปโหลดเองไม่ถูกยืดบิดอีกแล้ว** (เห็นชัดตอนกด Expand เต็มจอ). เหตุ:
+  รูป custom จาก Firebase มาถึงตอนยังไม่ได้อยู่หน้า Overrun → วัดสัดส่วนรูป (`--map-ar`) ไม่ทัน →
+  ค้างที่ค่า default 16/9 → `background-size:100% 100%` ยืดรูปสี่เหลี่ยมจัตุรัสให้กว้าง. แก้ 2 ชั้น:
+  (1) cache สัดส่วนรูปไว้ + set ทันทีตอน re-render + re-query ตัว map จริงใน img.onload (กัน race),
+  (2) เปลี่ยนแมพ Overrun เป็น `background-size: contain` → ไม่ว่าสัดส่วนจะพลาดยังไงก็ไม่บิด (letterbox แทนยืด).
+
 ## [2026.06.13.1]
 ### Added
 - **Overrun: แมพที่ 2 "Emperium · ปราสาท Prontera"** เพิ่มใต้แมพ Overrun เดิม (เรียงบน-ล่าง).

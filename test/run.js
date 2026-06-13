@@ -1273,6 +1273,16 @@ console.log("\n[overrun groups]");
     ok(/ov-arrow-\$\{cfg\.mapNum\}-\$\{i\}/.test(appHtml), "arrow def id is namespaced by mapNum");
     eq((appHtml.match(/id="ov-arrow-\$\{i\}"/g) || []).length, 0, "no un-namespaced shared arrow id survives");
   });
+
+  // 2026-06-13.2: uploaded Overrun maps must not stretch/distort (fullscreen).
+  t("overrun: map never distorts — contain bg + cached aspect (race-proof --map-ar)", () => {
+    ok(/\.map-wrap\.overrun-wrap\s*\{[^}]*background-size:\s*contain/.test(appHtml),
+       "overrun-wrap uses background-size: contain (no 100% 100% stretch)");
+    ok(/const _mapAspect\s*=/.test(appHtml), "applyMapBg caches measured aspect per map");
+    ok(/_mapAspect\[mapNum\]\s*=\s*ar/.test(appHtml), "aspect cached on img load");
+    ok(/getElementById\("mapWrap"\s*\+\s*mapNum\)[\s\S]{0,90}setProperty\('--map-ar'/.test(appHtml),
+       "img.onload re-queries the LIVE wrap before setting --map-ar (survives re-render race)");
+  });
 })();
 
 // --------------------------------------------------- auction-request queue

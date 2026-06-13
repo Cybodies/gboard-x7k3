@@ -2122,9 +2122,12 @@
     min-height: 320px;
     margin: 0 auto;
   }
-  /* Overrun map: single image, follows natural aspect-ratio */
+  /* Overrun map: single image, follows natural aspect-ratio. background-size:
+     contain (not the base 100% 100%) so the image is NEVER stretched/distorted —
+     even if --map-ar is briefly wrong, it letterboxes instead of squashing. */
   .map-wrap.overrun-wrap {
     aspect-ratio: var(--map-ar, 16/9);
+    background-size: contain;
     max-width: 100%;
     max-height: 70vh;
     min-height: 400px;
@@ -4361,6 +4364,12 @@ function attachMarkerDrag(el, wrap, idx, mapNum) {
  * ===================================================================== */
 // setMapBg + uploadMapToStorage retired — map images are now embedded as
 // static assets (./maps/*.png) and never change at runtime.
+// Cache each map's measured natural aspect so a later render (which builds a
+// FRESH mapWrap element) can set --map-ar synchronously instead of flashing the
+// 16/9 default until the async image measure lands. That flash was the bug: a
+// custom-uploaded (non-16:9) Overrun map opened in fullscreen before its measure
+// completed got stretched to 16:9. Survives re-renders; keyed by mapNum.
+const _mapAspect = {};
 function applyMapBg(mapNum) {
   const wrap = document.getElementById("mapWrap" + mapNum);
   if (!wrap) return;
@@ -4369,11 +4378,17 @@ function applyMapBg(mapNum) {
   if (src) {
     wrap.style.backgroundImage = `url("${src}")`;
     wrap.classList.remove("no-image");
+    // Apply the known aspect NOW so the box is correctly sized on this paint.
+    if (_mapAspect[mapNum]) wrap.style.setProperty('--map-ar', _mapAspect[mapNum]);
     const img = new Image();
     img.onload = () => {
       if (img.naturalWidth && img.naturalHeight) {
         const ar = img.naturalWidth / img.naturalHeight;
-        wrap.style.setProperty('--map-ar', ar);
+        _mapAspect[mapNum] = ar;
+        // Re-query: the wrap captured above may have been replaced by a render
+        // that ran while the image was loading — set --map-ar on the LIVE node.
+        const live = document.getElementById("mapWrap" + mapNum);
+        if (live) live.style.setProperty('--map-ar', ar);
       }
     };
     img.src = src;
@@ -5198,7 +5213,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.13.1";
+const APP_VERSION = "2026.06.13.2";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
