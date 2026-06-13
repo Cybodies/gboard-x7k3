@@ -10,6 +10,18 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.13.1]
+### Added
+- **Overrun: แมพที่ 2 "Emperium · ปราสาท Prontera"** เพิ่มใต้แมพ Overrun เดิม (เรียงบน-ล่าง).
+  แต่ละแมพมีหมุด 5 กลุ่มสีลากวางได้ + ลูกศรเคลื่อนที่ **ตำแหน่งอิสระต่อกัน** และ **filter แยกของตัวเอง**
+  (ติ๊กกลุ่มบนแมพ 1 ไม่กระทบแมพ 2). Sync ผ่าน Firebase node ใหม่ `/overrun_markers_b`; admin
+  อัปโหลดรูปทับได้เหมือนแมพอื่น (`map_images` รองรับ slot 6 แล้ว).
+### Changed
+- โครงสร้างเรนเดอร์แมพ Overrun เป็น config-driven (`OVERRUN_MAPS`) — render/arrows/drag/clear
+  วนทั้ง 2 แมพจาก path เดียว, id ของ marker ลูกศรแยกต่อแมพ (`ov-arrow-{mapNum}-{i}`) กันชนกัน.
+### Fixed
+- `render()` โหมด Overrun เคย apply พื้นหลังแค่แมพ 3 — ตอนนี้ apply ทั้ง 2 แมพ (แมพใหม่ไม่พื้นว่าง).
+
 ## [2026.06.12.5]
 ### Changed
 - **Overrun: เปลี่ยนชื่อกลุ่ม "พิเศษ" → "Purple"** ให้เข้าชุด Red/Yellow/Green/Blue (ตี้ 15,16 เหมือนเดิม).

@@ -92,6 +92,11 @@
       ".write": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() == 'blankkardor@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', '_')).val() == true)"
     },
 
+    "overrun_markers_b": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() == 'blankkardor@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', '_')).val() == true)"
+    },
+
     "range_circles": {
       ".read": "auth != null",
       ".write": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() == 'blankkardor@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', '_')).val() == true)"
@@ -130,7 +135,7 @@
       ".read": "auth != null",
       ".write": "auth != null && auth.token.email != null && (auth.token.email.toLowerCase() == 'blankkardor@gmail.com' || root.child('admins').child(auth.token.email.toLowerCase().replace('.', '_')).val() == true)",
       "$mapNum": {
-        ".validate": "$mapNum.matches(/^[1-5]$/) && newData.isString() && newData.val().length < 900000 && newData.val().beginsWith('data:image/')"
+        ".validate": "$mapNum.matches(/^[1-6]$/) && newData.isString() && newData.val().length < 900000 && newData.val().beginsWith('data:image/')"
       }
     }
   }

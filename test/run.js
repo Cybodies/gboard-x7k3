@@ -1111,7 +1111,7 @@ console.log("\n[landing — front door wiring]");
     const v = node["$mapNum"][".validate"];
     ok(v.includes("beginsWith('data:image/')"), "value must be an image data-URL");
     ok(v.includes("length < 900000"), "size cap enforced server-side");
-    ok(v.includes("$mapNum.matches(/^[1-5]$/)"), "only map slots 1-5 allowed");
+    ok(v.includes("$mapNum.matches(/^[1-6]$/)"), "only map slots 1-6 allowed (6 = Overrun Emperium map)");
   });
   t("league maps render main+main row then sub+sub row (no sub between mains)", () => {
     ok(/maps-row">' \+ buildMapHtml\(1\) \+ buildMapHtml\(4\)/.test(appHtml), "row 1 = maps 1+4 (both main)");
@@ -1232,6 +1232,46 @@ console.log("\n[overrun groups]");
     eq((appHtml.match(/i <= 4\b/g) || []).length, 0, "no i <= 4 loop survives anywhere");
     eq((appHtml.match(/marker:\s*\{/g) || []).length, 5,
        "every group carries its own default marker spot (colocated, no parallel array)");
+  });
+
+  // 2026-06-13: 2nd Overrun map (Emperium · Prontera) — map 6, independent
+  // markers + filter, stacked under the world map.
+  t("overrun: page renders TWO stacked maps (world map 3 + Emperium map 6)", () => {
+    reset(app, []);
+    const html = app.call("buildOverrunHtml");
+    ok(html.includes('id="mapWrap3"'),  "map 3 (world) present");
+    ok(html.includes('id="mapWrap6"'),  "map 6 (Emperium) present");
+    ok(html.includes('id="mapArrows6"'), "map 6 arrow svg present");
+    ok(html.includes("Emperium"),        "Emperium map title rendered");
+    ok(html.includes("Overrun Map · 5 กลุ่ม"), "world map title intact");
+  });
+
+  t("overrun: 2nd map uses its OWN independent filter (toggleMapFilterOverrunB)", () => {
+    reset(app, []);
+    const html = app.call("buildOverrunHtml");
+    ok(html.includes("toggleMapFilterOverrun(5)"),  "map 3 filter chip wired");
+    ok(html.includes("toggleMapFilterOverrunB(5)"), "map 6 filter chip wired to separate set");
+    ok(html.includes("clearMapFilterOverrunB()"),   "map 6 has its own clear-filter");
+  });
+
+  t("overrun: map 6 embedded image + independent marker store + state guard", () => {
+    ok(/6:\s*"maps\/emperium\.png"/.test(appHtml), "EMBEDDED_MAPS[6] = maps/emperium.png");
+    ok(appHtml.includes("overrunMarkersB"), "state has 2nd-map marker store");
+    ok(typeof app.state.overrunMarkersB === "object" && app.state.overrunMarkersB !== null,
+       "overrunMarkersB normalized to an object on boot");
+  });
+
+  t("overrun: 2nd map syncs via /overrun_markers_b (read + write) and rules allow it", () => {
+    ok(appHtml.includes('_fbDB.ref("overrun_markers_b").on("value"'), "remote listener wired");
+    ok(appHtml.includes('_fbDB.ref("overrun_markers_b").set('), "push writes the 2nd store");
+    const rules = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "database.rules.json"), "utf8"));
+    ok(rules.rules.overrun_markers_b, "overrun_markers_b rules node exists");
+    ok(String(rules.rules.overrun_markers_b[".write"]).includes("root.child('admins')"), "admin-only write");
+  });
+
+  t("overrun: per-map arrow marker ids are unique (no cross-map url(#id) collision)", () => {
+    ok(/ov-arrow-\$\{cfg\.mapNum\}-\$\{i\}/.test(appHtml), "arrow def id is namespaced by mapNum");
+    eq((appHtml.match(/id="ov-arrow-\$\{i\}"/g) || []).length, 0, "no un-namespaced shared arrow id survives");
   });
 })();
 

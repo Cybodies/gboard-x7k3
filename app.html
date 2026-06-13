@@ -2896,8 +2896,9 @@ let state = {
   partiesOverrun: null,
   markers: {},
   markersBottom: {},             // GL "เกิดล่าง" plan markers (parties 1-16 on mapNum 4/5). state.markers = "เกิดบน". Synced via Firebase markers_bottom.
-  mapBg: { 1: null, 2: null, 3: null, 4: null, 5: null },
+  mapBg: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
   overrunMarkers: {},
+  overrunMarkersB: {},           // 2nd Overrun map (Emperium · Prontera). Independent positions per group. Synced via Firebase overrun_markers_b.
   // Range circles on the GL Main battlefield map (mapNum 1). Array of exactly 3
   // zones { x, y, r } in percent of the map wrap (r = % of width). Synced via the
   // `range_circles` Firebase node; admin drags to move / resize. See initRangeCircles.
@@ -3095,6 +3096,7 @@ let _pendingRenderAfterDrag = false;
 let _mapFilterMain    = new Set();   // empty = all; else party ids 1-8
 let _mapFilterSub     = new Set();   // empty = all; else party ids 9-16
 let _mapFilterOverrun = new Set();   // empty = all; else OVERRUN_GROUPS ids (1..length)
+let _mapFilterOverrunB = new Set();  // 2nd Overrun map (Emperium) — INDEPENDENT filter
 
 // Pure: should `id` render given a filter set? Empty/missing set = everyone visible.
 function mapFilterVisible(set, id) { return !set || set.size === 0 || set.has(id); }
@@ -3108,6 +3110,7 @@ function _toggleInSet(set, id) {
 function mapFilterMainIds()    { return [..._mapFilterMain].sort((a, b) => a - b); }
 function mapFilterSubIds()     { return [..._mapFilterSub].sort((a, b) => a - b); }
 function mapFilterOverrunIds() { return [..._mapFilterOverrun].sort((a, b) => a - b); }
+function mapFilterOverrunBIds() { return [..._mapFilterOverrunB].sort((a, b) => a - b); }
 
 function toggleMapFilterMain(id) {
   _toggleInSet(_mapFilterMain, id);
@@ -3121,9 +3124,14 @@ function toggleMapFilterOverrun(id) {
   _toggleInSet(_mapFilterOverrun, id);
   if (typeof render === "function") render(); else if (typeof renderOverrunMarkers === "function") renderOverrunMarkers();
 }
+function toggleMapFilterOverrunB(id) {
+  _toggleInSet(_mapFilterOverrunB, id);
+  if (typeof render === "function") render(); else if (typeof renderOverrunMarkers === "function") renderOverrunMarkers();
+}
 function clearMapFilterMain()    { _mapFilterMain.clear();    if (typeof render === "function") render(); }
 function clearMapFilterSub()     { _mapFilterSub.clear();     if (typeof render === "function") render(); }
 function clearMapFilterOverrun() { _mapFilterOverrun.clear(); if (typeof render === "function") render(); }
+function clearMapFilterOverrunB() { _mapFilterOverrunB.clear(); if (typeof render === "function") render(); }
 
 // Back-compat shims: route a single id through the toggle logic. The only original
 // callers were the now-replaced dropdowns; kept defensively.
@@ -3985,14 +3993,15 @@ function renderArrows(mapNum) {
 
 function clearArrows(mapNum) {
   if (!isAdmin()) { toast("Admin only", "error"); return; }
-  if (mapNum === 3) {
-    if (!state.overrunMarkers) state.overrunMarkers = {};
+  const ovCfg = (typeof overrunMapCfg === "function") ? overrunMapCfg(mapNum) : null;
+  if (ovCfg) {
+    const store = ovCfg.store();
     for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
-      if (state.overrunMarkers[i]) state.overrunMarkers[i].path = [];
+      if (store[i]) store[i].path = [];
     }
     save();
     renderOverrunMarkers();
-    toast("ล้างลูกศรของ Overrun Map แล้ว", "success");
+    toast("ล้างลูกศรของ " + ovCfg.title + " แล้ว", "success");
     return;
   }
   const range = leagueRangeFor(mapNum);
@@ -4018,22 +4027,40 @@ function undoLastSegment(idx, store) {
   return true;
 }
 
-/* ===== Overrun Map markers (one per OVERRUN_GROUPS entry) ===== */
+/* ===== Overrun Map markers (one per OVERRUN_GROUPS entry) =====
+ * The Overrun mode shows TWO maps stacked: map 3 (world map) and map 6
+ * (Emperium room · Prontera). Each has its OWN marker store + filter so the
+ * 5 color-group pins can be positioned independently per map. Everything below
+ * is config-driven over OVERRUN_MAPS so both maps share one code path. */
+const OVERRUN_MAPS = [
+  { mapNum: 3, title: "Overrun Map",
+    store: () => state.overrunMarkers,  filter: () => _mapFilterOverrun,
+    toggleFn: "toggleMapFilterOverrun",  clearFn: "clearMapFilterOverrun" },
+  { mapNum: 6, title: "Emperium · ปราสาท Prontera",
+    store: () => state.overrunMarkersB, filter: () => _mapFilterOverrunB,
+    toggleFn: "toggleMapFilterOverrunB", clearFn: "clearMapFilterOverrunB" },
+];
+function overrunMapCfg(mapNum) { return OVERRUN_MAPS.find(c => c.mapNum === mapNum) || null; }
 
 function renderOverrunMarkers() {
-  const wrap = document.getElementById("mapWrap3");
+  for (const cfg of OVERRUN_MAPS) renderOverrunMarkersFor(cfg);
+}
+
+function renderOverrunMarkersFor(cfg) {
+  const wrap = document.getElementById("mapWrap" + cfg.mapNum);
   if (!wrap) return;
   wrap.querySelectorAll(".marker").forEach(n => n.remove());
-  if (!state.overrunMarkers) state.overrunMarkers = {};
+  const store = cfg.store();
+  const filter = cfg.filter();
 
   for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
-    if (!state.overrunMarkers[i]) {
+    if (!store[i]) {
       const def = OVERRUN_GROUPS[i - 1].marker || { x: 50, y: 50 };
-      state.overrunMarkers[i] = { x: def.x, y: def.y, path: [] };
+      store[i] = { x: def.x, y: def.y, path: [] };
     }
     // Map filter — when set, only render the selected group's marker.
-    if (!mapFilterVisible(_mapFilterOverrun, i)) continue;
-    const pos = state.overrunMarkers[i];
+    if (!mapFilterVisible(filter, i)) continue;
+    const pos = store[i];
     const g = OVERRUN_GROUPS[i - 1];
     const total = g.ids.reduce((s, id) => {
       const p = state.parties.find(p => p.id === id);
@@ -4061,32 +4088,40 @@ function renderOverrunMarkers() {
       if (subMembers.length) memLines.push(`[ตี้ ${id}] ${subMembers.join(", ")}`);
     }
     div.setAttribute("data-tip", `${g.name} Party · ${total} คน` + (memLines.length ? "\n" + memLines.join("\n") : "\n(ยังว่าง)"));
-    attachMarkerDragOverrun(div, wrap, i);
+    attachMarkerDragOverrun(div, wrap, i, cfg);
     wrap.appendChild(div);
   }
-  renderOverrunArrows();
+  renderOverrunArrowsFor(cfg);
 }
 
 function renderOverrunArrows() {
-  const svg = document.getElementById("mapArrows3");
+  for (const cfg of OVERRUN_MAPS) renderOverrunArrowsFor(cfg);
+}
+
+function renderOverrunArrowsFor(cfg) {
+  const svg = document.getElementById("mapArrows" + cfg.mapNum);
   if (!svg) return;
   svg.innerHTML = "";
+  const store = cfg.store();
+  const filter = cfg.filter();
   const ns = "http://www.w3.org/2000/svg";
   const defs = document.createElementNS(ns, "defs");
   let defsHtml = "";
   for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
     const c = OVERRUN_GROUPS[i - 1].color;
+    // Per-map unique id — both maps' SVGs live in the same document, so a shared
+    // "ov-arrow-1" would collide and url(#…) would resolve to the first map only.
     defsHtml +=
-      `<marker id="ov-arrow-${i}" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">` +
+      `<marker id="ov-arrow-${cfg.mapNum}-${i}" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">` +
       `<path d="M0,0 L10,4 L0,8 Z" fill="${c}" /></marker>`;
   }
   defs.innerHTML = defsHtml;
   svg.appendChild(defs);
 
-  if (!state.overrunMarkers) return;
+  if (!store) return;
   for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
-    if (!mapFilterVisible(_mapFilterOverrun, i)) continue;
-    const m = state.overrunMarkers[i];
+    if (!mapFilterVisible(filter, i)) continue;
+    const m = store[i];
     if (!m || !m.path || m.path.length === 0) continue;
     const color = OVERRUN_GROUPS[i - 1].color;
     const pts = [...m.path, { x: m.x, y: m.y }];
@@ -4105,7 +4140,7 @@ function renderOverrunArrows() {
       line.setAttribute("x2", endX + "%");
       line.setAttribute("y2", endY + "%");
       line.setAttribute("stroke", color);
-      line.setAttribute("marker-end", `url(#ov-arrow-${i})`);
+      line.setAttribute("marker-end", `url(#ov-arrow-${cfg.mapNum}-${i})`);
       svg.appendChild(line);
     }
     m.path.forEach((p, idx) => {
@@ -4132,7 +4167,7 @@ function renderOverrunArrows() {
   }
 }
 
-function attachMarkerDragOverrun(el, wrap, idx) {
+function attachMarkerDragOverrun(el, wrap, idx, cfg) {
   // Admin-only — same hard gate as attachMarkerDrag (see comment there).
   if (!isAdmin()) { el.style.cursor = "default"; return; }
   let dragging = false, moved = false, shiftHeld = false;
@@ -4182,8 +4217,9 @@ function attachMarkerDragOverrun(el, wrap, idx) {
     document.removeEventListener("touchend", onUp);
     const newX = parseFloat(el.style.left);
     const newY = parseFloat(el.style.top);
-    if (!state.overrunMarkers[idx]) state.overrunMarkers[idx] = { x: newX, y: newY, path: [] };
-    const m = state.overrunMarkers[idx];
+    const store = cfg.store();
+    if (!store[idx]) store[idx] = { x: newX, y: newY, path: [] };
+    const m = store[idx];
     if (!Array.isArray(m.path)) m.path = [];
     if (!moved) {
       if (m.path.length > 0) {
@@ -4204,7 +4240,7 @@ function attachMarkerDragOverrun(el, wrap, idx) {
   };
   el.addEventListener("contextmenu", (e) => {
     e.preventDefault(); e.stopPropagation();
-    if (undoLastSegment(idx, state.overrunMarkers)) {
+    if (undoLastSegment(idx, cfg.store())) {
       save();
       renderOverrunMarkers();
       toast(`Undo segment ของ ${OVERRUN_GROUPS[idx-1].name}`, "");
@@ -4390,13 +4426,15 @@ document.addEventListener("keydown", (e) => {
 
 // Embedded map images (don't change, so we ship them with the app).
 // 1 = Main Battlefield (cross), 2 = Sub Battlefield (rectangular hall),
-// 3 = Overrun world map. Markers/arrows on top of them STILL sync via Firebase.
+// 3 = Overrun world map, 6 = Overrun 2nd map (Emperium room · Prontera WoE
+// castle). Markers/arrows on top of them STILL sync via Firebase.
 const EMBEDDED_MAPS = {
   1: "maps/main.png",
   2: "maps/sub.png",
   3: "maps/overrun.png",
   4: "maps/main.png",
-  5: "maps/sub.png"
+  5: "maps/sub.png",
+  6: "maps/emperium.png"
 };
 
 function tryAutoLoadMapImages() {
@@ -4824,38 +4862,39 @@ function buildOverrunHtml() {
 }
 
 function buildOverrunMapHtml() {
-  // Overrun map filter — one chip per OVERRUN_GROUPS entry. Same
-  // shared-dropdown pattern: selecting groups hides the other groups'
-  // markers + arrows on the map.
-  // Multi-select group chips (same pattern as the League maps): "ทุกกลุ่ม" clears,
-  // each group chip toggles + lights up in its group color.
-  const allActiveOv = _mapFilterOverrun.size === 0 ? " active" : "";
-  const filterChips =
-    `<button class="map-filter-chip${allActiveOv}" onclick="clearMapFilterOverrun()" title="แสดงทุกกลุ่ม">🔍 ทุกกลุ่ม</button>` +
-    OVERRUN_GROUPS.map((g, idx) => {
-      const groupId = idx + 1;
-      const on = _mapFilterOverrun.has(groupId);
-      const style = on ? ` style="background:${g.color};border-color:${g.color};color:#fff"` : "";
-      return `<button class="map-filter-chip${on ? " active" : ""}" onclick="toggleMapFilterOverrun(${groupId})"${style} title="${escapeHtml(g.name)} Party">● ${escapeHtml(g.name)}</button>`;
-    }).join("");
-  return `
+  // Two stacked maps (world + Emperium), each config-driven from OVERRUN_MAPS.
+  // Per-map INDEPENDENT filter: one chip per OVERRUN_GROUPS entry; "ทุกกลุ่ม"
+  // clears, each group chip toggles + lights up in its group color.
+  return OVERRUN_MAPS.map(cfg => {
+    const filterSet = cfg.filter();
+    const allActive = filterSet.size === 0 ? " active" : "";
+    const filterChips =
+      `<button class="map-filter-chip${allActive}" onclick="${cfg.clearFn}()" title="แสดงทุกกลุ่ม">🔍 ทุกกลุ่ม</button>` +
+      OVERRUN_GROUPS.map((g, idx) => {
+        const groupId = idx + 1;
+        const on = filterSet.has(groupId);
+        const style = on ? ` style="background:${g.color};border-color:${g.color};color:#fff"` : "";
+        return `<button class="map-filter-chip${on ? " active" : ""}" onclick="${cfg.toggleFn}(${groupId})"${style} title="${escapeHtml(g.name)} Party">● ${escapeHtml(g.name)}</button>`;
+      }).join("");
+    return `
     <div class="map-card" style="margin-top:10px">
       <div class="map-title overrun-map">
-        <span>🗺️ Overrun Map · ${OVERRUN_GROUPS.length} กลุ่ม</span>
+        <span>🗺️ ${escapeHtml(cfg.title)} · ${OVERRUN_GROUPS.length} กลุ่ม</span>
         <span class="actions">
           <span class="map-filter-chips" title="ติ๊กได้หลายกลุ่มพร้อมกัน">${filterChips}</span>
-          <button onclick="toggleMapFullscreen(3)" class="btn-expand-3" title="ขยายเต็มจอ">⛶ Expand</button>
+          <button onclick="toggleMapFullscreen(${cfg.mapNum})" class="btn-expand-${cfg.mapNum}" title="ขยายเต็มจอ">⛶ Expand</button>
           ${(typeof isAdmin === "function" && isAdmin())
-            ? `<button onclick="clearArrows(3)" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>`
+            ? `<button onclick="clearArrows(${cfg.mapNum})" title="ล้างลูกศรเคลื่อนที่">🗑 Clear arrows</button>`
             : `<span class="map-readonly-hint" title="หมุด/ลูกศรจัดการได้เฉพาะ Admin — guest ใช้ filter ดูได้อย่างเดียว">🔒 ดูอย่างเดียว</span>`}
-          ${buildMapUploadBtns(3)}
+          ${buildMapUploadBtns(cfg.mapNum)}
         </span>
       </div>
-      <div class="map-wrap overrun-wrap" id="mapWrap3">
-        <svg class="map-arrows" id="mapArrows3"></svg>
+      <div class="map-wrap overrun-wrap" id="mapWrap${cfg.mapNum}">
+        <svg class="map-arrows" id="mapArrows${cfg.mapNum}"></svg>
         <div class="map-frame"></div>
       </div>
     </div>`;
+  }).join("");
 }
 
 function buildMapHtml(mapNum) {
@@ -5159,7 +5198,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.12.5";
+const APP_VERSION = "2026.06.13.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -6038,11 +6077,20 @@ function fbSubscribeAll() {
     if (typeof renderMarkers === "function" && state.mode === "league") renderMarkers();
   });
 
-  // overrun_markers (Overrun mode — one position per color group)
+  // overrun_markers (Overrun mode — one position per color group, map 3)
   _fbDB.ref("overrun_markers").on("value", snap => {
     const v = snap.val() || {};
     _fbApplyingRemote = true;
     state.overrunMarkers = v;
+    _fbApplyingRemote = false;
+    if (typeof renderOverrunMarkers === "function" && state.mode === "overrun") renderOverrunMarkers();
+  });
+
+  // overrun_markers_b (Overrun mode — 2nd map / Emperium, independent positions)
+  _fbDB.ref("overrun_markers_b").on("value", snap => {
+    const v = snap.val() || {};
+    _fbApplyingRemote = true;
+    state.overrunMarkersB = v;
     _fbApplyingRemote = false;
     if (typeof renderOverrunMarkers === "function" && state.mode === "overrun") renderOverrunMarkers();
   });
@@ -6133,7 +6181,7 @@ function fbSubscribeAll() {
       }
     });
     _fbApplyingRemote = false;
-    [1, 2, 3, 4, 5].forEach(n => applyMapBg(n));
+    [1, 2, 3, 4, 5, 6].forEach(n => applyMapBg(n));
     // safeRender (not raw render) — league/overrun ARE the drag-drop boards;
     // a mid-drag rebuild would no-op the user's drop (see safeRender's note).
     if (typeof safeRender === "function" && (state.mode === "league" || state.mode === "overrun")) safeRender();
@@ -6316,6 +6364,7 @@ function fbPushAll() {
     _fbDB.ref("markers").set(state.markers || {});
     _fbDB.ref("markers_bottom").set(state.markersBottom || {});
     _fbDB.ref("overrun_markers").set(state.overrunMarkers || {});
+    _fbDB.ref("overrun_markers_b").set(state.overrunMarkersB || {});
     _fbDB.ref("range_circles").set(state.rangeCircles || []);
     // map_urls intentionally not pushed — images are embedded as static assets
     setTimeout(() => flashSyncIndicator("done"), 200);
@@ -9691,7 +9740,7 @@ function render() {
   renderBattlefields();
   if (state.mode === "league") renderMarkers();
   else if (state.mode === "overrun") {
-    applyMapBg(3);
+    for (const cfg of OVERRUN_MAPS) applyMapBg(cfg.mapNum);
     renderOverrunMarkers();
   }
   updateStatusInfo();
@@ -9847,8 +9896,10 @@ function normalizeAuctionState(obj, kind) {
 state.auctionGL      = normalizeAuctionState(state.auctionGL, "gl");
 state.auctionOverrun = normalizeAuctionState(state.auctionOverrun, "overrun");
 if (!state.overrunMarkers || typeof state.overrunMarkers !== "object") state.overrunMarkers = {};
+if (!state.overrunMarkersB || typeof state.overrunMarkersB !== "object") state.overrunMarkersB = {};
 if (!state.mapBg) state.mapBg = { 1: null, 2: null, 3: null };
 if (!(3 in state.mapBg)) state.mapBg[3] = null;
+if (!(6 in state.mapBg)) state.mapBg[6] = null;
 
 updateModeToggleUI();
 document.body.dataset.mode = state.mode;
