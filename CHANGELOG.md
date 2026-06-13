@@ -10,6 +10,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.13.3]
+### Fixed
+- **Overrun map ยืดบนจอกว้าง (normal view) — แก้จริงจุดนี้.** v.2 แก้แค่ contain (กันบิดในรูป)
+  แต่กล่องยังผิดสัดส่วน: `.overrun-wrap` มี `width:100%` + `max-height:70vh` → จอกว้าง height ชน 70vh
+  ขณะ width ยังเต็ม → กล่องกว้างกว่าสัดส่วนรูป (เช่น overrun.png 1.83 ถูกแสดงเป็น 2.58). แก้: cap
+  `max-width: min(100%, calc(70vh × var(--map-ar)))` → กล่องคงสัดส่วน `--map-ar` เสมอ + center อัตโนมัติ.
+  Browser-verified normal+fullscreen ทั้ง map3 (1.83) และ map6 (จัตุรัส 1.03) บน viewport 1680×780.
+
 ## [2026.06.13.2]
 ### Fixed
 - **Overrun map: รูปที่อัปโหลดเองไม่ถูกยืดบิดอีกแล้ว** (เห็นชัดตอนกด Expand เต็มจอ). เหตุ:

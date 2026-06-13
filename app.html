@@ -2128,7 +2128,11 @@
   .map-wrap.overrun-wrap {
     aspect-ratio: var(--map-ar, 16/9);
     background-size: contain;
-    max-width: 100%;
+    /* On a wide screen the height hits the 70vh cap while width stays 100%,
+       which makes the box WIDER than the image's aspect → the image stretched.
+       Cap the width to (70vh × aspect) so the box always keeps --map-ar; the
+       inherited `margin: 0 auto` then centers it. */
+    max-width: min(100%, calc(70vh * var(--map-ar, 1.78)));
     max-height: 70vh;
     min-height: 400px;
   }
@@ -5213,7 +5217,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.13.2";
+const APP_VERSION = "2026.06.13.3";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;

@@ -1282,6 +1282,10 @@ console.log("\n[overrun groups]");
     ok(/_mapAspect\[mapNum\]\s*=\s*ar/.test(appHtml), "aspect cached on img load");
     ok(/getElementById\("mapWrap"\s*\+\s*mapNum\)[\s\S]{0,90}setProperty\('--map-ar'/.test(appHtml),
        "img.onload re-queries the LIVE wrap before setting --map-ar (survives re-render race)");
+    // 2026-06-13.3: the box itself must keep the image aspect on a WIDE screen —
+    // cap width by (70vh × aspect) so a 70vh height-cap can't widen the box.
+    ok(/\.map-wrap\.overrun-wrap\s*\{[\s\S]*?max-width:\s*min\(100%,\s*calc\(70vh\s*\*\s*var\(--map-ar/.test(appHtml),
+       "overrun-wrap caps width to 70vh×aspect so a wide viewport keeps the box at --map-ar");
   });
 })();
 
