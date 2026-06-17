@@ -3693,6 +3693,84 @@ function setupSidebarDrop() {
   });
 }
 
+// ---- Touch drag-drop for the team board -----------------------------------
+// HTML5 drag events (ondragstart/ondrop) never fire on a touchscreen, so admins
+// on phones could not arrange teams — only desktop could, which looked like
+// "มีแอดมินแก้ได้คนเดียว". This adds touch support that routes through the SAME
+// placeAtSlot / removeFromSlot / commitPartiesNow path as mouse drag — no new
+// write path, same 2s guard + audit. A long-press (~200ms) starts a drag so a
+// quick swipe still scrolls the member list.
+// ponytail: drop targets = slots + the member pool. Party-number swap stays
+// mouse-only (rare on phones) — add a touch case here if it's ever needed.
+function setupTouchDnD() {
+  let t = null, holdTimer = null;
+  const SLOP = 10, HOLD_MS = 200;
+  const clearOver = () => document.querySelectorAll(".slot.drag-over").forEach(s => s.classList.remove("drag-over"));
+
+  function source(el) {
+    const row = el.closest && el.closest(".member-row[data-mid]");
+    if (row) return { mid: row.getAttribute("data-mid"), from: "sidebar", el: row };
+    const slot = el.closest && el.closest(".slot.filled[data-pid]");
+    if (slot) {
+      const pid = parseInt(slot.getAttribute("data-pid"), 10), sidx = parseInt(slot.getAttribute("data-sidx"), 10);
+      const p = state.parties.find(p => p.id === pid);
+      const mid = p && p.slots[sidx];
+      return mid ? { mid, from: "slot", pid, sidx, el: slot } : null;
+    }
+    return null;
+  }
+
+  document.addEventListener("touchstart", e => {
+    if (!isAdmin() || e.touches.length !== 1) return;
+    if (e.target.closest && e.target.closest(".slot-leave-btn,.slot-del,.party-actions,.party-sort,.party-num")) return;
+    const src = source(e.target);
+    if (!src) return;
+    t = { ...src, x0: e.touches[0].clientX, y0: e.touches[0].clientY, armed: false };
+    holdTimer = setTimeout(() => { if (t) { t.armed = true; if (t.el) t.el.classList.add("dragging"); } }, HOLD_MS);
+  }, { passive: true });
+
+  document.addEventListener("touchmove", e => {
+    if (!t) return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    if (!t.armed) {
+      // moved before the hold fired → treat as a scroll, not a drag
+      if (Math.abs(x - t.x0) > SLOP || Math.abs(y - t.y0) > SLOP) { clearTimeout(holdTimer); t = null; }
+      return;
+    }
+    e.preventDefault();                       // armed → this is a drag, block scroll
+    clearOver();
+    const over = document.elementFromPoint(x, y);
+    const slot = over && over.closest && over.closest(".slot[data-pid]");
+    if (slot) slot.classList.add("drag-over");
+  }, { passive: false });
+
+  function end(e) {
+    clearTimeout(holdTimer);
+    const cur = t; t = null;
+    clearOver();
+    if (!cur) return;
+    if (cur.el) cur.el.classList.remove("dragging");
+    if (!cur.armed) return;                   // never became a drag → leave taps/dblclick alone
+    const pt = e.changedTouches && e.changedTouches[0];
+    const over = pt && document.elementFromPoint(pt.clientX, pt.clientY);
+    if (!over) return;
+    const slot = over.closest && over.closest(".slot[data-pid]");
+    if (slot) {
+      placeAtSlot(cur.mid, parseInt(slot.getAttribute("data-pid"), 10), parseInt(slot.getAttribute("data-sidx"), 10));
+      commitPartiesNow(); render();
+    } else if (cur.from === "slot" && over.closest && over.closest("#memberList")) {
+      removeFromSlot(cur.pid, cur.sidx);       // dropped back on the pool = remove from team
+      commitPartiesNow(); render();
+    }
+  }
+  document.addEventListener("touchend", end, { passive: false });
+  document.addEventListener("touchcancel", () => {
+    clearTimeout(holdTimer);
+    if (t && t.el) t.el.classList.remove("dragging");
+    t = null; clearOver();
+  }, { passive: true });
+}
+
 /* =====================================================================
  * Range circles — GL Main battlefield map (mapNum 1) zone radii
  * ===================================================================== */
@@ -4679,7 +4757,7 @@ function renderMembers() {
     if (onLeave)                       rowCls.push("on-leave");
     const auctionBadge = bucketCount ? `<span class="auction-count" title="อยู่ใน ${bucketCount} คอลัมน์">×${bucketCount}</span>` : "";
     return `
-      <div class="member-row ${rowCls.join(" ")}" draggable="true"
+      <div class="member-row ${rowCls.join(" ")}" draggable="true" data-mid="${m.id}"
            ondragstart="dragMemberStart(event, '${m.id}')"
            ondragend="dragMemberEnd(event)"
            ondblclick="${m.source === 'manual' ? `deleteMember('${m.id}')` : ''}"
@@ -4704,12 +4782,20 @@ function renderMembers() {
 }
 
 function toggleLeave(id) {
+  if (!isAdmin()) return;   // marking ลา inside a team is an admin action
   const f = leaveField();
   if (!f) return;   // leave = League / Overrun scope
   const m = findMember(id);
   if (!m) return;
   m[f] = !m[f];
-  save();
+  // Persist the flag to /members so it survives the members-listener mirror and
+  // shows on every device. save()→fbPushAll never wrote /members, so the ลา mark
+  // used to vanish on the next members echo (and was never seen by anyone else).
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  if (_fbDB) {
+    _fbDB.ref(`members/${id}`).update({ [f]: m[f] })
+      .catch(e => toast("เซฟสถานะลาไม่สำเร็จ: " + (e.message || e.code), "error"));
+  }
   render();
 }
 
@@ -4755,7 +4841,7 @@ function buildPartyRowHtml(p) {
   const slotsHtml = Array.from({ length: PARTY_SLOTS }, (_, i) => {
     const memId = (p.slots && p.slots[i]) || null;
     if (!memId) {
-      return `<div class="slot empty"
+      return `<div class="slot empty" data-pid="${p.id}" data-sidx="${i}"
                    ondragover="dragOverEl(event)" ondragleave="dragLeaveEl(event)"
                    ondrop="dropSlot(event, ${p.id}, ${i})">Empty</div>`;
     }
@@ -4764,14 +4850,14 @@ function buildPartyRowHtml(p) {
     // user isn't stuck with a "ghost" slot. The Firebase listener / explicit
     // sanitize pass cleans the underlying state.
     if (isGhostMember(m)) {
-      return `<div class="slot empty"
+      return `<div class="slot empty" data-pid="${p.id}" data-sidx="${i}"
                    ondragover="dragOverEl(event)" ondragleave="dragLeaveEl(event)"
                    ondrop="dropSlot(event, ${p.id}, ${i})">Empty</div>`;
     }
     const cp = m.cp || 0;
     const cpHtml = cp > 0 ? `<span class="slot-cp">CP ${cp.toLocaleString()}</span>` : "";
     const onLeave = isOnLeave(m);
-    return `<div class="slot filled ${onLeave ? "slot-onleave" : ""}" draggable="true"
+    return `<div class="slot filled ${onLeave ? "slot-onleave" : ""}" draggable="true" data-pid="${p.id}" data-sidx="${i}"
                  ondragstart="dragSlotStart(event, ${p.id}, ${i})"
                  ondragend="dragSlotEnd(event)"
                  ondragover="dragOverEl(event)" ondragleave="dragLeaveEl(event)"
@@ -5217,7 +5303,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.13.3";
+const APP_VERSION = "2026.06.17.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5746,13 +5832,6 @@ let _fbPushTimer = null;
 // could land mid-sort and wipe the sort result before our own push lands.
 let _localPartiesGuardUntil = 0;
 
-// Fix B (parties silent-wipe): gate the members-listener re-sanitize until each
-// board's authoritative /parties snapshot has applied — so we never sanitize the
-// stale localStorage copy (which may reference members removed since) and blank
-// valid slots. Flipped true in the /parties listeners below.
-let _fbPartiesLeagueLoaded = false;
-let _fbPartiesOverrunLoaded = false;
-
 let rosterCache = [];          // sorted by name asc
 
 function firebaseConfigured() {
@@ -5849,49 +5928,28 @@ function fbSubscribeAll() {
         discord:     r.discord     || "",
         discordId: r.discordId || "",
         cp:          Number(r.cp)  || 0,
+        onLeaveLeague:  !!r.onLeaveLeague,
+        onLeaveOverrun: !!r.onLeaveOverrun,
         updatedAt:   r.updatedAt   || 0,
         updatedBy:   r.updatedBy   || ""
       }))
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
     _fbApplyingRemote = true;
     state.members = rosterCache.map(r => ({
-      id: r.id, name: r.name, job: r.job, discord: r.discord, discordId: r.discordId, cp: r.cp, source: "firebase"
+      id: r.id, name: r.name, job: r.job, discord: r.discord, discordId: r.discordId, cp: r.cp,
+      onLeaveLeague: r.onLeaveLeague, onLeaveOverrun: r.onLeaveOverrun, source: "firebase"
     }));
     _fbApplyingRemote = false;
     rebuildJobFilter();
-    // Now that members are loaded, re-sanitize party slots — first listener
-    // run may have skipped because members weren't ready yet.
-    // Fix A/B: re-sanitize for DISPLAY only, and only after the authoritative
-    // /parties snapshot has applied. The old code .set() the sanitized parties
-    // back to Firebase, so a sanitize running against the stale localStorage
-    // copy (members snapshot winning the load race, referencing members removed
-    // since) silently PERSISTED a wipe of valid slots. Persistent orphan cleanup
-    // is admin-only now, via the manual repairGhostSlots() button.
-    if (_fbPartiesLeagueLoaded && state.partiesLeague) sanitizeSlots(state.partiesLeague);
-    if (_fbPartiesOverrunLoaded && state.partiesOverrun) sanitizeSlots(state.partiesOverrun);
+    // Do NOT mutate party slots here. A slot whose member is missing/blank renders
+    // as Empty at display time (buildPartyRowHtml → isGhostMember) WITHOUT touching
+    // state, so a member that simply hasn't arrived from Firebase yet can't get its
+    // slot nulled. The old sanitizeSlots() reassigned p.slots in place — an in-memory
+    // mutation the next fbPushAll/commitPartiesNow would persist, silently wiping
+    // valid slots ("ชื่อเด้งออกจากตี้" — the bug that came back). Permanent orphan
+    // cleanup stays admin-initiated via repairGhostSlots().
     safeRender();
   }, e => console.warn("[firebase] members listener error", e));
-
-  // Sanitize party slots — drop references to members that no longer exist
-  // or have no name/job (ghost rows from migration / dedupe etc).
-  // SAFETY: skip if members haven't loaded yet — otherwise we'd wipe valid
-  // slots just because their members haven't arrived from Firebase yet.
-  // Sanitize uses the LOOSER check (isFullyBlankMember) so we only DELETE the
-  // slot reference if there's nothing left to recover. A member with name "X"
-  // and no job is rendered as Empty visually but keeps its slot assignment,
-  // so admin can complete the roster without losing party data.
-  const sanitizeSlots = (parties) => {
-    if (!state.members || !state.members.length) return false;
-    let dirty = false;
-    parties.forEach(p => {
-      p.slots = p.slots.map(id => {
-        if (!id) return null;
-        if (isFullyBlankMember(findMember(id))) { dirty = true; return null; }
-        return id;
-      });
-    });
-    return dirty;
-  };
 
   // Diagnostic helpers — exposed on window so the user can call them from the
   // DevTools console when ghost-slot bug is suspected. Returns an array of
@@ -6016,12 +6074,8 @@ function fbSubscribeAll() {
     });
     if (state.mode === "league") state.parties = state.partiesLeague;
     _fbApplyingRemote = false;
-    // Display-only sanitize of the freshly-loaded authoritative snapshot — it
-    // no longer writes the cleaned copy back to Firebase (that silent .set()
-    // was the parties-wipe bug). Mark this board loaded so the members listener
-    // may display-sanitize without racing the stale localStorage copy.
-    _fbPartiesLeagueLoaded = true;        // Fix B: authoritative League parties now loaded
-    sanitizeSlots(state.partiesLeague);   // Fix A: clean for DISPLAY only, never persist
+    // No slot mutation on load — ghosts render as Empty at display time
+    // (buildPartyRowHtml). Mutating here would let the next push persist a wipe.
     safeRender();
   });
 
@@ -6044,8 +6098,7 @@ function fbSubscribeAll() {
     });
     if (state.mode === "overrun") state.parties = state.partiesOverrun;
     _fbApplyingRemote = false;
-    _fbPartiesOverrunLoaded = true;        // Fix B: authoritative Overrun parties now loaded
-    sanitizeSlots(state.partiesOverrun);   // Fix A: clean for DISPLAY only, never persist
+    // No slot mutation on load — ghosts render as Empty at display time.
     safeRender();
   });
 
@@ -9533,9 +9586,10 @@ function wheelToggleMember(id, on, inputEl) {
 
 function wheelExcludeOnLeaveToday() {
   if (wheelUI.spinning) return;
-  // /leaves is the only synced source of "ลาวันนี้" — the manual onLeave*
-  // flags never survive the members listener mirror, so don't pretend to
-  // honor them here.
+  // "ลาวันนี้" = a dated registration in /leaves (date-scoped, mode-agnostic).
+  // The per-mode manual onLeave* flags persist now too, but they aren't date-
+  // scoped and leaveField() is null on the wheel page — so /leaves stays the
+  // correct source for "who's out today" here.
   let n = 0;
   (state.members || []).forEach(m => {
     if (!m) return;
@@ -9926,6 +9980,7 @@ initMarkers();
 initRangeCircles();
 rebuildJobFilter();
 setupSidebarDrop();
+setupTouchDnD();
 setupTooltip();
 
 if (state.members.length) {

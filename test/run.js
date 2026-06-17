@@ -1125,14 +1125,9 @@ console.log("\n[landing — front door wiring]");
     ok(!/sanitizeSlots\([^)]*\)\s*&&\s*isAdmin\(\)/.test(appHtml),
        "no auto sanitize+isAdmin write-back to /parties may remain");
   });
-  t("parties: members-listener re-sanitize is gated on loaded snapshot (Fix B)", () => {
-    ok(/let _fbPartiesLeagueLoaded\s*=\s*false/.test(appHtml), "League loaded flag declared");
-    ok(/let _fbPartiesOverrunLoaded\s*=\s*false/.test(appHtml), "Overrun loaded flag declared");
-    ok(/_fbPartiesLeagueLoaded\s*=\s*true/.test(appHtml), "League flag set when /parties loads");
-    ok(/_fbPartiesOverrunLoaded\s*=\s*true/.test(appHtml), "Overrun flag set when /parties loads");
-    ok(/if \(_fbPartiesLeagueLoaded && state\.partiesLeague\) sanitizeSlots/.test(appHtml),
-       "members-listener League sanitize gated on loaded flag");
-  });
+  // (Removed the old "Fix B: gate re-sanitize on loaded snapshot" test — the
+  // listener sanitize was deleted entirely. Slots are never mutated on load now;
+  // ghosts render as Empty at display time. See the "[slot data-safety]" group.)
 })();
 
 // --------------------------------------------------- summary exact targets
@@ -1507,6 +1502,76 @@ console.log("\n[wheel]");
     const wid = node["$wid"];
     ok(wid && wid["$other"] && wid["$other"][".validate"] === false, "$other locked");
     for (const f of ["at", "by", "winnerId", "winnerName", "prize"]) ok(wid[f], "field rule: " + f);
+  });
+})();
+
+// ============================================================================
+console.log("\n[slot data-safety — no silent wipe / leave persists]");
+(function () {
+  const fs = require("fs");
+  const path = require("path");
+  const appHtml = fs.readFileSync(path.join(__dirname, "..", "app.html"), "utf8");
+
+  t("rendering a slot whose member isn't loaded shows Empty but KEEPS the id (no wipe)", () => {
+    app.setRosterCache([]);            // member not in the roster yet (load race)
+    const s = app.state; s.mode = "league"; s.members = [];
+    const party = { id: 1, name: "ตี้ 1", slots: ["ghost-id", null, null, null, null] };
+    const html = app.call("buildPartyRowHtml", party);
+    ok(/Empty/.test(html), "missing member renders as Empty");
+    eq(party.slots[0], "ghost-id", "slot id is preserved — NOT nulled (data survives the render)");
+  });
+
+  t("the silent-wipe path is gone: no sanitizeSlots() mutating state in listeners", () => {
+    ok(!/const sanitizeSlots =/.test(appHtml), "sanitizeSlots helper deleted");
+    ok(!/sanitizeSlots\(state\./.test(appHtml), "no listener calls sanitizeSlots(state.*)");
+    ok(!/_fbPartiesLeagueLoaded|_fbPartiesOverrunLoaded/.test(appHtml), "dead load-guard flags removed");
+  });
+
+  t("isOnLeave honors the persisted per-mode flag immediately", () => {
+    const s = app.state; s.mode = "league"; s.leaves = {};
+    eq(app.call("isOnLeave", { id: "a", name: "A", job: "Knight", onLeaveLeague: true }), true, "ลา flag → on leave");
+    eq(app.call("isOnLeave", { id: "b", name: "B", job: "Knight", onLeaveLeague: false }), false, "no flag, no scheduled → not on leave");
+  });
+
+  t("leave flag round-trips through Firebase: toggleLeave writes /members + mirror keeps it", () => {
+    ok(/function toggleLeave\(id\) \{\s*\n\s*if \(!isAdmin\(\)\) return;/.test(appHtml), "toggleLeave is admin-gated");
+    ok(appHtml.includes(".update({ [f]: m[f] })"), "toggleLeave persists the flag to /members");
+    ok(appHtml.includes("onLeaveLeague: r.onLeaveLeague, onLeaveOverrun: r.onLeaveOverrun"),
+       "members mirror carries onLeave* (so the mark survives the listener rebuild)");
+  });
+
+  // ---- mobile team editing (#2: "only one admin can edit" = others on phones)
+  t("placeAtSlot moves a pool member into an empty slot (touch + mouse share this)", () => {
+    const s = app.state; s.mode = "league";
+    s.parties = [
+      { id: 1, name: "ตี้ 1", slots: [null, null, null, null, null] },
+      { id: 2, name: "ตี้ 2", slots: [null, null, null, null, null] },
+    ];
+    app.call("placeAtSlot", "m1", 1, 0);
+    eq(s.parties[0].slots[0], "m1", "member placed in party 1 slot 0");
+  });
+
+  t("placeAtSlot moves between slots without duplicating (no ghost left behind)", () => {
+    const s = app.state; s.mode = "league";
+    s.parties = [
+      { id: 1, name: "ตี้ 1", slots: ["m1", null, null, null, null] },
+      { id: 2, name: "ตี้ 2", slots: [null, null, null, null, null] },
+    ];
+    app.call("placeAtSlot", "m1", 2, 0);
+    eq(s.parties[0].slots[0], null, "source slot vacated");
+    eq(s.parties[1].slots[0], "m1", "moved to party 2 — exactly one copy");
+  });
+
+  t("touch drag-drop is wired to the SAME guarded path (no new write path)", () => {
+    ok(/function setupTouchDnD\(\)/.test(appHtml), "setupTouchDnD defined");
+    ok(/\nsetupTouchDnD\(\);/.test(appHtml), "called at boot");
+    ok(appHtml.includes('data-mid="${m.id}"'), "pool rows carry data-mid");
+    ok(appHtml.includes('data-pid="${p.id}" data-sidx="${i}"'), "slots carry data-pid/data-sidx");
+    ok(/placeAtSlot\(cur\.mid,[\s\S]{0,160}commitPartiesNow\(\); render\(\)/.test(appHtml),
+       "drop on a slot → placeAtSlot + commitPartiesNow (guarded write)");
+    ok(/removeFromSlot\(cur\.pid, cur\.sidx\);[\s\S]{0,120}commitPartiesNow/.test(appHtml),
+       "drop on the pool → removeFromSlot + commitPartiesNow");
+    ok(/if \(!isAdmin\(\) \|\| e\.touches\.length !== 1\) return;/.test(appHtml), "touch drag is admin-gated");
   });
 })();
 

@@ -10,6 +10,29 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.17.1]
+### Fixed
+- **ชื่อหลุดออกจากช่องตี้เอง (data-loss) — แก้รากที่ regression กลับมา.** v2026.06.09.1 ตั้งใจให้
+  `sanitizeSlots` เป็น "display-only ไม่เขียนทับ Firebase" แต่จริงๆ มัน **mutate `state.partiesLeague/Overrun`
+  ในหน่วยความจำ** (reassign `p.slots`) — แล้ว push ตัวถัดไป (`fbPushAll`/`commitPartiesNow` เช่นตอนกดปุ่ม
+  "ลา") ก็เซฟ null นั้นขึ้น cloud ถาวร = ชื่อหลุดจากช่อง. ซ้ำร้าย parties-listener ยัง sanitize เทียบกับ
+  `state.members` ที่อาจเป็น localStorage เก่า (ถ้า `/parties` มาก่อน `/members`) → null ช่องที่ valid.
+  **แก้:** ลบ `sanitizeSlots` ออกจาก listener ทั้งหมด (members + parties/league + parties/overrun) + ลบตัว
+  helper + flag `_fbParties*Loaded` ที่ตายแล้ว. renderer โชว์ ghost เป็น Empty โดยไม่แตะ state อยู่แล้ว
+  (`buildPartyRowHtml` → `isGhostMember`) — ช่อง valid จึงถูก null ถาวรไม่ได้อีก; ล้าง orphan ผ่านปุ่ม
+  `repairGhostSlots()` (admin กดเอง) เหมือนเดิม. +เทสต์ "slot ที่ member ยังไม่โหลด → Empty แต่เก็บ id ไว้".
+- **มาร์ค "ลา" ในตี้แล้วหาย/ไม่ซิงค์.** `toggleLeave` เซ็ต flag `onLeave*` บน `state.members` แล้วเรียก `save()`
+  ซึ่ง `fbPushAll` **ไม่เคยเขียน `/members`** → flag ไม่ขึ้น cloud และ members-listener rebuild ตัด field ทิ้งทุก
+  echo. **แก้:** `toggleLeave` เขียน `/members/{id}.update({onLeave*})` ตรงๆ (admin-gated) + members mirror
+  เก็บ `onLeaveLeague/onLeaveOverrun` → มาร์คลาเซฟขึ้น cloud, เห็นทุกเครื่อง, ไม่หาย. ทุก edit path ปกติใช้
+  `.update()` (merge) flag จึงรอดเวลาแก้ CP/ชื่อ.
+### Added
+- **จัดทีมบนมือถือได้แล้ว (touch drag-drop).** เดิมการลาก member เข้า slot ใช้ HTML5 drag ซึ่งไม่ทำงานบน
+  จอสัมผัส → แอดมินที่เล่นมือถือจัดทีมไม่ได้ เหลือแต่คอม (= "มีแอดมินแก้ได้คนเดียว"). เพิ่ม `setupTouchDnD()`:
+  long-press ~200ms เริ่มลาก (swipe สั้นยังเลื่อนลิสต์ได้), ปล่อยบน slot = วาง, ปล่อยบน pool = เอาออกจากตี้.
+  วิ่งผ่าน path เดิม `placeAtSlot`/`removeFromSlot`/`commitPartiesNow` (guard 2s + audit เหมือนเมาส์ — ไม่มี
+  ทางเขียนใหม่), admin-gated. ⚠️ ต้องเทสต์จริงบนมือถือ (ลากด้วยนิ้ว) — automation จำลอง touch ไม่ได้.
+
 ## [2026.06.13.3]
 ### Fixed
 - **Overrun map ยืดบนจอกว้าง (normal view) — แก้จริงจุดนี้.** v.2 แก้แค่ contain (กันบิดในรูป)
