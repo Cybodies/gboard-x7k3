@@ -3134,11 +3134,11 @@ let _isDragging = false;
 let _pendingRenderAfterDrag = false;
 // Map filter state — a SET of ids to show; EMPTY set = show ALL (preserves the
 // old "0 = all" semantics). Multi-select: click several party/group chips to view
-// them together (e.g. ตี้ 4 + 5 on the same map). Each map card has its OWN
-// filter (GL เกิดบน + เกิดล่าง each 1-16, Overrun group ids chosen independently).
+// them together (e.g. ตี้ 4 + 5 on the เกิดบน map). Each map card has its OWN
+// filter (GL เกิดบน = ตี้ 1-8, เกิดล่าง = ตี้ 9-16, Overrun group ids independently).
 // Per-viewer + in-memory only — reset to empty (all) on every page load, NOT synced.
-let _mapFilterMain    = new Set();   // GL เกิดบน map filter — empty = all; else party ids 1-16
-let _mapFilterSub     = new Set();   // GL เกิดล่าง map filter — empty = all; else party ids 1-16
+let _mapFilterMain    = new Set();   // GL เกิดบน map filter — empty = all; else party ids 1-8
+let _mapFilterSub     = new Set();   // GL เกิดล่าง map filter — empty = all; else party ids 9-16
 let _mapFilterOverrun = new Set();   // empty = all; else OVERRUN_GROUPS ids (1..length)
 let _mapFilterOverrunB = new Set();  // 2nd Overrun map (Emperium) — INDEPENDENT filter
 
@@ -3878,19 +3878,19 @@ function initMarkers() {
   }
 }
 
-/* GL 2-plan (เกิดบน/เกิดล่าง) helpers. One Vigrid battlefield, two maps by plan:
- * mapNum 1 = เกิดบน (state.markers), mapNum 4 = เกิดล่าง (state.markersBottom) —
- * each shows ALL 16 parties. Filters are INDEPENDENT per plan; range circles render
- * on both maps. (Old Sub maps 2/5 retired.) */
+/* GL helpers. One Vigrid battlefield, 16 parties split across two maps by spawn:
+ * mapNum 1 = เกิดบน (ตี้ 1-8, state.markers), mapNum 4 = เกิดล่าง (ตี้ 9-16,
+ * state.markersBottom). Filters INDEPENDENT per map; range circles render on both.
+ * (Old Sub maps 2/5 retired.) */
 function leagueMapIsMain(mapNum) { return mapNum === 1 || mapNum === 4; }
 function leagueMapPlan(mapNum) { return mapNum >= 4 ? "bottom" : "top"; }
 function leagueMarkerStore(mapNum) {
   if (!state.markersBottom) state.markersBottom = {};
   return leagueMapPlan(mapNum) === "bottom" ? state.markersBottom : state.markers;
 }
-// One battlefield now: every GL map shows all 16 parties. Filters stay
-// independent PER PLAN — เกิดบน uses _mapFilterMain, เกิดล่าง uses _mapFilterSub.
-function leagueRangeFor(mapNum) { return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]; }
+// 16 parties split across the two maps: เกิดบน = ตี้ 1-8 (_mapFilterMain),
+// เกิดล่าง = ตี้ 9-16 (_mapFilterSub). Filters/markers stay independent per map.
+function leagueRangeFor(mapNum) { return leagueMapPlan(mapNum) === "bottom" ? [9,10,11,12,13,14,15,16] : [1,2,3,4,5,6,7,8]; }
 function leagueFilterFor(mapNum) { return leagueMapPlan(mapNum) === "bottom" ? _mapFilterSub : _mapFilterMain; }
 
 function renderMarkers() {
@@ -5051,8 +5051,8 @@ function buildMapHtml(mapNum) {
   const subWrapCls = isBottom ? 'sub-map' : '';
   const icon = '🗺️';
   const title = 'Vigrid Field';
-  // Each plan map shows ALL 16 parties; the two filters stay independent so admin
-  // can focus a team on เกิดบน while leaving เกิดล่าง showing everyone (or vice versa).
+  // เกิดบน map = ตี้ 1-8, เกิดล่าง map = ตี้ 9-16; the two filters stay independent so
+  // admin can focus one map's teams while leaving the other showing all of its 8.
   const range          = leagueRangeFor(mapNum);
   const currentFilter  = isBottom ? _mapFilterSub : _mapFilterMain;
   const toggleFnName   = isBottom ? "toggleMapFilterSub" : "toggleMapFilterMain";
@@ -5078,7 +5078,7 @@ function buildMapHtml(mapNum) {
   return `
     <div class="map-card">
       <div class="map-title ${cls}">
-        <span>${icon} ${title} · <b>${planLabel}</b> (ตี้ 1–16)</span>
+        <span>${icon} ${title} · <b>${planLabel}</b> (ตี้ ${isBottom ? '9–16' : '1–8'})</span>
         <span class="actions">
           <span class="map-filter-chips" title="ติ๊กได้หลายตี้พร้อมกัน">${filterChips}</span>
           ${rangeCircleBtns}
@@ -5343,7 +5343,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.22.1";
+const APP_VERSION = "2026.06.22.2";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
