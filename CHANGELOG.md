@@ -10,6 +10,15 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.21.1]
+### Added
+- **แท็บ "🪶 คำนวนขนนก" — ฝัง ROOC Feather Optimizer เข้าเว็บหลัก.** เครื่องมือคำนวณ/optimize ขนรูปปั้น
+  (feather/statue build planner) มาเป็นอีก 1 แท็บใน app.html — ทุกคนที่ login ใช้ได้ (ไม่ admin-gate). ฝังแบบ
+  **iframe** (`feather-optimizer.html` ไฟล์ standalone self-contained 190KB, inline CSS+JS ล้วน) เพื่อแยก
+  CSS/JS/state ออกจากแอปหลักสนิท — ไม่ชนตัวแปร/id/ฟังก์ชัน และ iframe ไม่ถูก Firebase re-render รีโหลด (ค่า
+  ที่ผู้ใช้กรอกในคลังขนไม่หาย). ใช้ระบบ mode เดิม: `switchMode('feather')` + CSS `body[data-mode="feather"]`
+  ซ่อน sidebar/center โชว์ `#featherPane`; indicator สีทอง; `loading="lazy"` โหลด optimizer เมื่อเปิดแท็บแรก.
+
 ## [2026.06.17.1]
 ### Fixed
 - **ชื่อหลุดออกจากช่องตี้เอง (data-loss) — แก้รากที่ regression กลับมา.** v2026.06.09.1 ตั้งใจให้

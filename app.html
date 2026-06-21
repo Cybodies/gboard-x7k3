@@ -154,6 +154,9 @@
   .mode-toggle.wheel-active .seg-indicator {
     background: linear-gradient(90deg, #8b5cf6, #d946ef);
   }
+  .mode-toggle.feather-active .seg-indicator {
+    background: linear-gradient(90deg, #d97706, #fbbf24);
+  }
   /* Admin-only chrome (Users tab, mobile dropdown option). Hidden by
      default and only revealed when applyViewerMode() flags body
      data-admin="true". */
@@ -331,6 +334,16 @@
   body[data-mode="users"] .layout           { grid-template-columns: 1fr !important; }
   body[data-mode="users"] .hamburger-btn    { display: none; }
   body[data-mode="users"] .sidebar-backdrop { display: none !important; }
+
+  /* Feather Optimizer tab — iframe pane fills the layout; sidebar/center hidden. */
+  #featherPane  { display: none; height: 100%; overflow: hidden; }
+  #featherFrame { display: block; width: 100%; height: 100%; border: 0; }
+  body[data-mode="feather"] #featherPane      { display: block; }
+  body[data-mode="feather"] #center           { display: none; }
+  body[data-mode="feather"] .sidebar          { display: none; }
+  body[data-mode="feather"] .layout           { grid-template-columns: 1fr !important; }
+  body[data-mode="feather"] .hamburger-btn    { display: none; }
+  body[data-mode="feather"] .sidebar-backdrop { display: none !important; }
 
   /* ===== Users page (admin-only) ===== */
   .users-view { display: flex; flex-direction: column; gap: 14px; max-width: 900px; }
@@ -2751,6 +2764,7 @@
     <button class="seg" data-mode="auction-overrun" onclick="switchMode('auction-overrun')">🎴 Auction Overrun</button>
     <button class="seg" data-mode="auction-request" onclick="switchMode('auction-request')">🙋 ขอประมูล</button>
     <button class="seg" data-mode="leave" onclick="switchMode('leave')">🌴 ลา</button>
+    <button class="seg" data-mode="feather" onclick="switchMode('feather')">🪶 คำนวนขนนก</button>
     <button class="seg seg-admin" data-mode="wheel" onclick="switchMode('wheel')">🎡 สุ่มรางวัล</button>
     <button class="seg seg-admin" data-mode="users" onclick="switchMode('users')">👥 Users</button>
     <span class="seg-indicator"></span>
@@ -2763,6 +2777,7 @@
     <option value="auction-overrun">🎴 Auction Overrun</option>
     <option value="auction-request">🙋 ขอประมูล</option>
     <option value="leave">🌴 ลา</option>
+    <option value="feather">🪶 คำนวนขนนก</option>
     <option value="wheel" class="user-option-admin">🎡 สุ่มรางวัล</option>
     <option value="users" class="user-option-admin">👥 Users</option>
   </select>
@@ -2798,6 +2813,12 @@
 
   <!-- Center: battlefields -->
   <main class="center" id="center"></main>
+
+  <!-- Feather Optimizer (standalone tool, iframed for full isolation from app CSS/JS/state).
+       ponytail: iframe over inline-merge — zero collision risk + survives Firebase re-renders. -->
+  <div id="featherPane">
+    <iframe id="featherFrame" src="feather-optimizer.html" title="ROOC Feather Optimizer" loading="lazy"></iframe>
+  </div>
 
   <!-- Mobile sidebar backdrop (click to close) -->
   <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
@@ -3063,6 +3084,7 @@ function updateModeToggleUI() {
   t.classList.toggle("leave-active", state.mode === "leave");
   t.classList.toggle("users-active", state.mode === "users");
   t.classList.toggle("wheel-active", state.mode === "wheel");
+  t.classList.toggle("feather-active", state.mode === "feather");
   // Admin-only chrome (e.g., Users tab) is gated by CSS using
   // body[data-admin="true"] — applyViewerMode() flips that attribute
   // whenever auth changes, so this UI updates without us having to
@@ -5303,7 +5325,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.17.1";
+const APP_VERSION = "2026.06.21.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -9769,6 +9791,8 @@ function renderBattlefields() {
     center.innerHTML = buildAuctionRequestHtml();
   } else if (state.mode === "users") {
     center.innerHTML = buildUsersHtml();
+  } else if (state.mode === "feather") {
+    // Optimizer lives in #featherPane (iframe), not .center — nothing to build here.
   } else if (state.mode === "wheel") {
     // Mid-spin renders are skipped so a Firebase snapshot can't tear down
     // the canvas while it's animating; the post-spin render() repaints.

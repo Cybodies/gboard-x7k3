@@ -1,0 +1,2932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- ponytail: removed original 3rd-party AdSense + Google Analytics (not ours) -->
+<meta charset="UTF-8">
+<meta name="google-adsense-account" content="ca-pub-3240565865542619">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Primary -->
+<title>ROOC Feather Optimizer — Ragnarok Origin Classic Build Planner</title>
+<meta name="description" content="Free feather build optimizer for Ragnarok Origin Classic. Find the best Raven's Hour and Raven's Prestige feather combinations for your ATK and DEF statues based on your pool inventory and stat priorities.">
+<meta name="keywords" content="Ragnarok Origin Classic, ROOC, feather optimizer, Raven's Hour, Raven's Prestige, feather build, stat optimizer, ROOC build planner, feather calculator">
+<meta name="author" content="ROOC Feather Optimizer">
+<link rel="canonical" href="https://rooc-optimizer.up.railway.app">
+
+<!-- Favicon — feather emoji as SVG data URI -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪶</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪶</text></svg>">
+
+<!-- Open Graph (Discord, Facebook, WhatsApp previews) -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rooc-optimizer.up.railway.app">
+<meta property="og:title" content="ROOC Feather Optimizer">
+<meta property="og:description" content="Find the best feather build for your statues in Ragnarok Origin Classic. Supports Raven's Hour & Raven's Prestige sets. Free, no login required.">
+<meta property="og:site_name" content="ROOC Feather Optimizer">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ROOC Feather Optimizer">
+<meta name="twitter:description" content="Find the best feather build for your statues in Ragnarok Origin Classic. Supports Raven's Hour & Raven's Prestige sets. Free, no login required.">
+
+<!-- Theme color (browser tab / mobile chrome bar matches app dark theme) -->
+<meta name="theme-color" content="#0f1117">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#161b22;--bg3:#1c2330;
+  --border:#30363d;--border2:#21262d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --gold:#c9a227;--gold2:#f0d060;--gold3:#8a6c10;
+  --blue:#4a7fa5;--blue2:#7fb5d4;
+  --red:#c0392b;--red2:#e8705e;--red3:#fca5a5;
+  --green:#1a6b3c;--green2:#4fa06a;--green3:#86efac;
+  --purple:#5b3fa0;--purple2:#9b7fd4;--purple3:#c4b5fd;
+  --radius:8px;--radius-sm:5px;
+}
+[data-theme="light"]{
+  --bg:#f0f2f5;--bg2:#ffffff;--bg3:#e8eaed;
+  --border:#d0d7de;--border2:#e1e4e8;
+  --text:#1c2329;--text2:#57606a;--text3:#8c959f;
+  --gold:#7d5a00;--gold2:#5a3e00;--gold3:#f0d060;
+  --blue:#0969da;--blue2:#0550ae;
+  --red:#d1242f;--red2:#c0392b;--red3:#ff8182;
+  --green:#1a7f37;--green2:#116329;--green3:#1a7f37;
+  --purple:#6639ba;--purple2:#4f2dc8;--purple3:#8250df;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:var(--text);font-size:13px;line-height:1.5;background:var(--bg);min-height:100vh}
+.app{max-width:1400px;margin:0 auto;padding:0 0 40px}
+.sticky-nav{position:sticky;top:0;z-index:100;background:var(--bg2)}
+
+/* Header */
+.hdr{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--bg2)}
+.hdr-title{font-size:18px;font-weight:600;letter-spacing:-.3px}
+.hdr-title span{color:var(--gold)}
+.hdr-sub{font-size:11px;color:var(--text3);margin-left:4px}
+.version-badge{margin-left:auto;font-size:10px;padding:2px 8px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text3)}
+
+/* Tabs */
+.tabs{display:none} /* merged into one page */
+.tab{padding:10px 18px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);transition:all .15s;font-weight:500}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* Panes */
+.pane{display:block;padding:20px} /* both panes stacked — single page */
+.pane.on{display:block}
+
+/* Section headers */
+.sec-row{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.sec{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.9px;color:var(--text3)}
+
+/* Tooltip */
+.tooltip-wrap{position:relative;display:inline-flex;align-items:center}
+.tooltip-btn{width:16px;height:16px;border-radius:50%;background:var(--bg3);border:1px solid var(--border);color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
+.tooltip-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+.tooltip-box{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);width:300px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;font-size:11px;color:var(--text2);line-height:1.6;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.tooltip-box::before{content:'';position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:var(--bg3);border-left:1px solid var(--border);border-top:1px solid var(--border);rotate:45deg}
+.tooltip-wrap:hover .tooltip-box,.tooltip-btn:focus+.tooltip-box{display:block}
+.tooltip-box b{color:var(--text);display:block;margin-bottom:4px}
+.tooltip-table{width:100%;border-collapse:collapse;margin-top:6px}
+.tooltip-table td{padding:2px 6px;border-bottom:1px solid var(--border2);font-size:10px}
+.tooltip-table td:first-child{color:var(--gold);font-weight:600;white-space:nowrap}
+
+/* Pool grid */
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px;margin-bottom:18px}
+.pool-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:11px 13px;transition:border-color .15s}
+.pool-card:hover{border-color:var(--blue)}
+.pool-name{font-weight:600;font-size:12px;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.pool-members{font-size:10px;color:var(--text3);margin-bottom:7px}
+.pool-inp-row{display:flex;align-items:center;gap:8px}
+.pool-inp-label{font-size:11px;color:var(--text2)}
+.pool-inp{padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg3);color:var(--text);text-align:center;width:80px;transition:border-color .15s}
+.pool-inp:focus{outline:none;border-color:var(--blue)}
+.badge-y{font-size:9px;padding:1px 6px;border-radius:8px;background:#2a1f00;color:#c9a227;font-weight:600;border:1px solid #5a4010}
+.badge-p{font-size:9px;padding:1px 6px;border-radius:8px;background:#1a1030;color:#9b7fd4;font-weight:600;border:1px solid #3a2860}
+
+/* Presets */
+.preset-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.preset-btn{padding:5px 13px;font-size:11px;border:1px solid var(--border);border-radius:20px;cursor:pointer;background:var(--bg3);color:var(--text2);font-weight:500;transition:all .15s}
+.preset-btn:hover{border-color:var(--blue);color:var(--text)}
+.preset-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.preset-desc{font-size:11px;color:var(--text2);margin-bottom:12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border);display:none;line-height:1.6}
+.preset-desc.on{display:block}
+
+/* Sliders - 5 step priority */
+.slider-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-bottom:16px}
+.sl-group{grid-column:1/-1;margin-top:12px;margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.2px;color:var(--text);padding:4px 0 5px;border-bottom:2px solid var(--border)}
+.sl-group:first-child{margin-top:0}
+.sl-row{display:flex;align-items:center;gap:8px}
+.sl-name{font-size:11px;color:var(--text2);min-width:115px}
+.sl-steps{display:flex;flex:1;border:1px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;height:24px}
+.sl-step{flex:1;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text3);border-right:1px solid var(--border2);transition:background .1s,color .1s;user-select:none}
+.sl-step:last-child{border-right:none}
+.sl-step:hover{background:var(--bg3);color:var(--text)}
+.sl-step.s0.on{background:#1c2330;color:var(--text3)}
+.sl-step.s1.on{background:#1a3a2a;color:#4fa06a}
+.sl-step.s2.on{background:#1a2e4a;color:#7fb5d4}
+.sl-step.s3.on{background:#3a2a00;color:#c9a227}
+.sl-step.s4.on{background:#3a1a1a;color:#e8705e}
+/* Filter grid */
+.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-bottom:16px}
+.fl-group{grid-column:1/-1;margin-top:10px;margin-bottom:2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding-bottom:4px;border-bottom:1px solid var(--border2)}
+.fl-group:first-child{margin-top:0}
+.fl-row{display:flex;align-items:center;gap:8px}
+.fl-name{font-size:11px;color:var(--text2);min-width:115px}
+.fl-inp{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;color:var(--text);font-size:11px;outline:none;transition:border-color .15s}
+.fl-inp:focus{border-color:var(--blue)}
+.fl-inp::placeholder{color:var(--text3)}
+.fl-unit{font-size:10px;color:var(--text3);min-width:32px}
+.filter-zero-msg span{font-weight:600}
+
+/* Run button */
+.run-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.run-btn{padding:9px 24px;background:var(--gold);color:#000;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.2px}
+/* number inputs: no spinner up/down arrows — type directly */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+/* Stat Priority chips (ordered) */
+.prio-chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.prio-chip{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:18px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text2);background:var(--bg2);transition:all .12s;user-select:none}
+.prio-chip:hover{border-color:var(--gold3)}
+.prio-chip.on{border-color:var(--gold);color:var(--gold);background:#1a1400}
+.prio-rank{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--gold);color:#000;font-size:10px;font-weight:800}
+.prio-reset{margin-left:auto;background:transparent;border:1px solid var(--border);color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;border-radius:var(--radius-sm);padding:4px 12px}
+.prio-reset:hover{border-color:var(--red2);color:var(--red2)}
+/* Feather Inventory grid */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.inv-pool{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px}
+.inv-pool-hd{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.inv-feather{margin-bottom:9px}
+.inv-f-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
+.inv-add{background:#1a1400;border:1px solid var(--gold3);color:var(--gold);font-size:11px;font-weight:700;cursor:pointer;border-radius:8px;padding:3px 11px;white-space:nowrap}
+.inv-add:hover{border-color:var(--gold);background:#241a00}
+.inv-rm{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 3px}
+.inv-rm:hover{color:var(--red2)}
+.inv-row{display:flex;gap:6px;align-items:center;margin-bottom:3px}
+.inv-f{font-size:12px;font-weight:600;color:var(--text)}
+.inv-y{color:var(--gold2)} .inv-p{color:#b794f6}
+.inv-lab{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text3)}
+.inv-lab input{width:48px;padding:3px 5px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;text-align:center}
+.run-btn:hover{background:var(--gold2)}
+.run-btn:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed}
+.raizar-btn{padding:9px 18px;background:transparent;border:2px solid #2dd4bf;color:#2dd4bf;border-radius:var(--radius);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.2px;white-space:nowrap}
+.raizar-btn:hover{background:#2dd4bf;color:#0f1117}
+.raizar-btn:disabled{border-color:var(--border);color:var(--text3);cursor:not-allowed;background:transparent}
+#raizar-btn{display:none} /* uniform is default now — button hidden (JS refs kept) */
+.raizar-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#0d2e2b;border:1px solid #2dd4bf;border-radius:12px;font-size:10px;font-weight:700;color:#2dd4bf;margin-bottom:8px}
+.status{font-size:11px;color:var(--text3)}
+
+/* Progress */
+.prog-bar{height:3px;border-radius:2px;background:var(--bg3);margin-bottom:10px;overflow:hidden;display:none}
+.prog-fill{height:100%;border-radius:2px;background:var(--gold);transition:width .2s}
+
+/* Notice */
+.notice{font-size:11px;padding:8px 12px;border-radius:var(--radius-sm);background:#1a1400;border:1px solid var(--gold3);color:#c9a227;margin-bottom:14px}
+/* Upgrade Path advisor */
+.up-card{border:1px solid var(--gold3);border-radius:var(--radius);background:#140f00;margin-bottom:14px}
+.up-summary{cursor:pointer;padding:10px 12px;font-size:12px;font-weight:700;color:var(--gold);list-style:none}
+.up-summary::-webkit-details-marker{display:none}
+.up-body{padding:0 12px 12px}
+.up-note{font-size:10px;color:var(--text3);margin-bottom:8px}
+.up-run-row{display:flex;align-items:center;gap:12px;margin:10px 0}
+.up-head{font-size:12px;font-weight:700;margin:8px 0;padding:6px 10px;border-radius:var(--radius-sm);background:var(--bg2)}
+.up-ok{background:#0e2a14;color:#7fdca0}
+.up-warn{background:#2a1400;color:var(--gold)}
+.up-cmp-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.up-cmp{font-size:11px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--text2)}
+.up-short{border-color:var(--red2);color:var(--red2)}
+.up-steps{display:flex;flex-direction:column;gap:3px}
+.up-step{display:grid;grid-template-columns:24px 1fr auto auto auto;gap:8px;align-items:center;font-size:11px;background:var(--bg2);border-radius:5px;padding:4px 8px}
+.up-step-n{color:var(--text3)}.up-step-f{font-weight:700;color:var(--text)}.up-step-loc{color:var(--text3)}.up-step-lv{color:#38bdf8}.up-step-cost{color:var(--gold2);font-weight:700;text-align:right}
+.up-empty{font-size:11px;color:var(--text3);padding:10px}
+
+/* Results table */
+.results-area{margin-top:4px}
+.res-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)}
+.res-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.res-toolbar-lbl{font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;margin-right:4px}
+.col-toggle{font-size:10px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .12s;user-select:none}
+.col-toggle.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.col-toggle:hover{border-color:var(--blue2);color:var(--text)}
+.csv-btn{margin-left:auto;font-size:10px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .12s}
+.csv-btn:hover{border-color:var(--green2);color:var(--green3)}
+.res-table{width:100%;border-collapse:collapse;font-size:11px}
+.res-table th{padding:8px 12px;text-align:right;font-weight:600;font-size:11px;color:var(--text3);background:var(--bg3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0}
+.res-table th:first-child,.res-table th:nth-child(2),.res-table th:nth-child(3){text-align:left;cursor:default}
+.res-table th:hover:not(:first-child):not(:nth-child(2)):not(:nth-child(3)){color:var(--text);background:#222a36}
+.res-table th.sort-asc::after{content:' ↑';color:var(--gold)}
+.res-table th.sort-desc::after{content:' ↓';color:var(--gold)}
+.res-table td{padding:9px 12px;font-size:12px;text-align:right;border-bottom:1px solid var(--border2);white-space:nowrap;color:var(--text)}
+.res-table td:first-child{text-align:left;color:var(--text3);font-size:10px;width:28px}
+.res-table td:nth-child(2){text-align:left;font-weight:700;color:var(--gold);min-width:70px}
+.res-table td:nth-child(3){text-align:left;min-width:160px}
+.res-table tr.data-row{cursor:pointer;transition:background .1s}
+.res-table tr.data-row:hover{background:var(--bg3)}
+.res-table tr.data-row.expanded{background:#1a2030}
+.res-table tr.detail-row td{padding:0;text-align:left}
+.res-table tr.detail-row{display:none}
+.res-table tr.detail-row.on{display:table-row}
+.tiers-cell{display:flex;gap:3px;flex-wrap:wrap}
+.td-pill{font-size:9px;padding:1px 6px;border-radius:3px;font-weight:600}
+.td-atk{background:#2a0f0f;color:#e8705e;border:1px solid #5a1f1f}
+.td-def{background:#0a1f12;color:#4fa06a;border:1px solid #1a4a28}
+.col-grp-atk{color:#e8705e}
+.col-grp-def{color:#4fa06a}
+.col-grp-pve{color:#7fb5d4}
+.col-grp-pvp{color:#9b7fd4}
+.col-grp-primary{color:#86efac}
+/* Pool utilization bars */
+.pool-util-section{margin-top:10px;padding-top:10px;border-top:1px solid var(--border2);display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px 14px}
+.pool-util-row{display:flex;flex-direction:column;gap:3px}
+.pool-util-hdr{display:flex;justify-content:space-between;font-size:11px}
+.pool-util-name{color:var(--text2);font-weight:600}
+.pool-util-nums{color:var(--text3)}
+.pool-util-nums.over{color:var(--red2)}
+.pool-bar-track{height:5px;background:var(--border);border-radius:2px;overflow:hidden}
+.pool-bar-fill{height:100%;border-radius:2px;transition:width .2s}
+.pool-bar-fill.ok{background:var(--green2)}
+.pool-bar-fill.warn{background:var(--gold)}
+.pool-bar-fill.over{background:var(--red2)}
+.st-row{display:flex;gap:6px;margin-bottom:7px;align-items:flex-start;flex-wrap:wrap}
+.st-lbl{font-size:11px;font-weight:600;color:var(--text2);min-width:68px;padding-top:3px;flex-shrink:0}
+.f-chip{font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid}
+.f-yellow{background:#1a1200;border-color:#6a4e10;color:#c9a227}
+.f-purple{background:#110a20;border-color:#4a3070;color:#9b7fd4}
+.f-yellow.above{font-weight:700;border-color:var(--gold)}
+.f-purple.above{font-weight:700;border-color:var(--purple2)}
+.f-unused{opacity:.35;border-style:dashed}
+.tier-b{font-size:10px;padding:2px 6px;border-radius:3px;background:#1a1200;color:var(--gold);font-weight:600;border:1px solid var(--gold3)}
+.set-b{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;margin-left:3px}
+.set-valid{background:#001a0a;border:1px solid #1a6b3c;color:#4fa06a}
+.set-rh{background:#1a1400;border:1px solid var(--gold3);color:var(--gold2)}
+.set-rp{background:#001a0a;border:1px solid #1a6b3c;color:#4fa06a}
+.set-rd{background:#140a1a;border:1px solid var(--purple);color:var(--purple2)}
+.set-invalid{background:#1a0a0a;border:1px solid #6b1a1a;color:#e8705e}
+.detail-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+/* Per-statue set bonus + feather bonuses panel */
+.statue-detail{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px}
+.statue-detail-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.statue-detail-slots{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border2)}
+.statue-bonus-grid{display:flex;flex-direction:column;gap:8px}
+.statue-bonus-col{display:flex;flex-direction:column;gap:2px}
+.bonus-col-hdr{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);margin-bottom:2px;padding-bottom:3px;border-bottom:1px solid var(--border2)}
+.bonus-col-hdr.set{color:var(--gold2)}
+.bonus-col-hdr.total{color:var(--blue2)}
+.bonus-rows-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1px 12px}
+.bonus-row{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-size:11px;padding:2px 0}
+.bonus-n{color:var(--text2);flex-shrink:0}
+.bonus-v{font-weight:600;color:var(--text);white-space:nowrap}
+.bonus-v.pos{color:var(--green3)}
+.ds-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0}
+.ds-n{color:var(--text2)}.ds-v{font-weight:600;color:var(--text)}
+
+/* Empty state */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-state h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text2)}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:.5}
+
+/* Build Editor */
+.be-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.be-st{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .15s}
+.be-st:hover{border-color:var(--blue)}
+.be-hdr{padding:7px 12px;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600}
+.be-atk .be-hdr{background:#1a0808;color:#e8705e;border-bottom:1px solid #3a1414}
+.be-def .be-hdr{background:#081a10;color:#4fa06a;border-bottom:1px solid #143a20}
+.be-slot{display:flex;align-items:center;gap:4px;padding:4px 10px;border-bottom:1px solid var(--border2)}
+.be-slot:last-of-type{border-bottom:none}
+.be-sn{font-size:9px;color:var(--text3);min-width:10px}
+.be-sel{flex:1;min-width:0;padding:3px 5px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--text);transition:border-color .15s}
+.be-sel:focus{outline:none;border-color:var(--blue)}
+.be-lv{width:38px;padding:3px 4px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--text);text-align:center;transition:border-color .15s}
+.be-lv:focus{outline:none;border-color:var(--blue)}
+.be-res{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+.be-res.active{background:#1a1200;color:var(--gold);border-color:var(--gold3)}
+.be-sp{margin:4px 10px 7px;padding:5px 8px;background:var(--bg3);border-radius:4px;border:1px solid var(--border2)}
+.be-spr{display:flex;justify-content:space-between;font-size:10px;padding:1px 0;color:var(--text2)}
+.be-spr span:last-child{font-weight:600;color:var(--text)}
+.val-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.vbox{flex:1;min-width:200px;font-size:11px;border-radius:var(--radius-sm);padding:7px 11px;line-height:1.6}
+.vbox-ok{background:#001a0a;border:1px solid #1a6b3c;color:#4fa06a}
+.vbox-err{background:#1a0505;border:1px solid #6b1a1a;color:#e8705e}
+.vbox-warn{background:#1a1000;border:1px solid var(--gold3);color:var(--gold)}
+
+.spin-wrap{display:none;align-items:center;gap:8px;margin-left:10px}
+.spin-wrap.on{display:flex}
+.spinner{width:13px;height:13px;border:2px solid var(--border);border-top-color:#c9a227;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{font-size:11px;margin-left:10px}
+
+.donate-btn{padding:4px 14px;background:transparent;border:1px solid #c9a227;border-radius:20px;color:#c9a227;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;margin-left:12px}
+.donate-btn:hover{background:#c9a227;color:#000}
+.discord-btn{padding:4px 14px;background:transparent;border:1px solid #5865F2;border-radius:20px;color:#5865F2;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;margin-left:8px;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.discord-btn:hover{background:#5865F2;color:#fff}
+.app-footer{padding:16px 20px;border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--text3);margin-top:8px}
+.app-footer a{color:#5865F2;text-decoration:none;font-weight:500}
+.app-footer a:hover{text-decoration:underline}
+.app-footer .sep{margin:0 8px;opacity:.4}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px);cursor:pointer}
+.modal-overlay.on{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:24px 20px 18px;max-width:300px;width:90%;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:mIn .2s ease;cursor:default}
+@keyframes mIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+.modal-close{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;padding:4px 6px;border-radius:4px}
+.modal-close:hover{color:var(--text);background:var(--bg3)}
+.modal-title{font-size:15px;font-weight:700;color:var(--text);text-align:center;margin-bottom:2px}
+.modal-sub{font-size:11px;color:var(--text3);text-align:center;margin-bottom:14px;line-height:1.5}
+.modal-qr-wrap{background:#fff;border-radius:var(--radius-sm);padding:10px;display:flex;align-items:center;justify-content:center}
+.modal-qr{width:100%;max-width:240px;display:block;border-radius:4px}
+.modal-note{font-size:10px;color:var(--text3);text-align:center;margin-top:10px;line-height:1.5}
+.modal-gcash{color:#0075FF;font-weight:600}
+/* Min/Max filter inline rows */
+.fl-minmax{display:flex;gap:4px;flex:1;align-items:center}
+.fl-inp-sm{width:72px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 6px;color:var(--text);font-size:11px;outline:none;transition:border-color .15s;text-align:center}
+.fl-inp-sm:focus{border-color:var(--blue)}
+.fl-inp-sm::placeholder{color:var(--text3)}
+.fl-sep{font-size:10px;color:var(--text3);flex-shrink:0}
+/* Collapsible opt-filter section */
+.opt-filter-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:6px 0;margin-bottom:4px}
+.opt-filter-toggle .sec{margin-bottom:0}
+.opt-filter-caret{font-size:10px;color:var(--text3);transition:transform .15s}
+.opt-filter-caret.open{transform:rotate(90deg)}
+.opt-filter-body{display:none}
+.opt-filter-body.open{display:block}
+/* Smart Filter tab — two-column layout */
+.sf-layout{display:grid;grid-template-columns:1fr 1fr;gap:0 32px}
+.sf-layout .sec-row{grid-column:1/-1}
+.sf-col-hdr{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding-bottom:4px;border-bottom:1px solid var(--border2);margin-bottom:8px;grid-column:span 1}
+
+/* ── Inventory Calculator ──────────────────────────────────────────────────── */
+.inv-calc-btn{padding:3px 10px;background:transparent;border:1px solid var(--blue);border-radius:12px;color:var(--blue2);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;margin-left:10px;white-space:nowrap}
+.inv-calc-btn:hover{background:var(--blue);color:#fff}
+.inv-modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 20px 16px;max-width:96vw;width:860px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.7);animation:mIn .2s ease;cursor:default;max-height:90vh;display:flex;flex-direction:column;gap:12px}
+.inv-note{font-size:11px;color:var(--text3);background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:8px 12px;line-height:1.6}
+.inv-note strong{color:var(--text2)}
+.inv-modal-scroll{overflow:auto;flex:1;min-height:0}
+/* Table */
+.inv-tbl{border-collapse:collapse;font-size:11px;width:100%;background:var(--bg2)}
+.inv-tbl th,.inv-tbl td{border:1px solid var(--border);background:var(--bg2)}
+.inv-tbl thead th{background:var(--bg3);color:var(--text3);font-size:10px;font-weight:700;padding:5px 8px;white-space:nowrap;position:sticky;top:0;z-index:2;text-align:center}
+.inv-tbl thead th.th-lv{position:sticky;left:0;z-index:5;min-width:40px;background:var(--bg3)}
+.inv-tbl thead th.th-pool{font-size:11px;font-weight:700;border-bottom:2px solid var(--border)}
+.inv-tbl thead th.th-pool.y{color:var(--gold);border-bottom-color:var(--gold3)}
+.inv-tbl thead th.th-pool.p{color:var(--purple2);border-bottom-color:var(--purple)}
+/* Total row */
+.inv-tbl tfoot td{background:var(--bg3);border-top:2px solid var(--border);padding:4px 3px;text-align:center;position:sticky;bottom:0;z-index:2}
+.inv-tbl tfoot td.td-lv-foot{position:sticky;left:0;z-index:5;background:var(--bg3);font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:4px 6px}
+
+/* Body rows */
+.inv-tbl tbody td.td-lv{position:sticky;left:0;z-index:1;background:var(--bg3);font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:0 8px;border-right:2px solid var(--border)}
+.inv-tbl tbody tr:hover td{background:#1c2538}
+.inv-tbl tbody tr:hover td.td-lv{background:var(--bg3)}
+.inv-tbl tbody td.td-cell{padding:1px;text-align:center;min-width:50px}
+.inv-cell-inp{width:46px;padding:3px 2px;background:transparent;border:none;color:var(--text3);font-size:11px;text-align:center;outline:none;display:block;margin:0 auto}
+.inv-cell-inp:focus{background:var(--bg3);border-radius:3px;color:var(--text)}
+.inv-cell-inp.has-val{color:var(--gold);font-weight:700}
+/* Result bar */
+
+/* Submit */
+.inv-submit-btn{flex-shrink:0;padding:10px 0;background:var(--gold);color:#000;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;width:100%}
+.inv-submit-btn:hover{background:var(--gold2)}
+
+/* ── My Build ──────────────────────────────────────────────────────────────── */
+.mybuild-btn{padding:4px 14px;background:transparent;border:1px solid #38bdf8;border-radius:20px;color:#38bdf8;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;margin-left:8px;display:inline-flex;align-items:center;gap:5px}
+.mybuild-btn:hover{background:#38bdf8;color:#0f1117}
+.mybuild-btn.active{background:#0c2a38;border-color:#38bdf8}
+.mb-modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-width:96vw;width:940px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.7);animation:mIn .2s ease;cursor:default;max-height:90vh;display:flex;flex-direction:column;gap:12px}
+.mb-scroll{overflow-y:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.mb-group-hdr{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.mb-group-hdr.atk{color:#e8705e}
+.mb-group-hdr.def{color:#4fa06a}
+.mb-statues{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mb-statue{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px}
+.mb-statue-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.mb-statue-lbl{font-size:11px;font-weight:700;color:var(--text2)}
+.mb-statue-setinfo{font-size:10px;color:var(--text3);margin-left:auto;display:flex;align-items:center;gap:4px}
+.mb-slots{display:flex;flex-direction:column;gap:4px}
+.mb-slot{display:grid;grid-template-columns:1fr 56px;gap:6px;align-items:center}
+.mb-slot-sel{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;padding:4px 6px;outline:none;cursor:pointer;transition:border-color .15s}
+.mb-slot-sel:focus{border-color:#38bdf8}
+.mb-slot-lv{width:56px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;padding:4px 6px;text-align:center;outline:none;transition:border-color .15s}
+.mb-slot-lv:focus{border-color:#38bdf8}
+.mb-footer{display:flex;gap:10px;align-items:center;padding-top:8px;border-top:1px solid var(--border);flex-shrink:0}
+.mb-save-btn{padding:9px 24px;background:#38bdf8;color:#0f1117;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
+.mb-save-btn:hover{background:#7dd3fc}
+.mb-clear-btn{padding:9px 16px;background:transparent;border:1px solid var(--border);color:var(--text3);border-radius:var(--radius);font-size:12px;cursor:pointer;transition:all .15s}
+.mb-clear-btn:hover{border-color:var(--red2);color:var(--red2)}
+.mb-hint{font-size:10px;color:var(--text3);margin-left:auto}
+/* Comparison banner above results */
+.mybuild-compare{background:var(--bg3);border:1px solid #38bdf8;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;display:none}
+.mybuild-compare.on{display:block}
+.mybuild-compare-hdr{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.mybuild-compare-title{font-size:11px;font-weight:700;color:#38bdf8}
+.mybuild-compare-caret{font-size:10px;color:#38bdf8;transition:transform .15s;margin-left:2px}
+.mybuild-compare-caret.open{transform:rotate(90deg)}
+.mybuild-compare-body{display:none;margin-top:10px}
+.mybuild-compare-body.open{display:block}
+/* Collapsed: show flat stat summary */
+.mybuild-summary-row{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:8px}
+.mbs-stat{font-size:11px;color:var(--text2)}
+.mbs-stat span{font-weight:700;color:var(--text);margin-left:3px}
+/* Expanded: per-statue grid */
+.mybuild-statues-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:8px}
+/* Delta in result rows */
+.delta-pos{color:var(--green3);font-size:9px;margin-left:2px;font-weight:600}
+.delta-neg{color:var(--red2);font-size:9px;margin-left:2px;font-weight:600}
+
+/* ── Ads ───────────────────────────────────────────────────────────────────── */
+.ad-banner{width:100%;text-align:center;padding:8px 0;background:var(--bg2);border-bottom:1px solid var(--border)}
+.ad-banner-bottom{width:100%;text-align:center;padding:8px 0;background:var(--bg2);border-top:1px solid var(--border)}
+.ad-mid-run{display:none;text-align:center;padding:10px;margin:8px 0;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm)}
+.ad-mid-run.on{display:block}
+
+/* ── Get Started Tab ──────────────────────────────────────────────────────── */
+.gs-section{margin-bottom:20px}
+.gs-section-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+.gs-section-title{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.2px}
+.gs-section-sub{font-size:11px;color:var(--text3)}
+.gs-statues-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.gs-statue{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;min-width:0}
+.gs-statue-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.gs-statue-lbl{font-size:11px;font-weight:700;color:var(--text2)}
+.gs-statue-setinfo{margin-left:auto;display:flex;align-items:center;gap:4px}
+.gs-slots{display:flex;flex-direction:column;gap:4px}
+.gs-slot{display:grid;grid-template-columns:1fr 52px;gap:6px;align-items:center}
+.gs-slot-sel{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;padding:4px 6px;outline:none;cursor:pointer;transition:border-color .15s}
+.gs-slot-sel:focus{border-color:#38bdf8}
+.gs-slot-lv{width:52px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;padding:4px 6px;text-align:center;outline:none;transition:border-color .15s}
+.gs-slot-lv:focus{border-color:#38bdf8}
+/* Unslotted feathers */
+.gs-unslotted-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.gs-pool-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.gs-pool-name{font-size:11px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:6px}
+.gs-pool-inp{width:100%;padding:5px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-weight:600;text-align:center;outline:none;transition:border-color .15s}
+.gs-pool-inp:focus{border-color:#38bdf8}
+/* Total Pool */
+.gs-total-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.gs-total-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.gs-total-name{font-size:10px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:6px}
+.gs-total-val{font-size:16px;font-weight:700;color:var(--gold)}
+.gs-total-breakdown{font-size:9px;color:var(--text3)}
+/* Action buttons */
+.gs-btn-row{display:flex;gap:10px;align-items:center;padding-top:12px;border-top:1px solid var(--border);margin-top:4px;flex-wrap:wrap}
+.gs-btn{padding:9px 20px;border:none;border-radius:var(--radius);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.gs-btn-mybuild{background:#38bdf8;color:#0f1117}
+.gs-btn-mybuild:hover{background:#7dd3fc}
+.gs-btn-unslotted{background:transparent;border:1px solid #38bdf8;color:#38bdf8}
+.gs-btn-unslotted:hover{background:#38bdf8;color:#0f1117}
+.gs-btn-saveall{background:var(--gold);color:#000}
+.gs-btn-saveall:hover{background:var(--gold2)}
+.gs-saved-toast{font-size:11px;color:var(--green3);opacity:0;transition:opacity .3s;margin-left:8px}
+.gs-saved-toast.show{opacity:1}
+.gs-sync-indicator{font-size:11px;margin-left:8px;opacity:0;transition:opacity .3s;}
+.gs-sync-indicator.syncing{opacity:1;color:var(--text2);}
+.gs-sync-indicator.synced{opacity:1;color:var(--green3);}
+.gs-sync-indicator.sync-err{opacity:1;color:var(--red2);}
+.gs-collapsible-hdr{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;padding:6px 0;border-bottom:1px solid var(--border);margin-bottom:8px}
+.gs-collapsible-hdr:hover{opacity:.85}
+.gs-caret{font-size:10px;transition:transform .15s;color:var(--text3);margin-left:2px;display:inline-block}
+.gs-caret.open{transform:rotate(90deg)}
+.gs-collapsible-body{display:none}
+.gs-collapsible-body.open{display:block}
+/* Pool display on Optimizer (read-only) */
+.pool-readonly{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:16px}
+.pool-ro-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+.pool-ro-name{font-size:11px;font-weight:700;color:var(--text2)}
+.pool-ro-val{font-size:14px;font-weight:700;color:var(--gold)}
+
+/* ── Auth ───────────────────────────────────────────────────────────────────── */
+.auth-btn{padding:4px 14px;background:#5865F2;border:none;border-radius:20px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;margin-left:8px;display:inline-flex;align-items:center;gap:6px}
+.auth-btn:hover{background:#4752c4}
+.auth-user{display:inline-flex;align-items:center;gap:7px;margin-left:8px;cursor:pointer;padding:3px 10px 3px 3px;border-radius:20px;border:1px solid var(--border);transition:border-color .15s}
+.auth-user:hover{border-color:#5865F2}
+.auth-avatar{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.auth-username{font-size:11px;font-weight:600;color:var(--text)}
+.auth-logout{font-size:10px;color:var(--text3);margin-left:2px}
+
+/* ── Social Tab ────────────────────────────────────────────────────────────── */
+.social-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.social-tab{padding:8px 20px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.social-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.social-tab:hover:not(.on){color:var(--text)}
+.social-pane{display:none}.social-pane.on{display:block}
+.build-cards{display:flex;flex-direction:column;gap:10px}
+.build-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+.build-card-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.build-card-avatar{width:26px;height:26px;border-radius:50%;object-fit:cover}
+.build-card-user{font-size:11px;font-weight:700;color:var(--text)}
+.build-card-ign{font-size:10px;color:var(--text3)}
+.build-card-name{font-size:12px;font-weight:700;color:var(--gold)}
+.build-card-class{font-size:10px;padding:2px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;color:var(--text2);margin-left:auto}
+.build-card-types{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.build-type-tag{font-size:9px;padding:1px 7px;border-radius:10px;font-weight:700;background:#0c2a38;border:1px solid #38bdf8;color:#38bdf8}
+.build-card-actions{display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--border2);flex-wrap:wrap}
+.bc-btn{padding:4px 12px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid var(--border);background:transparent}
+.bc-btn-import{background:#38bdf8;color:#0f1117;border-color:#38bdf8}
+.bc-btn-import:hover{background:#7dd3fc}
+.bc-btn-share{color:#4fa06a;border-color:#4fa06a}
+.bc-btn-share:hover,.bc-btn-shared{background:#4fa06a;color:#0f1117}
+.bc-btn-delete{color:var(--red2);border-color:var(--red2)}
+.bc-btn-delete:hover{background:var(--red2);color:#fff}
+.bc-like-btn{background:transparent;border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .15s}
+.bc-like-btn:hover,.bc-like-btn.liked{border-color:#f59e0b;color:#f59e0b;background:#1a1200}
+.bc-meta{font-size:10px;color:var(--text3);margin-left:auto}
+.build-comments{margin-top:8px;padding-top:8px;border-top:1px solid var(--border2);display:none}
+.build-comments.open{display:block}
+.comment-list{display:flex;flex-direction:column;gap:5px;margin-bottom:8px;max-height:180px;overflow-y:auto}
+.comment-item{display:flex;gap:8px;align-items:flex-start}
+.comment-avatar{width:20px;height:20px;border-radius:50%;flex-shrink:0;margin-top:2px}
+.comment-body{background:var(--bg2);border-radius:var(--radius-sm);padding:5px 10px;flex:1}
+.comment-user{font-size:10px;font-weight:700;color:var(--text2)}
+.comment-text{font-size:11px;color:var(--text);margin-top:1px}
+.comment-input-row{display:flex;gap:6px}
+.comment-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;padding:5px 10px;outline:none}
+.comment-input:focus{border-color:#38bdf8}
+.comment-submit{padding:5px 14px;background:#38bdf8;color:#0f1117;border:none;border-radius:var(--radius-sm);font-size:11px;font-weight:700;cursor:pointer}
+.save-build-modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-width:480px;width:94vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.7);animation:mIn .2s ease}
+.sbm-field{margin-bottom:12px}
+.sbm-label{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;display:block}
+.sbm-input{width:100%;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;outline:none;box-sizing:border-box;transition:border-color .15s}
+.sbm-input:focus{border-color:#38bdf8}
+.sbm-select{width:100%;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:12px;outline:none;cursor:pointer}
+.sbm-types{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.sbm-type-chip{padding:4px 12px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--text3);background:var(--bg3);transition:all .15s}
+.sbm-type-chip.on{border-color:#38bdf8;color:#38bdf8;background:#0c2a38}
+.community-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.cf-select{padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;cursor:pointer;outline:none}
+.save-as-current-btn{padding:4px 12px;background:transparent;border:1px solid var(--gold);color:var(--gold);border-radius:10px;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s}
+.save-as-current-btn:hover{background:var(--gold);color:#000}
+.login-prompt{text-align:center;padding:32px 20px;color:var(--text3);font-size:12px}
+.login-prompt strong{display:block;font-size:14px;color:var(--text);margin-bottom:8px}
+.login-prompt-btn{margin-top:12px;padding:8px 24px;background:#5865F2;color:#fff;border:none;border-radius:var(--radius);font-size:12px;font-weight:700;cursor:pointer}
+.social-empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.social-empty-icon{font-size:32px;margin-bottom:8px}
+
+</style>
+</head>
+<body>
+<!-- Ad slot placeholder -->
+
+<div class="app">
+
+<div class="sticky-nav"><div class="hdr">
+  <div class="hdr-title">Feather <span>Optimizer</span></div>
+  <span class="hdr-sub">Ragnarok Origin Classic</span>
+  <span class="version-badge">v3.2.22</span><div id="auth-area"></div><button id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" style="background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font-size:13px;padding:4px 9px;cursor:pointer;transition:all .15s;line-height:1">🌙</button><!-- ponytail: original author's Discord + Donate removed (not ours) -->
+</div>
+
+<div class="tabs">
+  <div class="tab on" onclick="showTab('gs')">Get Started</div>
+  <div class="tab" onclick="showTab('opt')">Optimizer</div>
+  <!-- ponytail: Social tab removed — standalone fork has no backend -->
+</div>
+</div>
+
+<div id="pane-gs" class="pane on">
+
+
+
+  <!-- FEATHER INVENTORY SECTION -->
+  <div class="gs-section">
+    <div class="gs-section-hdr">
+      <span class="gs-section-title">🪶 คลังขนของฉัน</span>
+      <span class="gs-section-sub">ใส่เลเวล + จำนวนชิ้นของขนแต่ละชนิด → คำนวณเป็น Pool Inventory ให้อัตโนมัติ · ขนชนิดเดียวมีหลายเลเวลได้ กด <b style="color:var(--gold)">+ เลเวล</b></span>
+    </div>
+    <div class="inv-grid" id="inv-grid"></div>
+  </div>
+
+  <!-- TOTAL POOL SECTION -->
+  <div class="gs-section">
+    <div class="gs-section-hdr">
+      <span class="gs-section-title">📊 Total Pool</span>
+      <span class="gs-section-sub">Auto-computed · Used by the Optimizer</span>
+    </div>
+    <div class="gs-total-grid" id="gs-total-grid"></div>
+  </div>
+
+
+</div>
+
+<div id="pane-opt" class="pane">
+
+  <div class="sec-row"><span class="sec">Stat Priority</span><span style="font-size:10px;color:var(--text3);margin-left:8px">คลิกเรียงลำดับความสำคัญ — อันแรก = สำคัญสุด</span><button class="prio-reset" onclick="resetPriority()">Reset</button></div>
+  <div class="prio-chips" id="prio-chips"></div>
+
+
+
+
+  <!-- Feather Lock -->
+  <div style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none" onclick="toggleLockPanel()">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">🔒 Lock Feathers</span>
+      <span id="lock-panel-caret" style="font-size:10px;color:var(--text3)">▶ expand</span>
+      <span id="lock-active-badge" style="display:none;font-size:10px;background:var(--gold3);color:var(--gold2);border-radius:10px;padding:1px 7px;font-weight:700">active</span>
+    </div>
+    <div id="lock-panel" style="display:none;margin-top:8px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:11px">
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;color:var(--text2);margin-bottom:6px">⚔ ATK Statues</div>
+          <div style="color:var(--text3);font-size:10px;margin-bottom:4px">Yellow (ATK/MIX)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="lock-atk-yellow"></div>
+          <div style="color:var(--text3);font-size:10px;margin-bottom:4px">Purple (ATK/MIX)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px" id="lock-atk-purple"></div>
+        </div>
+        <div>
+          <div style="font-weight:700;color:var(--text2);margin-bottom:6px">🛡 DEF Statues</div>
+          <div style="color:var(--text3);font-size:10px;margin-bottom:4px">Yellow (DEF/MIX)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px" id="lock-def-yellow"></div>
+          <div style="color:var(--text3);font-size:10px;margin-bottom:4px">Purple (DEF/MIX)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px" id="lock-def-purple"></div>
+        </div>
+      </div>
+      <div id="lock-conflict-warn" style="display:none;margin-top:8px;font-size:10px;color:var(--red2)">⚠ Locked feathers exceed available slots for one or more sets — those sets will return no results.</div>
+      <button onclick="clearAllLocks()" style="margin-top:10px;background:transparent;border:1px solid var(--border);color:var(--text3);font-size:10px;padding:3px 10px;border-radius:var(--radius-sm);cursor:pointer">Clear All Locks</button>
+    </div>
+  </div>
+
+  <div class="run-row">
+    <button class="run-btn" id="run-btn" onclick="runRaizarMode()">🗿 หา Build (รูปปั้น ATK/DEF อย่างละ 5)</button>
+    <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:6px">
+      Results:
+      <input id="results-count" type="number" min="1" max="200" placeholder="20" style="width:56px;padding:4px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:11px;text-align:center">
+    </label>
+    <span class="status" id="status-txt"></span><div class="spin-wrap" id="spin-wrap"><div class="spinner"></div><span id="spin-msg" style="font-size:11px;color:var(--color-text-tertiary)"></span></div>
+    <button class="raizar-btn" id="raizar-btn" onclick="runRaizarMode()" style="margin-left:auto" title="Only show builds where all ATK statues are identical and all DEF statues are identical. No surplus leveling. For the OCD enjoyers 🧠">✦ Raizar Mode</button>
+  </div>
+  <div class="prog-bar" id="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+
+  <div class="mybuild-compare" id="mybuild-compare">
+    <div class="mybuild-compare-hdr" onclick="toggleMyBuildBanner()">
+      <span class="mybuild-compare-title">📋 My Current Build</span>
+      <span id="mybuild-compare-tiers" style="font-size:10px;color:var(--text3)"></span>
+      <span class="mybuild-compare-caret" id="mybuild-compare-caret">▶</span>
+
+    </div>
+    <div class="mybuild-summary-row" id="mybuild-summary-row"></div>
+    <div class="mybuild-compare-body" id="mybuild-compare-body">
+      <div class="mybuild-statues-grid" id="mybuild-compare-stats"></div>
+    </div>
+  </div>
+  <div class="results-area" id="results-area">
+    <div class="empty-state">
+      <div class="empty-icon">⚗</div>
+      <h3>No builds yet</h3>
+      <p>Enter pool inventory, set stat weights, then click Run Optimizer.</p>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- My Build Modal -->
+<div class="modal-overlay" id="mybuild-overlay" onclick="handleMyBuildOverlay(event)">
+  <div class="mb-modal-box">
+    <button class="modal-close" onclick="confirmCloseMyBuild()" title="Close">×</button>
+    <div>
+      <div class="modal-title" style="text-align:left;margin-bottom:2px">📋 My Current Build</div>
+      <div class="modal-sub" style="text-align:left;margin-bottom:0;line-height:1.5">Enter your current feathers and levels. Once saved, results will show stat deltas vs your build. You can also import any optimizer result directly.</div>
+    </div>
+    <div class="mb-scroll" id="mb-body"></div>
+    <div class="mb-footer">
+      <button class="mb-save-btn" onclick="saveMyBuild()">💾 Save My Build</button>
+      <button class="mb-clear-btn" onclick="clearMyBuild()">Clear</button>
+      <span class="mb-hint">Saved automatically to your browser</span>
+    </div>
+  </div>
+</div>
+
+</div>
+<script>
+const FEATHERS=[
+  {name:'Valor', r:'Purple',t:'ATK',pool:'25SF Purple'},
+  {name:'Faith', r:'Purple',t:'ATK',pool:'25SF Purple'},
+  {name:'Glory', r:'Purple',t:'ATK',pool:'25SF Purple'},
+  {name:'Soul',  r:'Purple',t:'DEF',pool:'25SF Purple'},
+  {name:'Virtue',r:'Purple',t:'DEF',pool:'25SF Purple'},
+  {name:'Mercy', r:'Purple',t:'DEF',pool:'25SF Purple'},
+  {name:'Justice',r:'Purple',t:'MIX',pool:'25SF Purple'},
+  {name:'Grace', r:'Purple',t:'MIX',pool:'25SF Purple'},
+  {name:'Dark',  r:'Yellow',t:'MIX',pool:'Light/Dark'},
+  {name:'Light', r:'Yellow',t:'MIX',pool:'Light/Dark'},
+  {name:'Day',   r:'Yellow',t:'ATK',pool:'Day/Night'},
+  {name:'Night', r:'Yellow',t:'DEF',pool:'Day/Night'},
+  {name:'Nature',r:'Yellow',t:'DEF',pool:'Time/Space'},
+  {name:'Divine',r:'Yellow',t:'DEF',pool:'Time/Space'},
+  {name:'Space', r:'Yellow',t:'ATK',pool:'Time/Space'},
+  {name:'Time',  r:'Yellow',t:'ATK',pool:'Time/Space'},
+  {name:'Sky',   r:'Yellow',t:'ATK',pool:'Sky/Terra'},
+  {name:'Terra', r:'Yellow',t:'DEF',pool:'Sky/Terra'},
+  {name:'Order', r:'Purple',t:'MIX',pool:'90SF Purple'},
+  {name:'Truth', r:'Purple',t:'MIX',pool:'90SF Purple'},
+];
+const POOLS=[
+  {name:'Light/Dark', r:'Yellow',members:['Dark','Light']},
+  {name:'Time/Space', r:'Yellow',members:['Divine','Nature','Space','Time']},
+  {name:'Day/Night',  r:'Yellow',members:['Day','Night']},
+  {name:'Sky/Terra',  r:'Yellow',members:['Sky','Terra']},
+  {name:'90SF Purple',r:'Purple',members:['Order','Truth']},
+  {name:'25SF Purple',r:'Purple',members:['Faith','Glory','Grace','Justice','Mercy','Soul','Valor','Virtue']},
+];
+const LEVELCOST={};
+(function(){
+  function cum(a){const o={1:1};let t=1;for(let i=0;i<a.length;i++){t+=a[i];o[i+2]=t;}return o;}
+  const P=cum([2,3,4,5,6,7,12,16,28,32,32,32,32,32,40,40,40,40,40]);
+  const S=cum([4,6,7,9,10,12,13,15,22,25,25,25,25,25,30,30,30,30,30]);
+  const L=cum([6,8,10,12,14,16,18,20,28,33,33,33,33,33,45,45,45,45,45]);
+  const LD=cum([9,11,13,15,17,19,21,23,32,38,38,38,38,38,50,50,50,50,50]);
+  const N=cum([8,10,12,16,20,24,30,36,43,45,45,45,45,45,60,60,60,60,60]);
+  FEATHERS.forEach(f=>{LEVELCOST[f.name]=f.r==='Purple'?(f.pool==='90SF Purple'?N:P):f.pool==='Light/Dark'?LD:f.pool==='Time/Space'?L:S;});
+})();
+function costAt(n,lv){return LEVELCOST[n]?.[lv]??1;}
+const SD={
+  Valor:{1:[0,0,0,1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0],2:[0,0,0,2,2,0,0,0,0,0,1,0,0,0,0,0,0,0,0],3:[0,0,0,3,3,0,0,0,0,0,2,0,0,0,0,0,0,0,0],4:[0,0,0,4,4,0,0,0,0,0,2,0,0,0,0,0,0,0,0],5:[0,0,0,5,5,0,0,0,0,0,3,0,0,0,0,0,0,0,0],6:[0,0,0,6,6,0,0,0,0,0,3,0,0,0,0,0,0,0,0],7:[0,0,0,7,7,0,0,0,0,0,4,0,0,0,0,0,0,0,0],8:[0,0,0,8,8,0,0,0,0,0,4,0,0,0,0,0,0,0,0],9:[0,0,0,9,9,0,0,0,0,0,5,0,0,0,0,0,0,0,0],10:[0,0,0,10,10,0,0,0,0,0,5,0,0,0,0,0,0,0,0],11:[0,0,0,11,11,0,0,0,0,0,5,0,0,0,0,0,0,0,0],12:[0,0,0,12,12,0,0,0,0,0,5,0,0,0,0,0,0,0,0],13:[0,0,0,13,13,0,0,0,0,0,6,0,0,0,0,0,0,0,0],14:[0,0,0,14,14,0,0,0,0,0,6,0,0,0,0,0,0,0,0],15:[0,0,0,15,15,0,0,0,0,0,6,0,0,0,0,0,0,0,0],16:[0,0,0,16,16,0,0,0,0,0,6,0,0,0,0,0,0,0,0],17:[0,0,0,17,17,0,0,0,0,0,6,0,0,0,0,0,0,0,0],18:[0,0,0,18,18,0,0,0,0,0,7,0,0,0,0,0,0,0,0],19:[0,0,0,19,19,0,0,0,0,0,7,0,0,0,0,0,0,0,0],20:[0,0,0,20,20,0,0,0,0,0,7,0,0,0,0,0,0,0,0]},
+  Faith:{1:[0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0],2:[0,0,0,2,2,0,0,0,0,0,0,1,0,0,0,0,0,0,0],3:[0,0,0,3,3,0,0,0,0,0,0,2,0,0,0,0,0,0,0],4:[0,0,0,4,4,0,0,0,0,0,0,2,0,0,0,0,0,0,0],5:[0,0,0,5,5,0,0,0,0,0,0,3,0,0,0,0,0,0,0],6:[0,0,0,6,6,0,0,0,0,0,0,3,0,0,0,0,0,0,0],7:[0,0,0,7,7,0,0,0,0,0,0,4,0,0,0,0,0,0,0],8:[0,0,0,8,8,0,0,0,0,0,0,4,0,0,0,0,0,0,0],9:[0,0,0,9,9,0,0,0,0,0,0,5,0,0,0,0,0,0,0],10:[0,0,0,10,10,0,0,0,0,0,0,5,0,0,0,0,0,0,0],11:[0,0,0,11,11,0,0,0,0,0,0,5,0,0,0,0,0,0,0],12:[0,0,0,12,12,0,0,0,0,0,0,5,0,0,0,0,0,0,0],13:[0,0,0,13,13,0,0,0,0,0,0,6,0,0,0,0,0,0,0],14:[0,0,0,14,14,0,0,0,0,0,0,6,0,0,0,0,0,0,0],15:[0,0,0,15,15,0,0,0,0,0,0,6,0,0,0,0,0,0,0],16:[0,0,0,16,16,0,0,0,0,0,0,6,0,0,0,0,0,0,0],17:[0,0,0,17,17,0,0,0,0,0,0,6,0,0,0,0,0,0,0],18:[0,0,0,18,18,0,0,0,0,0,0,7,0,0,0,0,0,0,0],19:[0,0,0,19,19,0,0,0,0,0,0,7,0,0,0,0,0,0,0],20:[0,0,0,20,20,0,0,0,0,0,0,7,0,0,0,0,0,0,0]},
+  Glory:{1:[0,0,0,1,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0],2:[0,0,0,2,2,0,0,0,0,0,0,0,1,0,0,0,0,0,0],3:[0,0,0,3,3,0,0,0,0,0,0,0,2,0,0,0,0,0,0],4:[0,0,0,4,4,0,0,0,0,0,0,0,2,0,0,0,0,0,0],5:[0,0,0,5,5,0,0,0,0,0,0,0,3,0,0,0,0,0,0],6:[0,0,0,6,6,0,0,0,0,0,0,0,3,0,0,0,0,0,0],7:[0,0,0,7,7,0,0,0,0,0,0,0,4,0,0,0,0,0,0],8:[0,0,0,8,8,0,0,0,0,0,0,0,4,0,0,0,0,0,0],9:[0,0,0,9,9,0,0,0,0,0,0,0,5,0,0,0,0,0,0],10:[0,0,0,10,10,0,0,0,0,0,0,0,5,0,0,0,0,0,0],11:[0,0,0,11,11,0,0,0,0,0,0,0,5,0,0,0,0,0,0],12:[0,0,0,12,12,0,0,0,0,0,0,0,5,0,0,0,0,0,0],13:[0,0,0,13,13,0,0,0,0,0,0,0,6,0,0,0,0,0,0],14:[0,0,0,14,14,0,0,0,0,0,0,0,6,0,0,0,0,0,0],15:[0,0,0,15,15,0,0,0,0,0,0,0,6,0,0,0,0,0,0],16:[0,0,0,16,16,0,0,0,0,0,0,0,6,0,0,0,0,0,0],17:[0,0,0,17,17,0,0,0,0,0,0,0,6,0,0,0,0,0,0],18:[0,0,0,18,18,0,0,0,0,0,0,0,7,0,0,0,0,0,0],19:[0,0,0,19,19,0,0,0,0,0,0,0,7,0,0,0,0,0,0],20:[0,0,0,20,20,0,0,0,0,0,0,0,7,0,0,0,0,0,0]},
+  Soul:{1:[2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],2:[4,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],3:[6,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],4:[8,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],5:[10,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],6:[12,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],7:[14,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],8:[16,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],9:[18,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],10:[20,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],11:[21,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],12:[22,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],13:[23,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],14:[24,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],15:[25,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],16:[26,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],17:[27,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],18:[28,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],19:[29,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],20:[30,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  Virtue:{1:[0,0,20,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],2:[0,0,30,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],3:[0,0,40,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0],4:[0,0,50,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0],5:[0,0,60,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0],6:[0,0,70,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0],7:[0,0,80,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0],8:[0,0,90,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0],9:[0,0,100,0,0,0,0,0,0,0,0,0,0,5,0,0,0,0,0],10:[0,0,110,0,0,0,0,0,0,0,0,0,0,5,0,0,0,0,0],11:[0,0,120,0,0,0,0,0,0,0,0,0,0,5,0,0,0,0,0],12:[0,0,130,0,0,0,0,0,0,0,0,0,0,5,0,0,0,0,0],13:[0,0,140,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0],14:[0,0,150,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0],15:[0,0,160,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0],16:[0,0,170,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0],17:[0,0,180,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0],18:[0,0,190,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0],19:[0,0,200,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0],20:[0,0,210,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0]},
+  Mercy:{1:[2,0,20,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],2:[4,0,30,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],3:[6,0,40,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],4:[8,0,50,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],5:[10,0,60,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],6:[12,0,70,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],7:[14,0,80,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],8:[16,0,90,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],9:[18,0,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],10:[20,0,110,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],11:[21,0,120,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],12:[22,0,130,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],13:[23,0,140,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],14:[24,0,150,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],15:[25,0,160,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],16:[26,0,170,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],17:[27,0,180,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],18:[28,0,190,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],19:[29,0,200,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],20:[30,0,210,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  Justice:{1:[2,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],2:[4,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0],3:[6,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0],4:[8,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0],5:[10,0,0,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0],6:[12,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0],7:[14,0,0,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0],8:[16,0,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0],9:[18,0,0,9,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0],10:[20,0,0,10,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0],11:[21,0,0,11,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0],12:[22,0,0,12,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0],13:[23,0,0,13,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0],14:[24,0,0,14,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0],15:[25,0,0,15,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0],16:[26,0,0,16,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0],17:[27,0,0,17,17,0,0,0,0,0,0,0,0,0,0,0,0,0,0],18:[28,0,0,18,18,0,0,0,0,0,0,0,0,0,0,0,0,0,0],19:[29,0,0,19,19,0,0,0,0,0,0,0,0,0,0,0,0,0,0],20:[30,0,0,20,20,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  Grace:{1:[0,0,20,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],2:[0,0,30,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0],3:[0,0,40,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0],4:[0,0,50,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0],5:[0,0,60,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0],6:[0,0,70,6,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0],7:[0,0,80,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0],8:[0,0,90,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0],9:[0,0,100,9,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0],10:[0,0,110,10,10,0,0,0,0,0,0,0,0,0,0,0,0,0,0],11:[0,0,120,11,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0],12:[0,0,130,12,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0],13:[0,0,140,13,13,0,0,0,0,0,0,0,0,0,0,0,0,0,0],14:[0,0,150,14,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0],15:[0,0,160,15,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0],16:[0,0,170,16,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0],17:[0,0,180,17,17,0,0,0,0,0,0,0,0,0,0,0,0,0,0],18:[0,0,190,18,18,0,0,0,0,0,0,0,0,0,0,0,0,0,0],19:[0,0,200,19,19,0,0,0,0,0,0,0,0,0,0,0,0,0,0],20:[0,0,210,20,20,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  Dark:{1:[0,0,0,9,9,0,0,0,11,0,0,0,0,0,11,0,0,0.0028,0.0028],2:[0,0,0,12,12,0,0,0,16,0,0,0,0,0,16,0,0,0.0036,0.0036],3:[0,0,0,15,15,0,0,0,22,0,0,0,0,0,22,0,0,0.0044,0.0044],4:[0,0,0,18,18,0,0,0,27,0,0,0,0,0,27,0,0,0.0052,0.0052],5:[0,0,0,21,21,0,0,0,33,0,0,0,0,0,33,0,0,0.006,0.006],6:[0,0,0,24,24,0,0,0,38,0,0,0,0,0,38,0,0,0.0068,0.0068],7:[0,0,0,27,27,0,0,0,44,0,0,0,0,0,44,0,0,0.0076,0.0076],8:[0,0,0,30,30,0,0,0,49,0,0,0,0,0,49,0,0,0.0084,0.0084],9:[0,0,0,33,33,0,0,0,55,0,0,0,0,0,55,0,0,0.0092,0.0092],10:[0,0,0,36,36,0,0,0,60,0,0,0,0,0,60,0,0,0.01,0.01],11:[0,0,0,39,39,0,0,0,66,0,0,0,0,0,66,0,0,0.0108,0.0108],12:[0,0,0,42,42,0,0,0,71,0,0,0,0,0,71,0,0,0.0116,0.0116],13:[0,0,0,45,45,0,0,0,77,0,0,0,0,0,77,0,0,0.0124,0.0124],14:[0,0,0,48,48,0,0,0,82,0,0,0,0,0,82,0,0,0.0132,0.0132],15:[0,0,0,51,51,0,0,0,88,0,0,0,0,0,88,0,0,0.014,0.014],16:[0,0,0,54,54,0,0,0,93,0,0,0,0,0,93,0,0,0.0148,0.0148],17:[0,0,0,57,57,0,0,0,99,0,0,0,0,0,99,0,0,0.0156,0.0156],18:[0,0,0,60,60,0,0,0,104,0,0,0,0,0,104,0,0,0.0164,0.0164],19:[0,0,0,63,63,0,0,0,110,0,0,0,0,0,110,0,0,0.0172,0.0172],20:[0,0,0,66,66,0,0,0,115,0,0,0,0,0,115,0,0,0.018,0.018]},
+  Light:{1:[0,0,0,9,9,0,0,0,11,0,0,0,0,0,11,0.0028,0.0028,0,0],2:[0,0,0,12,12,0,0,0,16,0,0,0,0,0,16,0.0036,0.0036,0,0],3:[0,0,0,15,15,0,0,0,22,0,0,0,0,0,22,0.0044,0.0044,0,0],4:[0,0,0,18,18,0,0,0,27,0,0,0,0,0,27,0.0052,0.0052,0,0],5:[0,0,0,21,21,0,0,0,33,0,0,0,0,0,33,0.006,0.006,0,0],6:[0,0,0,24,24,0,0,0,38,0,0,0,0,0,38,0.0068,0.0068,0,0],7:[0,0,0,27,27,0,0,0,44,0,0,0,0,0,44,0.0076,0.0076,0,0],8:[0,0,0,30,30,0,0,0,49,0,0,0,0,0,49,0.0084,0.0084,0,0],9:[0,0,0,33,33,0,0,0,55,0,0,0,0,0,55,0.0092,0.0092,0,0],10:[0,0,0,36,36,0,0,0,60,0,0,0,0,0,60,0.01,0.01,0,0],11:[0,0,0,39,39,0,0,0,66,0,0,0,0,0,66,0.0108,0.0108,0,0],12:[0,0,0,42,42,0,0,0,71,0,0,0,0,0,71,0.0116,0.0116,0,0],13:[0,0,0,45,45,0,0,0,77,0,0,0,0,0,77,0.0124,0.0124,0,0],14:[0,0,0,48,48,0,0,0,82,0,0,0,0,0,82,0.0132,0.0132,0,0],15:[0,0,0,51,51,0,0,0,88,0,0,0,0,0,88,0.014,0.014,0,0],16:[0,0,0,54,54,0,0,0,93,0,0,0,0,0,93,0.0148,0.0148,0,0],17:[0,0,0,57,57,0,0,0,99,0,0,0,0,0,99,0.0156,0.0156,0,0],18:[0,0,0,60,60,0,0,0,104,0,0,0,0,0,104,0.0164,0.0164,0,0],19:[0,0,0,63,63,0,0,0,110,0,0,0,0,0,110,0.0172,0.0172,0,0],20:[0,0,0,66,66,0,0,0,115,0,0,0,0,0,115,0.018,0.018,0,0]},
+  Day:{1:[0,0,0,0,0,8,2,12,0,0,0,0,0,0,0,0,0,0,0],2:[0,0,0,0,0,16,4,15,0,0,0,0,0,0,0,0,0,0,0],3:[0,0,0,0,0,24,6,18,0,0,0,0,0,0,0,0,0,0,0],4:[0,0,0,0,0,28,7,21,0,0,0,0,0,0,0,0,0,0,0],5:[0,0,0,0,0,36,9,24,0,0,0,0,0,0,0,0,0,0,0],6:[0,0,0,0,0,40,10,28,0,0,0,0,0,0,0,0,0,0,0],7:[0,0,0,0,0,48,12,31,0,0,0,0,0,0,0,0,0,0,0],8:[0,0,0,0,0,56,14,34,0,0,0,0,0,0,0,0,0,0,0],9:[0,0,0,0,0,60,15,37,0,0,0,0,0,0,0,0,0,0,0],10:[0,0,0,0,0,68,17,40,0,0,0,0,0,0,0,0,0,0,0],11:[0,0,0,0,0,72,18,44,0,0,0,0,0,0,0,0,0,0,0],12:[0,0,0,0,0,76,19,47,0,0,0,0,0,0,0,0,0,0,0],13:[0,0,0,0,0,80,20,50,0,0,0,0,0,0,0,0,0,0,0],14:[0,0,0,0,0,84,21,53,0,0,0,0,0,0,0,0,0,0,0],15:[0,0,0,0,0,88,22,56,0,0,0,0,0,0,0,0,0,0,0],16:[0,0,0,0,0,92,23,60,0,0,0,0,0,0,0,0,0,0,0],17:[0,0,0,0,0,96,24,63,0,0,0,0,0,0,0,0,0,0,0],18:[0,0,0,0,0,100,25,66,0,0,0,0,0,0,0,0,0,0,0],19:[0,0,0,0,0,104,26,69,0,0,0,0,0,0,0,0,0,0,0],20:[0,0,0,0,0,108,27,72,0,0,0,0,0,0,0,0,0,0,0]},
+  Night:{1:[4,1,0,0,0,0,0,0,0,12,0,0,0,0,0,0,0,0,0],2:[8,3,0,0,0,0,0,0,0,15,0,0,0,0,0,0,0,0,0],3:[12,5,0,0,0,0,0,0,0,18,0,0,0,0,0,0,0,0,0],4:[14,7,0,0,0,0,0,0,0,21,0,0,0,0,0,0,0,0,0],5:[18,9,0,0,0,0,0,0,0,24,0,0,0,0,0,0,0,0,0],6:[20,11,0,0,0,0,0,0,0,28,0,0,0,0,0,0,0,0,0],7:[24,13,0,0,0,0,0,0,0,31,0,0,0,0,0,0,0,0,0],8:[28,15,0,0,0,0,0,0,0,34,0,0,0,0,0,0,0,0,0],9:[30,17,0,0,0,0,0,0,0,37,0,0,0,0,0,0,0,0,0],10:[34,19,0,0,0,0,0,0,0,40,0,0,0,0,0,0,0,0,0],11:[36,19,0,0,0,0,0,0,0,44,0,0,0,0,0,0,0,0,0],12:[38,19,0,0,0,0,0,0,0,47,0,0,0,0,0,0,0,0,0],13:[40,20,0,0,0,0,0,0,0,50,0,0,0,0,0,0,0,0,0],14:[42,20,0,0,0,0,0,0,0,53,0,0,0,0,0,0,0,0,0],15:[44,20,0,0,0,0,0,0,0,56,0,0,0,0,0,0,0,0,0],16:[46,21,0,0,0,0,0,0,0,60,0,0,0,0,0,0,0,0,0],17:[48,21,0,0,0,0,0,0,0,63,0,0,0,0,0,0,0,0,0],18:[50,21,0,0,0,0,0,0,0,66,0,0,0,0,0,0,0,0,0],19:[52,22,0,0,0,0,0,0,0,69,0,0,0,0,0,0,0,0,0],20:[54,22,0,0,0,0,0,0,0,72,0,0,0,0,0,0,0,0,0]},
+  Nature:{1:[6,2,108,0,0,0,0,0,0,17,0,0,0,0,0,0,0,0,0],2:[12,4,156,0,0,0,0,0,0,24,0,0,0,0,0,0,0,0,0],3:[16,6,204,0,0,0,0,0,0,31,0,0,0,0,0,0,0,0,0],4:[22,8,252,0,0,0,0,0,0,38,0,0,0,0,0,0,0,0,0],5:[26,10,300,0,0,0,0,0,0,45,0,0,0,0,0,0,0,0,0],6:[32,12,348,0,0,0,0,0,0,52,0,0,0,0,0,0,0,0,0],7:[38,14,396,0,0,0,0,0,0,59,0,0,0,0,0,0,0,0,0],8:[42,14,444,0,0,0,0,0,0,66,0,0,0,0,0,0,0,0,0],9:[48,16,492,0,0,0,0,0,0,73,0,0,0,0,0,0,0,0,0],10:[52,18,540,0,0,0,0,0,0,80,0,0,0,0,0,0,0,0,0],11:[58,18,588,0,0,0,0,0,0,87,0,0,0,0,0,0,0,0,0],12:[64,19,636,0,0,0,0,0,0,94,0,0,0,0,0,0,0,0,0],13:[68,19,684,0,0,0,0,0,0,101,0,0,0,0,0,0,0,0,0],14:[74,20,732,0,0,0,0,0,0,108,0,0,0,0,0,0,0,0,0],15:[78,20,780,0,0,0,0,0,0,115,0,0,0,0,0,0,0,0,0],16:[84,21,828,0,0,0,0,0,0,122,0,0,0,0,0,0,0,0,0],17:[90,21,876,0,0,0,0,0,0,129,0,0,0,0,0,0,0,0,0],18:[94,22,924,0,0,0,0,0,0,136,0,0,0,0,0,0,0,0,0],19:[100,22,972,0,0,0,0,0,0,143,0,0,0,0,0,0,0,0,0],20:[104,23,1020,0,0,0,0,0,0,150,0,0,0,0,0,0,0,0,0]},
+  Divine:{1:[6,2,108,0,0,0,0,0,0,0,0,0,0,0,8,0,0,0,0],2:[12,4,156,0,0,0,0,0,0,0,0,0,0,0,10,0,0,0,0],3:[16,6,204,0,0,0,0,0,0,0,0,0,0,0,14,0,0,0,0],4:[22,8,252,0,0,0,0,0,0,0,0,0,0,0,16,0,0,0,0],5:[26,10,300,0,0,0,0,0,0,0,0,0,0,0,18,0,0,0,0],6:[32,12,348,0,0,0,0,0,0,0,0,0,0,0,22,0,0,0,0],7:[38,14,396,0,0,0,0,0,0,0,0,0,0,0,24,0,0,0,0],8:[42,14,444,0,0,0,0,0,0,0,0,0,0,0,28,0,0,0,0],9:[48,16,492,0,0,0,0,0,0,0,0,0,0,0,30,0,0,0,0],10:[52,18,540,0,0,0,0,0,0,0,0,0,0,0,32,0,0,0,0],11:[58,18,588,0,0,0,0,0,0,0,0,0,0,0,36,0,0,0,0],12:[64,19,636,0,0,0,0,0,0,0,0,0,0,0,38,0,0,0,0],13:[68,19,684,0,0,0,0,0,0,0,0,0,0,0,42,0,0,0,0],14:[74,20,732,0,0,0,0,0,0,0,0,0,0,0,44,0,0,0,0],15:[78,20,780,0,0,0,0,0,0,0,0,0,0,0,46,0,0,0,0],16:[84,21,828,0,0,0,0,0,0,0,0,0,0,0,50,0,0,0,0],17:[90,21,876,0,0,0,0,0,0,0,0,0,0,0,52,0,0,0,0],18:[94,22,924,0,0,0,0,0,0,0,0,0,0,0,56,0,0,0,0],19:[100,22,972,0,0,0,0,0,0,0,0,0,0,0,58,0,0,0,0],20:[104,23,1020,0,0,0,0,0,0,0,0,0,0,0,60,0,0,0,0]},
+  Space:{1:[0,0,0,7,7,12,3,0,8,0,0,0,0,0,0,0,0,0,0],2:[0,0,0,10,10,20,5,0,10,0,0,0,0,0,0,0,0,0,0],3:[0,0,0,12,12,28,7,0,14,0,0,0,0,0,0,0,0,0,0],4:[0,0,0,15,15,36,9,0,16,0,0,0,0,0,0,0,0,0,0],5:[0,0,0,17,17,44,11,0,18,0,0,0,0,0,0,0,0,0,0],6:[0,0,0,20,20,52,13,0,22,0,0,0,0,0,0,0,0,0,0],7:[0,0,0,23,23,60,15,0,24,0,0,0,0,0,0,0,0,0,0],8:[0,0,0,25,25,68,17,0,28,0,0,0,0,0,0,0,0,0,0],9:[0,0,0,28,28,76,19,0,30,0,0,0,0,0,0,0,0,0,0],10:[0,0,0,30,30,84,21,0,32,0,0,0,0,0,0,0,0,0,0],11:[0,0,0,33,33,92,23,0,36,0,0,0,0,0,0,0,0,0,0],12:[0,0,0,36,36,100,25,0,38,0,0,0,0,0,0,0,0,0,0],13:[0,0,0,38,38,108,27,0,42,0,0,0,0,0,0,0,0,0,0],14:[0,0,0,41,41,116,29,0,44,0,0,0,0,0,0,0,0,0,0],15:[0,0,0,43,43,124,31,0,46,0,0,0,0,0,0,0,0,0,0],16:[0,0,0,46,46,132,33,0,50,0,0,0,0,0,0,0,0,0,0],17:[0,0,0,49,49,140,35,0,52,0,0,0,0,0,0,0,0,0,0],18:[0,0,0,51,51,148,37,0,56,0,0,0,0,0,0,0,0,0,0],19:[0,0,0,54,54,156,39,0,58,0,0,0,0,0,0,0,0,0,0],20:[0,0,0,56,56,164,41,0,60,0,0,0,0,0,0,0,0,0,0]},
+  Time:{1:[0,0,0,7,7,12,3,17,0,0,0,0,0,0,0,0,0,0,0],2:[0,0,0,10,10,20,5,24,0,0,0,0,0,0,0,0,0,0,0],3:[0,0,0,12,12,28,7,31,0,0,0,0,0,0,0,0,0,0,0],4:[0,0,0,15,15,36,9,38,0,0,0,0,0,0,0,0,0,0,0],5:[0,0,0,17,17,44,11,45,0,0,0,0,0,0,0,0,0,0,0],6:[0,0,0,20,20,52,13,52,0,0,0,0,0,0,0,0,0,0,0],7:[0,0,0,23,23,60,15,59,0,0,0,0,0,0,0,0,0,0,0],8:[0,0,0,25,25,68,17,66,0,0,0,0,0,0,0,0,0,0,0],9:[0,0,0,28,28,76,19,73,0,0,0,0,0,0,0,0,0,0,0],10:[0,0,0,30,30,84,21,80,0,0,0,0,0,0,0,0,0,0,0],11:[0,0,0,33,33,92,23,87,0,0,0,0,0,0,0,0,0,0,0],12:[0,0,0,36,36,100,25,94,0,0,0,0,0,0,0,0,0,0,0],13:[0,0,0,38,38,108,27,101,0,0,0,0,0,0,0,0,0,0,0],14:[0,0,0,41,41,116,29,108,0,0,0,0,0,0,0,0,0,0,0],15:[0,0,0,43,43,124,31,115,0,0,0,0,0,0,0,0,0,0,0],16:[0,0,0,46,46,132,33,122,0,0,0,0,0,0,0,0,0,0,0],17:[0,0,0,49,49,140,35,129,0,0,0,0,0,0,0,0,0,0,0],18:[0,0,0,51,51,148,37,136,0,0,0,0,0,0,0,0,0,0,0],19:[0,0,0,54,54,156,39,143,0,0,0,0,0,0,0,0,0,0,0],20:[0,0,0,56,56,164,41,150,0,0,0,0,0,0,0,0,0,0,0]},
+  Sky:{1:[0,0,0,2,2,4,1,0,0,0,0,0,0,0,0,0,0,0,0],2:[0,0,0,4,4,8,2,0,0,0,0,0,0,0,0,0,0,0,0],3:[0,0,0,6,6,12,3,0,0,0,0,0,0,0,0,0,0,0,0],4:[0,0,0,8,8,16,4,0,0,0,0,0,0,0,0,0,0,0,0],5:[0,0,0,10,10,20,5,0,0,0,0,0,0,0,0,0,0,0,0],6:[0,0,0,12,12,24,6,0,0,0,0,0,0,0,0,0,0,0,0],7:[0,0,0,14,14,28,7,0,0,0,0,0,0,0,0,0,0,0,0],8:[0,0,0,16,16,32,8,0,0,0,0,0,0,0,0,0,0,0,0],9:[0,0,0,18,18,36,9,0,0,0,0,0,0,0,0,0,0,0,0],10:[0,0,0,20,20,40,10,0,0,0,0,0,0,0,0,0,0,0,0],11:[0,0,0,22,22,42,11,0,0,0,0,0,0,0,0,0,0,0,0],12:[0,0,0,24,24,44,11,0,0,0,0,0,0,0,0,0,0,0,0],13:[0,0,0,26,26,46,12,0,0,0,0,0,0,0,0,0,0,0,0],14:[0,0,0,28,28,48,12,0,0,0,0,0,0,0,0,0,0,0,0],15:[0,0,0,30,30,50,13,0,0,0,0,0,0,0,0,0,0,0,0],16:[0,0,0,32,32,52,13,0,0,0,0,0,0,0,0,0,0,0,0],17:[0,0,0,34,34,54,14,0,0,0,0,0,0,0,0,0,0,0,0],18:[0,0,0,36,36,56,14,0,0,0,0,0,0,0,0,0,0,0,0],19:[0,0,0,38,38,58,15,0,0,0,0,0,0,0,0,0,0,0,0],20:[0,0,0,40,40,60,15,0,0,0,0,0,0,0,0,0,0,0,0]},
+  Terra:{1:[2,1,33,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],2:[4,2,66,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],3:[6,3,99,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],4:[8,4,132,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],5:[10,5,165,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],6:[12,6,198,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],7:[14,7,231,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],8:[16,8,264,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],9:[18,9,297,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],10:[20,10,330,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],11:[21,11,363,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],12:[22,11,396,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],13:[23,12,429,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],14:[24,12,462,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],15:[25,13,495,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],16:[26,13,528,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],17:[27,13,561,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],18:[28,14,594,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],19:[29,14,627,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],20:[30,15,660,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
+  Order:{1:[2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0023,0.0023],2:[4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0028,0.0028],3:[6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0032,0.0032],4:[8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0036,0.0036],5:[10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.004,0.004],6:[12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0044,0.0044],7:[14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0047,0.0047],8:[16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0052,0.0052],9:[18,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0056,0.0056],10:[20,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.006,0.006],11:[21,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0064,0.0064],12:[22,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0068,0.0068],13:[23,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0072,0.0072],14:[24,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0076,0.0076],15:[25,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.008,0.008],16:[26,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0084,0.0084],17:[27,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0088,0.0088],18:[28,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0092,0.0092],19:[29,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.0096,0.0096],20:[30,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.01,0.01]},
+  Truth:{1:[0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0.0023,0.0023,0,0],2:[0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0.0028,0.0028,0,0],3:[0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,0.0032,0.0032,0,0],4:[0,0,0,4,4,0,0,0,0,0,0,0,0,0,0,0.0036,0.0036,0,0],5:[0,0,0,5,5,0,0,0,0,0,0,0,0,0,0,0.004,0.004,0,0],6:[0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0.0044,0.0044,0,0],7:[0,0,0,7,7,0,0,0,0,0,0,0,0,0,0,0.0047,0.0047,0,0],8:[0,0,0,8,8,0,0,0,0,0,0,0,0,0,0,0.0052,0.0052,0,0],9:[0,0,0,9,9,0,0,0,0,0,0,0,0,0,0,0.0056,0.0056,0,0],10:[0,0,0,10,10,0,0,0,0,0,0,0,0,0,0,0.006,0.006,0,0],11:[0,0,0,11,11,0,0,0,0,0,0,0,0,0,0,0.0064,0.0064,0,0],12:[0,0,0,12,12,0,0,0,0,0,0,0,0,0,0,0.0068,0.0068,0,0],13:[0,0,0,13,13,0,0,0,0,0,0,0,0,0,0,0.0072,0.0072,0,0],14:[0,0,0,14,14,0,0,0,0,0,0,0,0,0,0,0.0076,0.0076,0,0],15:[0,0,0,15,15,0,0,0,0,0,0,0,0,0,0,0.008,0.008,0,0],16:[0,0,0,16,16,0,0,0,0,0,0,0,0,0,0,0.0084,0.0084,0,0],17:[0,0,0,17,17,0,0,0,0,0,0,0,0,0,0,0.0088,0.0088,0,0],18:[0,0,0,18,18,0,0,0,0,0,0,0,0,0,0,0.0092,0.0092,0,0],19:[0,0,0,19,19,0,0,0,0,0,0,0,0,0,0,0.0096,0.0096,0,0],20:[0,0,0,20,20,0,0,0,0,0,0,0,0,0,0,0.01,0.01,0,0]}
+};
+const SK=['PDEF','MDEF','HP','PATK','MATK','IgnorePDEF','IgnoreMDEF','PvEDMG','PvPDMG','PvEDMGRed','STR','INT','DEX','VIT','PvPDMGRed','PDMG','MDMG','PDMGRed','MDMGRed'];
+const STAT_META={
+  PATK:{label:'PATK',cat:'atk'},MATK:{label:'MATK',cat:'atk'},IgnorePDEF:{label:'Ign.PDEF',cat:'atk'},IgnoreMDEF:{label:'Ign.MDEF',cat:'atk'},PDMG:{label:'PDMG',cat:'atk'},MDMG:{label:'MDMG',cat:'atk'},
+  PDEF:{label:'PDEF',cat:'def'},MDEF:{label:'MDEF',cat:'def'},HP:{label:'HP',cat:'def'},PDMGRed:{label:'PDMGRed',cat:'def'},MDMGRed:{label:'MDMGRed',cat:'def'},
+  PvEDMG:{label:'PvEDMG',cat:'pve'},PvEDMGRed:{label:'PvEDMGRed',cat:'pve'},
+  PvPDMG:{label:'PvPDMG',cat:'pvp'},PvPDMGRed:{label:'PvPDMGRed',cat:'pvp'},
+  STR:{label:'STR',cat:'neu'},INT:{label:'INT',cat:'neu'},DEX:{label:'DEX',cat:'neu'},VIT:{label:'VIT',cat:'neu'},
+};
+function getStatAt(name,lv){
+  const cps=Object.keys(SD[name]).map(Number).sort((a,b)=>a-b);
+  let lo=cps[0],hi=cps[cps.length-1];
+  for(let i=0;i<cps.length-1;i++){if(lv>=cps[i]&&lv<=cps[i+1]){lo=cps[i];hi=cps[i+1];break;}}
+  if(lv<=lo)return SD[name][lo];if(lv>=hi)return SD[name][hi];
+  const t=(lv-lo)/(hi-lo);
+  return SD[name][lo].map((v,i)=>v+(SD[name][hi][i]-v)*t);
+}
+function statObj(name,lv){
+  const kf=SD[name];if(!kf)return {};
+  // Direct per-level lookup — exact game values, no interpolation needed
+  const a=kf[lv]||kf[Math.min(20,Math.max(1,lv))];
+  if(!a)return {};
+  const o={};SK.forEach((k,i)=>{o[k]=a[i]||0});
+  o.ATK=(o.PATK||0)+(o.MATK||0);
+  return o;
+}
+function featherScore(name,lv,w){
+  const s=statObj(name,lv);
+  return Object.keys(w).reduce((t,k)=>{
+    const scale=STAT_SCALE[k]||1;
+    return t+(s[k]||0)*scale*(w[k]||0);
+  },0);
+}function scoreFromStats(s,w){return Object.keys(w).reduce((t,k)=>t+(s[k]||0)*(w[k]||0),0);}
+function scoreFromStatsNorm(s,w){
+  // Use STAT_SCALE as the normalizer — each stat divided by its scale value
+  // gives a dimensionless score, then multiplied by user priority (0-4)
+  return Object.keys(w).reduce((t,k)=>{
+    const scale=STAT_SCALE[k]||1;
+    return t+((s[k]||0)*scale)*(w[k]||0);
+  },0);
+}
+
+// Raven's Hour (4Y+1P) - ATK statue
+// Cols: pvpDmgBonus(flat), patkFlat, matkFlat, atkMult%, pveMult%, pvpMult%
+const RH_ATK={};
+[[1,12,13,13,0.10,0.30,0.30],[2,15,18,18,0.11,0.33,0.33],[3,18,23,23,0.12,0.36,0.36],[4,21,28,28,0.13,0.39,0.39],[5,24,33,33,0.14,0.42,0.42],[6,27,38,38,0.15,0.45,0.45],[7,30,43,43,0.16,0.48,0.48],[8,33,48,48,0.17,0.51,0.51],[9,36,53,53,0.18,0.54,0.54],[10,39,58,58,0.20,0.60,0.60],[11,42,60,60,0.21,0.62,0.62],[12,45,62,62,0.22,0.64,0.64],[13,48,64,64,0.23,0.66,0.66],[14,51,66,66,0.24,0.68,0.68],[15,54,68,68,0.25,0.70,0.70],[16,57,70,70,0.26,0.72,0.72],[17,60,72,72,0.27,0.74,0.74],[18,63,74,74,0.28,0.76,0.76],[19,66,76,76,0.29,0.78,0.78],[20,69,78,78,0.30,0.80,0.80]]
+.forEach(([t,pvpBonus,patkFlat,matkFlat,atkM,pveM,pvpM])=>{RH_ATK[t]={pvpDmgBonus:pvpBonus,patkFlat,matkFlat,atkMult:atkM,pveMult:pveM,pvpMult:pvpM};});
+
+// Raven's Hour (4Y+1P) - DEF statue
+// Cols: hpFlat, pveMult%, pvpDmgRedFlat, defMult%, pvpMult%
+const RH_DEF={};
+[[1,110,0.30,12,0.10,0.30],[2,200,0.33,15,0.11,0.33],[3,290,0.36,18,0.12,0.36],[4,380,0.39,21,0.13,0.39],[5,470,0.42,24,0.14,0.42],[6,560,0.45,27,0.15,0.45],[7,650,0.48,30,0.16,0.48],[8,740,0.51,33,0.17,0.51],[9,830,0.54,36,0.18,0.54],[10,920,0.60,39,0.20,0.60],[11,960,0.62,42,0.21,0.62],[12,1000,0.64,45,0.22,0.64],[13,1040,0.66,48,0.23,0.66],[14,1080,0.68,51,0.24,0.68],[15,1120,0.70,54,0.25,0.70],[16,1160,0.72,57,0.26,0.72],[17,1200,0.74,60,0.27,0.74],[18,1240,0.76,63,0.28,0.76],[19,1280,0.78,66,0.29,0.78],[20,1320,0.80,69,0.30,0.80]]
+.forEach(([t,hp,pveM,pvpRed,defM,pvpM])=>{RH_DEF[t]={hpFlat:hp,pveMult:pveM,pvpDmgRed:pvpRed,defMult:defM,pvpMult:pvpM};});
+
+// Raven's Prestige (3Y+2P) - ATK statue
+// Cols: pvpDmgBonus(flat), patkFlat, matkFlat, pveMult%, defMult%  — NO atkMult
+const RP_ATK={};
+[[1,9,12,12,0.10,0.30,0.10],[2,12,16,16,0.11,0.33,0.11],[3,15,20,20,0.12,0.36,0.12],[4,18,24,24,0.13,0.39,0.13],[5,21,28,28,0.14,0.42,0.14],[6,24,32,32,0.15,0.45,0.15],[7,27,36,36,0.16,0.48,0.16],[8,30,40,40,0.17,0.51,0.17],[9,33,44,44,0.18,0.54,0.18],[10,36,48,48,0.20,0.60,0.20],[11,39,50,50,0.21,0.62,0.21],[12,42,52,52,0.22,0.64,0.22],[13,45,54,54,0.23,0.66,0.23],[14,48,56,56,0.24,0.68,0.24],[15,51,58,58,0.25,0.70,0.25],[16,54,60,60,0.26,0.72,0.26],[17,57,62,62,0.27,0.74,0.27],[18,60,64,64,0.28,0.76,0.28],[19,63,66,66,0.29,0.78,0.29],[20,66,68,68,0.30,0.80,0.30]]
+.forEach(([t,pvpBonus,patkFlat,matkFlat,atkM,pveM,defM])=>{RP_ATK[t]={pvpDmgBonus:pvpBonus,patkFlat,matkFlat,atkMult:atkM,pveMult:pveM,defMult:defM};});
+
+// Raven's Prestige (3Y+2P) - DEF statue
+// Cols: hpFlat, pvpDmgRed(flat), pveMult%, defMult%  — NO atkMult  (xlsx #13: RP DEF flat is PvP DMG Reduction, not Bonus)
+const RP_DEF={};
+[[1,100,9,0.30,0.10],[2,180,12,0.33,0.11],[3,260,15,0.36,0.12],[4,340,18,0.39,0.13],[5,420,21,0.42,0.14],[6,500,24,0.45,0.15],[7,580,27,0.48,0.16],[8,660,30,0.51,0.17],[9,740,33,0.54,0.18],[10,820,36,0.60,0.20],[11,860,39,0.62,0.21],[12,900,42,0.64,0.22],[13,940,45,0.66,0.23],[14,980,48,0.68,0.24],[15,1020,51,0.70,0.25],[16,1060,54,0.72,0.26],[17,1100,57,0.74,0.27],[18,1140,60,0.76,0.28],[19,1180,63,0.78,0.29],[20,1220,66,0.80,0.30]]
+.forEach(([t,hp,pvpRed,pveM,defM])=>{RP_DEF[t]={hpFlat:hp,pvpDmgRed:pvpRed,pveMult:pveM,defMult:defM};});
+
+// Raven's Plunder (2Y+3P) - ATK statue
+// Cols: pvpDmgBonus(flat), patkFlat, matkFlat, pveMult%  — NO atkMult, NO defMult
+const RD_ATK={};
+[[1,6,11,11,0.10,0.30],[2,9,14,14,0.11,0.33],[3,12,17,17,0.12,0.36],[4,15,20,20,0.13,0.39],[5,18,23,23,0.14,0.42],[6,21,26,26,0.15,0.45],[7,24,29,29,0.16,0.48],[8,27,32,32,0.17,0.51],[9,30,35,35,0.18,0.54],[10,33,38,38,0.20,0.60],[11,36,40,40,0.21,0.62],[12,39,42,42,0.22,0.64],[13,42,44,44,0.23,0.66],[14,45,46,46,0.24,0.68],[15,48,48,48,0.25,0.70],[16,51,50,50,0.26,0.72],[17,54,52,52,0.27,0.74],[18,57,54,54,0.28,0.76],[19,60,56,56,0.29,0.78],[20,63,58,58,0.30,0.80]]
+.forEach(([t,pvpBonus,patkFlat,matkFlat,atkM,pveM])=>{RD_ATK[t]={pvpDmgBonus:pvpBonus,patkFlat,matkFlat,atkMult:atkM,pveMult:pveM};});
+
+// Raven's Plunder (2Y+3P) - DEF statue
+// Cols: hpFlat, pvpDmgRedFlat, pveMult%, defMult%
+const RD_DEF={};
+[[1,90,6,0.10,0.30],[2,160,9,0.11,0.33],[3,230,12,0.12,0.36],[4,300,15,0.13,0.39],[5,370,18,0.14,0.42],[6,440,21,0.15,0.45],[7,510,24,0.16,0.48],[8,580,27,0.17,0.51],[9,650,30,0.18,0.54],[10,720,33,0.20,0.60],[11,760,36,0.21,0.62],[12,800,39,0.22,0.64],[13,840,42,0.23,0.66],[14,880,45,0.24,0.68],[15,920,48,0.25,0.70],[16,960,51,0.26,0.72],[17,1000,54,0.27,0.74],[18,1040,57,0.28,0.76],[19,1080,60,0.29,0.78],[20,1120,63,0.30,0.80]]
+.forEach(([t,hp,pvpRed,defM,pveM])=>{RD_DEF[t]={hpFlat:hp,pvpDmgRed:pvpRed,defMult:defM,pveMult:pveM};});
+
+// Raven's Edge (1Y+4P) - ATK statue: atkMult on ATK stats, no pvpDmgBonus, no pveMult
+const RE_ATK={};
+[[1,10,10,0.10],[2,12,12,0.11],[3,14,14,0.12],[4,16,16,0.13],[5,18,18,0.14],[6,20,20,0.15],[7,22,22,0.16],[8,24,24,0.17],[9,26,26,0.18],[10,28,28,0.20],[11,29,29,0.21],[12,30,30,0.22],[13,31,31,0.23],[14,32,32,0.24],[15,33,33,0.25],[16,34,34,0.26],[17,35,35,0.27],[18,36,36,0.28],[19,37,37,0.29],[20,38,38,0.30]]
+.forEach(([t,pf,mf,atk])=>{RE_ATK[t]={patkFlat:pf,matkFlat:mf,atkMult:atk};});
+
+// Raven's Edge (1Y+4P) - DEF statue: hpFlat + defMult only
+const RE_DEF={};
+[[1,80,0.10],[2,140,0.11],[3,200,0.12],[4,260,0.13],[5,320,0.14],[6,380,0.15],[7,440,0.16],[8,500,0.17],[9,560,0.18],[10,620,0.20],[11,640,0.21],[12,660,0.22],[13,680,0.23],[14,700,0.24],[15,720,0.25],[16,740,0.26],[17,760,0.27],[18,780,0.28],[19,800,0.29],[20,820,0.30]]
+.forEach(([t,hp,def])=>{RE_DEF[t]={hpFlat:hp,defMult:def};});
+
+function checkSet(slots){
+  const names=slots.map(s=>s.f).filter(Boolean);
+  if(names.length!==5)return{valid:false,name:'Incomplete'};
+  const yellows=names.filter(n=>FEATHERS.find(f=>f.name===n)?.r==='Yellow').length;
+  const purples=names.filter(n=>FEATHERS.find(f=>f.name===n)?.r==='Purple').length;
+  if(yellows===4&&purples===1)return{valid:true,name:"Raven's Hour",set:'RH'};
+  if(yellows===3&&purples===2)return{valid:true,name:"Raven's Prestige",set:'RP'};
+  if(yellows===2&&purples===3)return{valid:true,name:"Raven's Plunder",set:'RD'};
+  if(yellows===1&&purples===4)return{valid:true,name:"Raven's Edge",set:'RE'};
+  return{valid:false,name:`${yellows}Y+${purples}P (invalid)`};
+}
+function applySetBonus(raw,type,tier,setName){
+  const s={...raw};
+  const isRD=setName==='RD';
+  const isRP=setName==='RP';
+  if(type==='DEF'){
+    const b=isRD?RD_DEF[tier]:isRP?RP_DEF[tier]:RH_DEF[tier];
+    if(!b)return s;
+    // HP total = floor(rawHP * (1+defMult)) + hpFlat  (Defense Stats category gets defMult)
+    s.HP=Math.floor(s.HP*(1+b.defMult))+b.hpFlat;
+    s.PDEF=Math.floor(s.PDEF*(1+b.defMult));
+    s.MDEF=Math.floor(s.MDEF*(1+b.defMult));
+    s.PDMGRed=s.PDMGRed*(1+b.defMult);
+    s.MDMGRed=s.MDMGRed*(1+b.defMult);
+    s.PvEDMGRed=Math.floor(s.PvEDMGRed*(1+(b.pveMult||0)));
+    if(setName==='RH'){
+      // RH DEF also: pvpDmgRed flat + PvP Stats mult on PvPDMGRed
+      s.PvPDMGRed+=b.pvpDmgRed;
+      s.PvPDMGRed=Math.floor(s.PvPDMGRed*(1+b.pvpMult));
+    } else if(setName==='RP'){
+      // RP DEF also: pvpDmgRed flat (PvP DMG Reduction, per xlsx #13)
+      s.PvPDMGRed+=b.pvpDmgRed;
+    } else if(setName==='RD'){
+      // RD DEF also: pvpDmgRed flat (no PvP Stats mult)
+      s.PvPDMGRed+=b.pvpDmgRed;
+    }
+    // RE DEF: no extra flats beyond hpFlat
+  } else {
+    // ATK statue
+    const isRE=setName==='RE';
+    const b=isRE?RE_ATK[tier]:isRD?RD_ATK[tier]:isRP?RP_ATK[tier]:RH_ATK[tier];
+    if(!b)return s;
+    if(setName==='RH'){
+      // RH ATK: atkMult on ATK stats, pveMult on PvEDMG, pvpMult on PvPDMG, pvpDmgBonus+patkFlat+matkFlat flat
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PvEDMG=Math.floor(s.PvEDMG*(1+b.pveMult));
+      s.PvPDMG=Math.floor(s.PvPDMG*(1+b.pvpMult));
+      s.PvPDMGRed=Math.floor(s.PvPDMGRed*(1+b.pvpMult));
+      s.PvPDMG+=b.pvpDmgBonus;
+      s.PATK+=b.patkFlat;
+      s.MATK+=b.matkFlat;
+    } else if(setName==='RP'){
+      // RP ATK: atkMult on ATK stats only + pvpDmgBonus + patkFlat/matkFlat (no defMult)
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PvEDMG=Math.floor(s.PvEDMG*(1+b.pveMult));
+      s.PvPDMG+=b.pvpDmgBonus;
+      s.PATK+=b.patkFlat;
+      s.MATK+=b.matkFlat;
+    } else if(setName==='RD'){
+      // RD ATK: atkMult on ATK stats, pveMult on PvEDMG, pvpDmgBonus+patkFlat+matkFlat flat
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PvEDMG=Math.floor(s.PvEDMG*(1+b.pveMult));
+      s.PvPDMG+=b.pvpDmgBonus;
+      s.PATK+=b.patkFlat;
+      s.MATK+=b.matkFlat;
+    } else {
+      // RE ATK: atkMult on ATK stats + patkFlat/matkFlat, no pvpDmgBonus, no pveMult
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PATK+=b.patkFlat;
+      s.MATK+=b.matkFlat;
+    }
+  }
+  s.ATK=(s.PATK||0)+(s.MATK||0);
+  return s;
+}
+function calcStatueResult(slots,type){
+  const filled=slots.filter(s=>s.f);if(filled.length<5)return null;
+  const comp=checkSet(slots);const tier=Math.min(...filled.map(s=>s.lv));
+  const raw={};SK.forEach(k=>{raw[k]=0});filled.forEach(s=>{const o=statObj(s.f,s.lv);SK.forEach(k=>{raw[k]+=(o[k]||0)});});
+  return{stats:comp.valid?applySetBonus(raw,type,tier,comp.set):{...raw},tier,comp};
+}
+const WEIGHT_META={
+  _atkGroup:{group:'⚔ ATK Stats'},
+  ATK:{label:'ATK (PATK+MATK)'},
+  IgnorePDEF:{label:'Ignore PDEF'},IgnoreMDEF:{label:'Ignore MDEF'},
+  PDMG:{label:'PDMG%'},MDMG:{label:'MDMG%'},
+  _defGroup:{group:'🛡 DEF Stats'},
+  HP:{label:'HP'},
+  PDEF:{label:'PDEF'},MDEF:{label:'MDEF'},
+  PDMGRed:{label:'PDMG Reduction'},MDMGRed:{label:'MDMG Reduction'},
+  _pveGroup:{group:'🌿 PvE'},
+  PvEDMG:{label:'PvE DMG Bonus'},PvEDMGRed:{label:'PvE DMG Reduction'},
+  _pvpGroup:{group:'⚡ PvP'},
+  PvPDMG:{label:'PvP DMG Bonus'},PvPDMGRed:{label:'PvP DMG Reduction'},
+};
+// 0=Ignore 1=Nice to have 2=Important 3=Priority 4=Must maximize
+const PRESETS={
+  // ATK row
+  'PvE Attack':{desc:'Maximize PvE damage. ATK + IgnorePDEF + PvE DMG Bonus. Ignores all DEF stats.',
+    w:{ATK:4,IgnorePDEF:4,IgnoreMDEF:2,PDMG:1,MDMG:1,PDEF:0,MDEF:0,HP:0,PDMGRed:0,MDMGRed:0,PvEDMG:4,PvEDMGRed:0,PvPDMG:0,PvPDMGRed:0}},
+  'PvP Attack':{desc:'Maximize PvP damage. ATK + IgnorePDEF + PvP DMG Bonus. Ignores all DEF stats.',
+    w:{ATK:4,IgnorePDEF:4,IgnoreMDEF:2,PDMG:1,MDMG:1,PDEF:0,MDEF:0,HP:0,PDMGRed:0,MDMGRed:0,PvEDMG:0,PvEDMGRed:0,PvPDMG:4,PvPDMGRed:0}},
+  'ATK Balanced':{desc:'Maximize damage in both PvE and PvP. ATK + IgnorePDEF prioritized, PvE and PvP DMG Bonus weighted equally.',
+    w:{ATK:4,IgnorePDEF:4,IgnoreMDEF:2,PDMG:1,MDMG:1,PDEF:0,MDEF:0,HP:0,PDMGRed:0,MDMGRed:0,PvEDMG:3,PvEDMGRed:0,PvPDMG:3,PvPDMGRed:0}},
+  // DEF row
+  'PvE Defense':{desc:'Maximize PvE survivability. PDEF + MDEF + HP + PvE DMG Reduction. Ignores all ATK stats.',
+    w:{ATK:0,IgnorePDEF:0,IgnoreMDEF:0,PDMG:0,MDMG:0,PDEF:4,MDEF:3,HP:3,PDMGRed:1,MDMGRed:1,PvEDMG:0,PvEDMGRed:4,PvPDMG:0,PvPDMGRed:0}},
+  'PvP Defense':{desc:'Maximize PvP survivability. PDEF + MDEF + HP + PvP DMG Reduction. Ignores all ATK stats.',
+    w:{ATK:0,IgnorePDEF:0,IgnoreMDEF:0,PDMG:0,MDMG:0,PDEF:4,MDEF:3,HP:3,PDMGRed:1,MDMGRed:1,PvEDMG:0,PvEDMGRed:0,PvPDMG:0,PvPDMGRed:4}},
+  'DEF Balanced':{desc:'Maximize survivability in both PvE and PvP. PDEF + MDEF + HP prioritized, PvE and PvP DMG Reduction weighted equally.',
+    w:{ATK:0,IgnorePDEF:0,IgnoreMDEF:0,PDMG:0,MDMG:0,PDEF:4,MDEF:3,HP:3,PDMGRed:1,MDMGRed:1,PvEDMG:0,PvEDMGRed:3,PvPDMG:0,PvPDMGRed:3}},
+  // Balanced row
+  'PvE Balanced':{desc:'Balanced ATK and DEF for PvE. Equal investment in offense and defense, PvE DMG and DMG Reduction prioritized.',
+    w:{ATK:3,IgnorePDEF:3,IgnoreMDEF:2,PDMG:1,MDMG:1,PDEF:3,MDEF:2,HP:2,PDMGRed:1,MDMGRed:1,PvEDMG:3,PvEDMGRed:3,PvPDMG:0,PvPDMGRed:0}},
+  'PvP Balanced':{desc:'Balanced ATK and DEF for PvP. Equal investment in offense and defense, PvP DMG Bonus and DMG Reduction prioritized.',
+    w:{ATK:3,IgnorePDEF:3,IgnoreMDEF:2,PDMG:1,MDMG:1,PDEF:3,MDEF:2,HP:2,PDMGRed:1,MDMGRed:1,PvEDMG:0,PvEDMGRed:0,PvPDMG:3,PvPDMGRed:3}},
+  'ALL Balanced':{desc:'Equal weight across all stats for both PvE and PvP. Best general-purpose build for players active in all content.',
+    w:{ATK:3,IgnorePDEF:3,IgnoreMDEF:2,PDMG:1,MDMG:1,PDEF:3,MDEF:2,HP:2,PDMGRed:1,MDMGRed:1,PvEDMG:2,PvEDMGRed:2,PvPDMG:2,PvPDMGRed:2}},
+};
+// Derived stat scale (ATK=1.0, PATK+MATK treated as one stat)
+// Anchored from same-pool feather equivalences
+const STAT_SCALE={
+  ATK:1.000,    // PATK+MATK combined
+  PATK:0.500,   // half of ATK (for display/filter purposes)
+  MATK:0.500,
+  PDEF:0.533,
+  MDEF:0.267,
+  HP:0.0952,
+  IgnorePDEF:0.571,
+  IgnoreMDEF:0.571,
+  PvEDMG:0.295,
+  PvEDMGRed:0.295,
+  PvPDMG:0.738,
+  PvPDMGRed:0.738,
+  PDMG:204.8,MDMG:204.8,PDMGRed:204.8,MDMGRed:204.8,
+  STR:1,INT:1,DEX:1,VIT:1, // ponytail: neutral stats raw-scale 1 (calibrate later if needed)
+};
+const STAT_LABELS_FILTER=[
+  {group:'ATK Stats',stats:['PATK','MATK','IgnorePDEF','IgnoreMDEF','PDMG','MDMG']},
+  {group:'DEF Stats',stats:['PDEF','MDEF','HP','PDMGRed','MDMGRed']},
+  {group:'PvE',stats:['PvEDMG','PvEDMGRed']},
+  {group:'PvP',stats:['PvPDMG','PvPDMGRed']},
+];
+const state={pools:{},weights:{},weightsS:{},weights2:{},optFiltersMin:{},optFiltersMax:{},sfFiltersMin:{},sfFiltersMax:{},upFiltersMin:{},upFiltersMax:{},filters:{},results:[],results2:[],sfResults:[],filterResults:[],expanded:new Set(),expanded2:new Set(),expandedF:new Set(),expandedS:new Set(),activePreset:'',activePresetS:'',activePreset2:'',priorityOrder:[],inventory:{},beStatues:Array.from({length:10},(_,i)=>({type:i<5?'ATK':'DEF',slots:[{f:'',lv:1},{f:'',lv:1},{f:'',lv:1},{f:'',lv:1},{f:'',lv:1}]}))};
+POOLS.forEach(p=>{state.pools[p.name]=0;});
+// Load saved pool inventory from localStorage
+(function(){
+  try{
+    const saved=localStorage.getItem('rooc_pools');
+    if(saved){const d=JSON.parse(saved);POOLS.forEach(p=>{if(d[p.name])state.pools[p.name]=d[p.name];});}
+  }catch(e){}
+})();
+Object.keys(STAT_SCALE).forEach(k=>{state.weights[k]=0;state.weightsS[k]=0;state.weights2[k]=0;state.filters[k]='';state.optFiltersMin[k]='';state.optFiltersMax[k]='';state.sfFiltersMin[k]='';state.sfFiltersMax[k]='';state.upFiltersMin[k]='';state.upFiltersMax[k]='';});
+// Pre-compute all valid feather combos per statue type
+// Returns array of {yellows:[names], purples:[names], set:'RH'|'RP'}
+function getFeatherCombos(type){
+  const isATK=type==='ATK';
+  const Y=FEATHERS.filter(f=>f.r==='Yellow'&&(isATK?(f.t==='ATK'||f.t==='MIX'):(f.t==='DEF'||f.t==='MIX')));
+  const P=FEATHERS.filter(f=>f.r==='Purple'&&(isATK?(f.t==='ATK'||f.t==='MIX'):(f.t==='DEF'||f.t==='MIX')));
+  const combos=[];
+  // RH: C(Y,4) x C(P,1)
+  for(let a=0;a<Y.length;a++)for(let b=a+1;b<Y.length;b++)for(let c=b+1;c<Y.length;c++)for(let d=c+1;d<Y.length;d++)
+    for(let p=0;p<P.length;p++)
+      combos.push({yellows:[Y[a].name,Y[b].name,Y[c].name,Y[d].name],purples:[P[p].name],set:'RH'});
+  // RP: C(Y,3) x C(P,2)
+  for(let a=0;a<Y.length;a++)for(let b=a+1;b<Y.length;b++)for(let c=b+1;c<Y.length;c++)
+    for(let p=0;p<P.length;p++)for(let q=p+1;q<P.length;q++)
+      combos.push({yellows:[Y[a].name,Y[b].name,Y[c].name],purples:[P[p].name,P[q].name],set:'RP'});
+  // RD: C(Y,2) x C(P,3)
+  for(let a=0;a<Y.length;a++)for(let b=a+1;b<Y.length;b++)
+    for(let p=0;p<P.length;p++)for(let q=p+1;q<P.length;q++)for(let r=q+1;r<P.length;r++)
+      combos.push({yellows:[Y[a].name,Y[b].name],purples:[P[p].name,P[q].name,P[r].name],set:'RD'});
+  // RE: C(Y,1) x C(P,4)
+  for(let a=0;a<Y.length;a++)
+    for(let p=0;p<P.length;p++)for(let q=p+1;q<P.length;q++)for(let r=q+1;r<P.length;r++)for(let s2=r+1;s2<P.length;s2++)
+      combos.push({yellows:[Y[a].name],purples:[P[p].name,P[q].name,P[r].name,P[s2].name],set:'RE'});
+  return combos;
+}
+const COMBOS_ATK=getFeatherCombos('ATK');
+const COMBOS_DEF=getFeatherCombos('DEF');
+
+// Score a combo as a full statue (with set bonus) at a given floor level
+function scoreCombo(combo,type,floorLv,weights){
+  const slots=combo.yellows.concat(combo.purples).map(f=>({f,lv:floorLv}));
+  const result=calcStatueResult(slots,type);
+  if(!result||!result.comp.valid)return -1;
+  return scoreFromStatsNorm(result.stats,weights);
+}
+
+// Cost of a combo at a given floor level
+function comboCost(combo,floorLv){
+  const cost={};POOLS.forEach(p=>{cost[p.name]=0;});
+  combo.yellows.concat(combo.purples).forEach(name=>{
+    const f=FEATHERS.find(x=>x.name===name);
+    cost[f.pool]+=costAt(name,floorLv);
+  });
+  return cost;
+}
+
+// Pre-cache combo scores per floor level to avoid recomputing
+const _comboScoreCache=new Map();
+function scoreComboFast(combo,type,floorLv,weights){
+  const wKey=Object.values(weights).join(',');
+  const key=combo.yellows.join(',')+'/'+combo.purples.join(',')+'/'+type+'/'+floorLv+'/'+wKey;
+  if(_comboScoreCache.has(key))return _comboScoreCache.get(key);
+  const sc=scoreCombo(combo,type,floorLv,weights);
+  _comboScoreCache.set(key,sc);
+  return sc;
+}
+
+function buildExhaustive(atkTiers,defTiers,poolBudgets,weights){
+  const allTypes=[...atkTiers.map(()=>'ATK'),...defTiers.map(()=>'DEF')];
+  const allTiers=[...atkTiers,...defTiers];
+  const poolUsed={};POOLS.forEach(p=>{poolUsed[p.name]=0;});
+
+  // Phase 1: per statue, score all combos via cache, sort, pick best feasible
+  const chosen=[];
+  for(let si=0;si<10;si++){
+    const type=allTypes[si];
+    const floorLv=allTiers[si];
+    const combos=type==='ATK'?COMBOS_ATK:COMBOS_DEF;
+    const sorted=combos.map(c=>({combo:c,sc:scoreComboFast(c,type,floorLv,weights)}))
+      .sort((a,b)=>b.sc-a.sc);
+    let bestCombo=null;
+    for(let i=0;i<sorted.length;i++){
+      const {combo}=sorted[i];
+      const cost=comboCost(combo,floorLv);
+      if(POOLS.every(p=>poolUsed[p.name]+(cost[p.name]||0)<=poolBudgets[p.name])){
+        bestCombo=combo;break;
+      }
+    }
+    if(!bestCombo)return null;
+    const cost=comboCost(bestCombo,floorLv);
+    POOLS.forEach(p=>{poolUsed[p.name]+=(cost[p.name]||0);});
+    chosen.push({si,type,floorLv,combo:bestCombo});
+  }
+
+  // Build slots array for surplus phase
+  const slots=[];
+  chosen.forEach(({si,type,floorLv,combo})=>{
+    combo.yellows.concat(combo.purples).forEach(name=>{
+      const f=FEATHERS.find(x=>x.name===name);
+      slots.push({si,name,pool:f.pool,lv:floorLv,floor:floorLv,type});
+    });
+  });
+
+  // Phase 2: surplus allocation — O(n log n) per pool
+  // Group slots by pool, sort by score-per-copy at floor, allocate greedily
+  // but batch: level each slot as high as budget allows before moving to next
+  const poolSlots={};
+  POOLS.forEach(p=>{poolSlots[p.name]=[];});
+  slots.forEach(fs=>{poolSlots[fs.pool].push(fs);});
+
+  POOLS.forEach(p=>{
+    const pSlots=poolSlots[p.name];
+    if(!pSlots.length)return;
+    // Score gain from floor to Lv20 — use total gain as priority proxy
+    const scored=pSlots.map(fs=>{
+      const gainTotal=scoreFromStatsNorm(statObj(fs.name,20),weights)-scoreFromStatsNorm(statObj(fs.name,fs.floor),weights);
+      const costTotal=costAt(fs.name,20)-costAt(fs.name,fs.floor);
+      return{fs,r:costTotal>0?gainTotal/costTotal:0};
+    }).sort((a,b)=>b.r-a.r);
+
+    // Multi-pass: keep leveling until no budget remains
+    let improved=true;
+    while(improved){
+      improved=false;
+      for(const {fs} of scored){
+        if(fs.lv>=20)continue;
+        const stepCost=costAt(fs.name,fs.lv+1)-costAt(fs.name,fs.lv);
+        if(stepCost<=0)continue;
+        if(poolUsed[p.name]+stepCost<=poolBudgets[p.name]){
+          poolUsed[p.name]+=stepCost;
+          fs.lv++;
+          improved=true;
+        }
+      }
+    }
+  });
+
+  // Assemble statues
+  const statueSlots=Array.from({length:10},(_,i)=>slots.filter(s=>s.si===i));
+  const statues=[];
+  for(let si=0;si<10;si++){
+    const my=statueSlots[si];
+    statues.push({type:allTypes[si],slots:my.map(s=>({f:s.name,lv:s.lv,floor:s.floor})),tier:allTiers[si]});
+  }
+  const score=statues.reduce((sum,st)=>{
+    const r=calcStatueResult(st.slots,st.type);
+    return sum+(r?scoreFromStatsNorm(r.stats,weights):0);
+  },0);
+  const atkT=statues.slice(0,5).map(st=>Math.min(...st.slots.map(s=>s.lv)));
+  const defT=statues.slice(5,10).map(st=>Math.min(...st.slots.map(s=>s.lv)));
+  return{statues,score,atkTiers:atkT,defTiers:defT};
+}
+function raizarSurplus(atkCombo,defCombo,floorT,poolBudgets){
+  // Raizar surplus: level feathers in sync across all identical statues
+  // Each unique feather position in the combo is leveled ×5 (ATK) or ×5 (DEF) simultaneously
+  // so all statues stay identical.
+  // poolUsed already reflects 5× floorT cost for each feather in each combo.
+  const poolUsed={};POOLS.forEach(p=>{poolUsed[p.name]=0;});
+  // Init poolUsed from floor cost
+  const aCost=comboCost(atkCombo,floorT);
+  const dCost=comboCost(defCombo,floorT);
+  POOLS.forEach(p=>{poolUsed[p.name]=(aCost[p.name]||0)*5+(dCost[p.name]||0)*5;});
+
+  // Track current level per unique feather slot (ATK and DEF separately)
+  // ATK: atkCombo.yellows.concat(purples) — each feather name, leveled in sync ×5
+  // DEF: same
+  const atkSlots=atkCombo.yellows.concat(atkCombo.purples).map(name=>{
+    const f=FEATHERS.find(x=>x.name===name);
+    return {name,pool:f.pool,lv:floorT,count:5}; // count=5 statues
+  });
+  const defSlots=defCombo.yellows.concat(defCombo.purples).map(name=>{
+    const f=FEATHERS.find(x=>x.name===name);
+    return {name,pool:f.pool,lv:floorT,count:5};
+  });
+  const allUnique=[...atkSlots,...defSlots];
+
+  // Greedy: each step levels ONE feather slot across all count statues simultaneously
+  let any=true;
+  while(any){
+    any=false;let bestR=-1,bestS=null;
+    for(const fs of allUnique){
+      if(fs.lv>=20)continue;
+      // Cost = step cost × count (level all statues together)
+      const stepCost=(costAt(fs.name,fs.lv+1)-costAt(fs.name,fs.lv))*fs.count;
+      if(stepCost<=0||poolUsed[fs.pool]+stepCost>poolBudgets[fs.pool])continue;
+      const gain=scoreFromStatsNorm(statObj(fs.name,fs.lv+1),{})-scoreFromStatsNorm(statObj(fs.name,fs.lv),{});
+      // Use raw stat gain (weights applied at build score level)
+      const r=gain/stepCost;
+      if(r>bestR){bestR=r;bestS=fs;}
+    }
+    if(bestS){
+      poolUsed[bestS.pool]+=(costAt(bestS.name,bestS.lv+1)-costAt(bestS.name,bestS.lv))*bestS.count;
+      bestS.lv++;any=true;
+    }
+  }
+  return {atkSlots,defSlots,poolUsed};
+}
+
+function raizarScore(atkSlots,defSlots,atkSet,defSet,weights){
+  // Score one statue's worth, multiply by 5 for each type
+  const scoreStatue=(slots,type,setCode)=>{
+    const raw=slots.reduce((o,sl)=>{
+      const s=statObj(sl.name,sl.lv);
+      Object.keys(s).forEach(k=>{o[k]=(o[k]||0)+s[k];});
+      return o;
+    },{});
+    const tier=Math.min(...slots.map(s=>s.lv));
+    return scoreFromStatsNorm(applySetBonus(raw,type,tier,setCode),weights);
+  };
+  return scoreStatue(atkSlots,'ATK',atkSet)*5 + scoreStatue(defSlots,'DEF',defSet)*5;
+}
+
+function buildRaizarStatues(atkSlots,defSlots,atkSet,defSet,floorT){
+  const statues=[];
+  for(let si=0;si<5;si++){
+    const slots=atkSlots.map(s=>({f:s.name,lv:s.lv,floor:floorT}));
+    statues.push({type:'ATK',slots,tier:Math.min(...slots.map(s=>s.lv))});
+  }
+  for(let si=0;si<5;si++){
+    const slots=defSlots.map(s=>({f:s.name,lv:s.lv,floor:floorT}));
+    statues.push({type:'DEF',slots,tier:Math.min(...slots.map(s=>s.lv))});
+  }
+  return statues;
+}
+
+function runRaizarMode(){
+  const _rAllowed=getAllowedSets();
+  const _rOrigATK=[...COMBOS_ATK];const _rOrigDEF=[...COMBOS_DEF];
+  COMBOS_ATK.length=0;filterCombosByLocks(_rOrigATK.filter(c=>_rAllowed.has(c.set)),_lockedATK).forEach(c=>COMBOS_ATK.push(c));
+  COMBOS_DEF.length=0;filterCombosByLocks(_rOrigDEF.filter(c=>_rAllowed.has(c.set)),_lockedDEF).forEach(c=>COMBOS_DEF.push(c));
+  if(!COMBOS_ATK.length||!COMBOS_DEF.length){
+    COMBOS_ATK.length=0;_rOrigATK.forEach(c=>COMBOS_ATK.push(c));
+    COMBOS_DEF.length=0;_rOrigDEF.forEach(c=>COMBOS_DEF.push(c));
+    setStatus('No valid combos match your locked feathers. Locks ignored.',true);
+    document.getElementById('raizar-btn').disabled=false;
+    document.getElementById('run-btn').disabled=false;
+    return;
+  }
+  const weights=state.weights;
+  if(!Object.values(weights).some(v=>v>0)){setStatus('Set at least one stat weight > 0.',true);return;}
+  const poolBudgets={};POOLS.forEach(p=>{poolBudgets[p.name]=state.pools[p.name]||0;});
+  if(Object.values(poolBudgets).every(v=>v===0)){setStatus('Enter pool inventory first.',true);return;}
+  try{localStorage.setItem('rooc_pools',JSON.stringify(state.pools));}catch(e){}
+  document.getElementById('raizar-btn').disabled=true;
+  document.getElementById('run-btn').disabled=true;
+  _comboScoreCache.clear();
+  setStatus('',false);showProg(true);setProg(5);
+  const _timer=startTimer();
+  setTimeout(()=>{
+    try{
+      const cands=[];let _done=0;
+      const ATK_SORTED=COMBOS_ATK.map(c=>({c,sc:scoreComboFast(c,'ATK',1,weights)})).sort((a,b)=>b.sc-a.sc);
+      const DEF_SORTED=COMBOS_DEF.map(c=>({c,sc:scoreComboFast(c,'DEF',1,weights)})).sort((a,b)=>b.sc-a.sc);
+      for(let t=1;t<=20;t++){
+        _done++;_timer.update(_done,20);
+        for(const {c:aC} of ATK_SORTED){
+          const aCost=comboCost(aC,t);
+          const aTotalByPool={};
+          POOLS.forEach(p=>{aTotalByPool[p.name]=(aCost[p.name]||0)*5;});
+          if(!POOLS.every(p=>aTotalByPool[p.name]<=poolBudgets[p.name])) continue;
+          for(const {c:dC} of DEF_SORTED){
+            const dCost=comboCost(dC,t);
+            const baseCombined={};
+            POOLS.forEach(p=>{baseCombined[p.name]=aTotalByPool[p.name]+(dCost[p.name]||0)*5;});
+            if(!POOLS.every(p=>baseCombined[p.name]<=poolBudgets[p.name])) continue;
+            // Run Raizar surplus — level feathers in sync across all statues
+            const {atkSlots,defSlots,poolUsed}=raizarSurplus(aC,dC,t,poolBudgets);
+            const atkSet=checkSet(aC.yellows.concat(aC.purples).map(n=>({f:n}))).set;
+            const defSet=checkSet(dC.yellows.concat(dC.purples).map(n=>({f:n}))).set;
+            const score=raizarScore(atkSlots,defSlots,atkSet,defSet,weights);
+            const statues=buildRaizarStatues(atkSlots,defSlots,atkSet,defSet,t);
+            const atkT=statues.slice(0,5).map(st=>Math.min(...st.slots.map(s=>s.lv)));
+            const defT=statues.slice(5,10).map(st=>Math.min(...st.slots.map(s=>s.lv)));
+            cands.push({statues,score,atkTiers:atkT,defTiers:defT,poolUsed,raizar:true});
+            break;
+          }
+          break;
+        }
+      }
+      setProg(85);
+      const seen=new Set();
+      const maxResults=Math.max(1,parseInt(document.getElementById('results-count').value)||20);
+      const results=cands.filter(c=>{
+        const fp=c.statues[0].slots.map(s=>s.f).join('+')+'/'+c.statues[5].slots.map(s=>s.f).join('+')+'/'+c.atkTiers[0]+'/'+c.defTiers[0];
+        if(seen.has(fp))return false;seen.add(fp);return true;
+      }).sort((a,b)=>b.score-a.score).slice(0,maxResults);
+      state.results=results;state.expanded.clear();
+      renderResults('results-area',state.results,state.expanded,'');
+      setProg(100);
+      _timer.stop(`✦ Raizar Mode: ${results.length} uniform build${results.length!==1?'s':''}`);
+    }catch(e){_timer.stop('Error: '+e.message);setStatus('Error: '+e.message,true);console.error(e);}
+    COMBOS_ATK.length=0;_rOrigATK.forEach(c=>COMBOS_ATK.push(c));COMBOS_DEF.length=0;_rOrigDEF.forEach(c=>COMBOS_DEF.push(c));
+    document.getElementById('raizar-btn').disabled=false;
+    document.getElementById('run-btn').disabled=false;
+    setTimeout(()=>showProg(false),600);
+  },30);
+}
+
+
+// ── Feather Lock ─────────────────────────────────────────────────────────────
+const _lockedATK = new Set();
+const _lockedDEF = new Set();
+
+function initLockPanels() {
+  const atkY = FEATHERS.filter(f=>f.r==='Yellow'&&(f.t==='ATK'||f.t==='MIX'));
+  const atkP = FEATHERS.filter(f=>f.r==='Purple'&&(f.t==='ATK'||f.t==='MIX'));
+  const defY = FEATHERS.filter(f=>f.r==='Yellow'&&(f.t==='DEF'||f.t==='MIX'));
+  const defP = FEATHERS.filter(f=>f.r==='Purple'&&(f.t==='DEF'||f.t==='MIX'));
+
+  function renderChips(containerId, feathers, lockSet) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = feathers.map(f => {
+      const on = lockSet.has(f.name);
+      return `<button onclick="toggleLock('${f.name}','${lockSet===_lockedATK?'ATK':'DEF'}')" 
+        id="lock-chip-${containerId}-${f.name}"
+        style="padding:2px 8px;border-radius:10px;font-size:10px;cursor:pointer;font-weight:600;
+               background:${on?'var(--gold3)':'var(--bg3)'};
+               border:1px solid ${on?'var(--gold)':'var(--border)'};
+               color:${on?'var(--gold2)':'var(--text2)'}">${f.name}</button>`;
+    }).join('');
+  }
+
+  renderChips('lock-atk-yellow', atkY, _lockedATK);
+  renderChips('lock-atk-purple', atkP, _lockedATK);
+  renderChips('lock-def-yellow', defY, _lockedDEF);
+  renderChips('lock-def-purple', defP, _lockedDEF);
+  updateLockBadge();
+}
+
+function toggleLock(name, type) {
+  const lockSet = type === 'ATK' ? _lockedATK : _lockedDEF;
+  if (lockSet.has(name)) lockSet.delete(name); else lockSet.add(name);
+  saveLocks();
+  initLockPanels();
+  checkLockConflicts();
+}
+
+function clearAllLocks() {
+  _lockedATK.clear(); _lockedDEF.clear();
+  saveLocks(); initLockPanels(); checkLockConflicts();
+}
+
+function saveLocks() {
+  try {
+    localStorage.setItem('rooc_locked_atk', JSON.stringify([..._lockedATK]));
+    localStorage.setItem('rooc_locked_def', JSON.stringify([..._lockedDEF]));
+  } catch(e) {}
+}
+
+function loadLocks() {
+  try {
+    const a = JSON.parse(localStorage.getItem('rooc_locked_atk')||'[]');
+    const d = JSON.parse(localStorage.getItem('rooc_locked_def')||'[]');
+    a.forEach(n=>_lockedATK.add(n));
+    d.forEach(n=>_lockedDEF.add(n));
+  } catch(e) {}
+}
+
+function updateLockBadge() {
+  const badge = document.getElementById('lock-active-badge');
+  if (badge) badge.style.display = (_lockedATK.size||_lockedDEF.size) ? 'inline' : 'none';
+}
+
+function checkLockConflicts() {
+  updateLockBadge();
+  const warn = document.getElementById('lock-conflict-warn');
+  if (!warn) return;
+  // Conflict: locked purples > max purples in any enabled set
+  const allowedSets = getAllowedSets();
+  const maxP = { RH:1, RP:2, RD:3, RE:4 };
+  const atkP = [..._lockedATK].filter(n=>FEATHERS.find(f=>f.name===n&&f.r==='Purple'));
+  const defP = [..._lockedDEF].filter(n=>FEATHERS.find(f=>f.name===n&&f.r==='Purple'));
+  const atkY = [..._lockedATK].filter(n=>FEATHERS.find(f=>f.name===n&&f.r==='Yellow'));
+  const defY = [..._lockedDEF].filter(n=>FEATHERS.find(f=>f.name===n&&f.r==='Yellow'));
+  let conflict = false;
+  for (const set of allowedSets) {
+    const mp = maxP[set]||1, my = 5-(mp);
+    if (atkP.length > mp || atkY.length > my) { conflict = true; break; }
+    if (defP.length > mp || defY.length > my) { conflict = true; break; }
+  }
+  warn.style.display = conflict ? 'block' : 'none';
+}
+
+function toggleLockPanel() {
+  const panel = document.getElementById('lock-panel');
+  const caret = document.getElementById('lock-panel-caret');
+  if (!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  caret.textContent = open ? '▶ expand' : '▼ collapse';
+  if (!open) initLockPanels();
+}
+
+function filterCombosByLocks(combos, lockSet) {
+  if (!lockSet.size) return combos;
+  return combos.filter(c => {
+    const all = new Set([...c.yellows, ...c.purples]);
+    for (const locked of lockSet) { if (!all.has(locked)) return false; }
+    return true;
+  });
+}
+
+function getAllowedSets() {
+  const rh = document.getElementById('set-filter-RH')?.checked !== false;
+  const rp = document.getElementById('set-filter-RP')?.checked !== false;
+  const rd = document.getElementById('set-filter-RD')?.checked !== false;
+  const re = document.getElementById('set-filter-RE')?.checked !== false;
+  const warn = document.getElementById('set-filter-warning');
+  const allOn = rh && rp && rd && re;
+  if (warn) warn.style.display = allOn ? 'none' : 'inline';
+  const allowed = new Set();
+  if (rh) allowed.add('RH');
+  if (rp) allowed.add('RP');
+  if (rd) allowed.add('RD');
+  if (re) allowed.add('RE');
+  if (!allowed.size) { allowed.add('RH'); allowed.add('RP'); allowed.add('RD'); allowed.add('RE'); } // fallback
+  return allowed;
+}
+
+function filterCombosBySet(combos, allowed) {
+  return combos.filter(c => allowed.has(c.set));
+}
+
+function runOptimizer(){
+  const weights=state.weights;
+  if(!Object.values(weights).some(v=>v>0)){setStatus('Set at least one stat priority > 0.',true);return;}
+  const poolBudgets={};POOLS.forEach(p=>{poolBudgets[p.name]=state.pools[p.name]||0;});
+  if(Object.values(poolBudgets).every(v=>v===0)){setStatus('Enter pool inventory first.',true);return;}
+  try{localStorage.setItem('rooc_pools',JSON.stringify(state.pools));}catch(e){}
+  // Apply set filter + lock filter
+  const _allowedSets=getAllowedSets();
+  const _origATK=[...COMBOS_ATK];const _origDEF=[...COMBOS_DEF];
+  COMBOS_ATK.length=0;filterCombosByLocks(_origATK.filter(c=>_allowedSets.has(c.set)),_lockedATK).forEach(c=>COMBOS_ATK.push(c));
+  COMBOS_DEF.length=0;filterCombosByLocks(_origDEF.filter(c=>_allowedSets.has(c.set)),_lockedDEF).forEach(c=>COMBOS_DEF.push(c));
+  if(!COMBOS_ATK.length||!COMBOS_DEF.length){COMBOS_ATK.length=0;_origATK.forEach(c=>COMBOS_ATK.push(c));COMBOS_DEF.length=0;_origDEF.forEach(c=>COMBOS_DEF.push(c));setStatus('No valid combos match your locked feathers. Locks ignored.',true);document.getElementById('run-btn').disabled=false;return;}
+  document.getElementById('run-btn').disabled=true;
+  _comboScoreCache.clear();
+  setStatus('',false);showProg(true);setProg(5);
+  const _timer=startTimer();
+  setTimeout(()=>{
+    try{
+      const cands=[];let _done=0;
+      const _total=(()=>{let n=20+400;for(let h=20;h>=2;h--){for(let l=1;l<h;l+=Math.max(1,Math.floor(h/5))){n+=3*7+3*7+2;}}for(let top=20;top>=2;top--){n+=1+7+7;}return n+1;})();
+      function add(aT,dT){_done++;if(_done%8===0)_timer.update(_done,_total);const r=buildFromTiersNorm(aT,dT,poolBudgets,weights);if(r)cands.push(r);}
+      for(let t=1;t<=20;t++) add([t,t,t,t,t],[t,t,t,t,t]);setProg(15);
+      for(let at=1;at<=20;at++) for(let dt=1;dt<=20;dt++) add([at,at,at,at,at],[dt,dt,dt,dt,dt]);setProg(35);
+      for(let h=20;h>=2;h--){for(let l=1;l<h;l+=Math.max(1,Math.floor(h/6))){
+        for(let dt=1;dt<=20;dt+=2){add([h,l,l,l,l],[dt,dt,dt,dt,dt]);add([h,h,l,l,l],[dt,dt,dt,dt,dt]);add([h,h,h,l,l],[dt,dt,dt,dt,dt]);}
+        for(let at=1;at<=20;at+=2){add([at,at,at,at,at],[h,l,l,l,l]);add([at,at,at,at,at],[h,h,l,l,l]);add([at,at,at,at,at],[h,h,h,l,l]);}
+        add([h,l,l,l,l],[h,l,l,l,l]);add([h,h,l,l,l],[h,h,l,l,l]);
+      }}setProg(60);
+      for(let top=20;top>=2;top--){
+        const step=Math.max(1,Math.floor(top/5));
+        const st=[top,Math.max(1,top-step),Math.max(1,top-2*step),Math.max(1,top-3*step),Math.max(1,top-4*step)];
+        add(st,st);for(let dt=1;dt<=20;dt+=2) add(st,[dt,dt,dt,dt,dt]);for(let at=1;at<=20;at+=2) add([at,at,at,at,at],st);
+        add(st,[...st].reverse());add([...st].reverse(),st);
+      }
+      add([1,1,1,1,1],[1,1,1,1,1]);setProg(80);
+      const maxResults=Math.max(1,parseInt(document.getElementById('results-count').value)||20);
+      const seen=new Set();
+      const deduped=cands.filter(c=>{const fp=c.atkTiers.join(',')+'/'+c.defTiers.join(',');if(seen.has(fp))return false;seen.add(fp);return true;}).sort((a,b)=>b.score-a.score);
+      const topN=applyMinMaxFilters(deduped,state.optFiltersMin,state.optFiltersMax).slice(0,maxResults);
+      state.results=topN;state.expanded.clear();renderResults('results-area',state.results,state.expanded,'');setProg(100);
+      _timer.stop(`Found ${topN.length} builds`);
+    }catch(e){_timer.stop('Error: '+e.message);setStatus('Error: '+e.message,true);console.error(e);}
+    COMBOS_ATK.length=0;_origATK.forEach(c=>COMBOS_ATK.push(c));COMBOS_DEF.length=0;_origDEF.forEach(c=>COMBOS_DEF.push(c));
+    document.getElementById('run-btn').disabled=false;setTimeout(()=>showProg(false),600);
+  },30);
+}
+const PCT_STATS=new Set(['PDMG','MDMG','PDMGRed','MDMGRed']);
+function fmtV(v,k){
+  if(k&&PCT_STATS.has(k))return(v*100).toFixed(2)+'%';
+  if(Math.abs(v)<0.01&&v!==0)return v.toFixed(4);
+  return Math.round(v).toLocaleString();
+}
+function getTotals(build){const t={};SK.forEach(k=>{t[k]=0;});build.statues.forEach(st=>{const r=calcStatueResult(st.slots,st.type);if(r)SK.forEach(k=>{t[k]+=(r.stats[k]||0);});});return t;}
+function renderPools(){
+  const html=POOLS.map(p=>`<div class="pool-card"><div class="pool-name">${p.name}<span class="${p.r==='Yellow'?'badge-y':'badge-p'}">${p.r}</span></div><div class="pool-members">${p.members.join(' · ')}</div><div class="pool-inp-row"><span class="pool-inp-label">Total copies:</span><input class="pool-inp" type="number" min="0" max="9999" value="${state.pools[p.name]||0}" oninput="state.pools['${p.name}']=parseInt(this.value)||0"></div></div>`).join('');
+  ['pool-grid','pool-grid3'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=html;});
+}
+const STEP_LABELS=['Ignore','Nice','Important','Priority','Must'];
+// ── Stat Priority — ordered multi-select; click order = rank (1st = highest weight) ──
+const PRIO_STATS=['PATK','MATK','INT','DEX','STR','PDMG','MDMG','PvPDMG','PvPDMGRed'];
+function applyPriorityWeights(){
+  Object.keys(state.weights).forEach(k=>state.weights[k]=0);
+  const n=state.priorityOrder.length;
+  state.priorityOrder.forEach((s,i)=>{state.weights[s]=n-i;}); // 1st pick = n, last = 1
+}
+function togglePriority(s){
+  const i=state.priorityOrder.indexOf(s);
+  if(i>=0)state.priorityOrder.splice(i,1); else state.priorityOrder.push(s);
+  applyPriorityWeights();renderPriorityChips();
+}
+function resetPriority(){state.priorityOrder=[];applyPriorityWeights();renderPriorityChips();}
+function renderPriorityChips(){
+  const el=document.getElementById('prio-chips');if(!el)return;
+  el.innerHTML=PRIO_STATS.map(s=>{
+    const rank=state.priorityOrder.indexOf(s);const on=rank>=0;
+    return `<div class="prio-chip${on?' on':''}" onclick="togglePriority('${s}')">${on?`<span class="prio-rank">${rank+1}</span>`:''}${COL_LABELS[s]||s}</div>`;
+  }).join('');
+}
+function renderSliders(gridId,presetsId,descId,weightsKey,presetKey){
+  const wm=Object.entries(WEIGHT_META);
+  document.getElementById(presetsId).innerHTML=Object.keys(PRESETS).map(k=>`<div class="preset-btn ${state[presetKey]===k?'on':''}" onclick="applyPreset('${k}','${weightsKey}','${presetKey}','${gridId}','${presetsId}','${descId}')">${k}</div>`).join('');
+  const de=document.getElementById(descId);
+  if(state[presetKey]&&PRESETS[state[presetKey]]){de.textContent=PRESETS[state[presetKey]].desc;de.classList.add('on');}else{de.classList.remove('on');}
+  let html='';
+  wm.forEach(([k,m])=>{
+    if(m.group){html+=`<div class="sl-group" style="grid-column:1/-1">${m.group}</div>`;return;}
+    const v=state[weightsKey][k]||0;
+    const steps=[0,1,2,3,4].map(s=>`<div class="sl-step s${s}${v===s?' on':''}" onclick="slSet('${k}',${s},'${weightsKey}','${gridId}','${presetsId}','${descId}')" title="${STEP_LABELS[s]}">${s===0?'—':s}</div>`).join('');
+    html+=`<div class="sl-row"><span class="sl-name">${m.label}</span><div class="sl-steps">${steps}</div></div>`;
+  });
+  document.getElementById(gridId).innerHTML=html;
+}
+function slSet(k,v,weightsKey,gridId,presetsId,descId){
+  state[weightsKey][k]=v;
+  if(weightsKey==='weights')state.activePreset='';
+  else if(weightsKey==='weightsS')state.activePresetS='';
+  else state.activePreset2='';
+  const presetKey=weightsKey==='weights'?'activePreset':weightsKey==='weightsS'?'activePresetS':'activePreset2';
+  renderSliders(gridId,presetsId,descId,weightsKey,presetKey);
+}
+function applyPreset(name,weightsKey,presetKey,gridId,presetsId,descId){
+  state[presetKey]=name;
+  Object.keys(state[weightsKey]).forEach(k=>{state[weightsKey][k]=PRESETS[name].w[k]||0;});
+  renderSliders(gridId,presetsId,descId,weightsKey,presetKey);
+}
+function renderMinMaxGrid(gridId, minKey, maxKey){
+  let html='';
+  // column headers
+  html+=`<div style="grid-column:1/-1;display:grid;grid-template-columns:115px 1fr 1fr;gap:0 8px;margin-bottom:2px">
+    <span></span>
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);text-align:center">Min</span>
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);text-align:center">Max</span>
+  </div>`;
+  STAT_LABELS_FILTER.forEach(g=>{
+    html+=`<div class="fl-group" style="grid-column:1/-1">${g.group}</div>`;
+    g.stats.forEach(k=>{
+      const lbl=WEIGHT_META[k]?.label||k;
+      const isPct=PCT_STATS.has(k);
+      const ph=isPct?'e.g. 1.8':k==='HP'?'e.g. 5000':'e.g. 500';
+      html+=`<div class="fl-row">
+        <span class="fl-name">${lbl}</span>
+        <div class="fl-minmax">
+          <input class="fl-inp-sm" type="number" min="0" placeholder="${ph}" value="${state[minKey][k]||''}"
+            oninput="state['${minKey}']['${k}']=this.value">
+          <span class="fl-sep">–</span>
+          <input class="fl-inp-sm" type="number" min="0" placeholder="max" value="${state[maxKey][k]||''}"
+            oninput="state['${maxKey}']['${k}']=this.value">
+          ${isPct?'<span class="fl-unit">%</span>':''}
+        </div>
+      </div>`;
+    });
+  });
+  const el=document.getElementById(gridId);if(el)el.innerHTML=html;
+}
+function renderFilterGrid(){renderMinMaxGrid('filter-grid','optFiltersMin','optFiltersMax');}
+function toggleOptFilter(){
+  const body=document.getElementById('opt-filter-body');
+  const caret=document.getElementById('opt-filter-caret');
+  const open=body.classList.toggle('open');
+  caret.classList.toggle('open',open);
+  if(open)renderMinMaxGrid('opt-filter-grid','optFiltersMin','optFiltersMax');
+}
+
+function buildFromTiersNorm(atkTiers,defTiers,poolBudgets,weights){
+  return buildExhaustive(atkTiers,defTiers,poolBudgets,weights);
+}
+
+function applyMinMaxFilters(builds,minMap,maxMap){
+  const minFilters={},maxFilters={};
+  Object.keys(minMap).forEach(k=>{const v=parseFloat(minMap[k]);if(!isNaN(v)&&v>0)minFilters[k]=v;});
+  Object.keys(maxMap).forEach(k=>{const v=parseFloat(maxMap[k]);if(!isNaN(v)&&v>0)maxFilters[k]=v;});
+  if(!Object.keys(minFilters).length&&!Object.keys(maxFilters).length)return builds;
+  return builds.filter(c=>{
+    const tot=getTotals(c);
+    const passMin=Object.keys(minFilters).every(k=>(tot[k]||0)>=minFilters[k]);
+    const passMax=Object.keys(maxFilters).every(k=>(tot[k]||0)<=maxFilters[k]);
+    return passMin&&passMax;
+  });
+}
+function runSmartFilter(){
+  const weights=state.weightsS;
+  const minFilters={},maxFilters={};
+  Object.keys(state.sfFiltersMin).forEach(k=>{const v=parseFloat(state.sfFiltersMin[k]);if(!isNaN(v)&&v>0)minFilters[k]=v;});
+  Object.keys(state.sfFiltersMax).forEach(k=>{const v=parseFloat(state.sfFiltersMax[k]);if(!isNaN(v)&&v>0)maxFilters[k]=v;});
+  const hasWeights=Object.values(weights).some(v=>v>0);
+  const hasFilters=Object.keys(minFilters).length||Object.keys(maxFilters).length;
+  if(!hasWeights&&!hasFilters){setSFStatus('Set stat priority or add a filter.',true);return;}
+  const poolBudgets={};POOLS.forEach(p=>{poolBudgets[p.name]=state.pools[p.name]||0;});
+  if(Object.values(poolBudgets).every(v=>v===0)){setSFStatus('Enter pool inventory first.',true);return;}
+  try{localStorage.setItem('rooc_pools',JSON.stringify(state.pools));}catch(e){}
+  document.getElementById('sf-run-btn').disabled=true;
+  _comboScoreCache.clear();
+  setSFStatus('',false);
+  document.getElementById('sf-prog-bar').style.display='block';
+  document.getElementById('sf-prog-fill').style.width='5%';
+  const sfWrap=document.getElementById('sf-spin-wrap');const sfMsg=document.getElementById('sf-spin-msg');
+  sfWrap.classList.add('on');sfMsg.textContent='Searching...';
+  const t0=Date.now();
+  // Use fallback equal weights if no priority set
+  const selWeights=hasWeights?weights:(()=>{const w={};Object.keys(STAT_SCALE).forEach(k=>{w[k]=minFilters[k]||maxFilters[k]?1:0;});return w;})();
+  setTimeout(()=>{
+    try{
+      const cands=[];
+      function add(aT,dT){const r=buildFromTiersNorm(aT,dT,poolBudgets,selWeights);if(r)cands.push(r);}
+      for(let t=1;t<=20;t++) add([t,t,t,t,t],[t,t,t,t,t]);
+      document.getElementById('sf-prog-fill').style.width='15%';
+      for(let at=1;at<=20;at++) for(let dt=1;dt<=20;dt++) add([at,at,at,at,at],[dt,dt,dt,dt,dt]);
+      document.getElementById('sf-prog-fill').style.width='35%';
+      for(let h=20;h>=2;h--){for(let l=1;l<h;l+=Math.max(1,Math.floor(h/6))){
+        for(let dt=1;dt<=20;dt+=2){add([h,l,l,l,l],[dt,dt,dt,dt,dt]);add([h,h,l,l,l],[dt,dt,dt,dt,dt]);add([h,h,h,l,l],[dt,dt,dt,dt,dt]);}
+        for(let at=1;at<=20;at+=2){add([at,at,at,at,at],[h,l,l,l,l]);add([at,at,at,at,at],[h,h,l,l,l]);add([at,at,at,at,at],[h,h,h,l,l]);}
+        add([h,l,l,l,l],[h,l,l,l,l]);add([h,h,l,l,l],[h,h,l,l,l]);
+      }}
+      document.getElementById('sf-prog-fill').style.width='60%';
+      for(let top=20;top>=2;top--){
+        const step=Math.max(1,Math.floor(top/5));
+        const st=[top,Math.max(1,top-step),Math.max(1,top-2*step),Math.max(1,top-3*step),Math.max(1,top-4*step)];
+        add(st,st);for(let dt=1;dt<=20;dt+=2) add(st,[dt,dt,dt,dt,dt]);for(let at=1;at<=20;at+=2) add([at,at,at,at,at],st);
+        add(st,[...st].reverse());add([...st].reverse(),st);
+      }
+      add([1,1,1,1,1],[1,1,1,1,1]);
+      document.getElementById('sf-prog-fill').style.width='80%';
+      const seen=new Set();
+      const deduped=cands.filter(c=>{const fp=c.atkTiers.join(',')+'/'+c.defTiers.join(',');if(seen.has(fp))return false;seen.add(fp);return true;});
+      const passing=applyMinMaxFilters(deduped,state.sfFiltersMin,state.sfFiltersMax).sort((a,b)=>b.score-a.score);
+      const maxRes=Math.max(1,parseInt(document.getElementById('sf-results-count').value)||20);
+      if(!passing.length&&(Object.keys(minFilters).length||Object.keys(maxFilters).length)){
+        // show which filters failed
+        const failInfo=[];
+        Object.keys(minFilters).forEach(k=>{const best=Math.max(...deduped.map(c=>getTotals(c)[k]||0));if(best<minFilters[k])failInfo.push({k,type:'min',need:minFilters[k],best});});
+        Object.keys(maxFilters).forEach(k=>{const worst=Math.min(...deduped.map(c=>getTotals(c)[k]||0));if(worst>maxFilters[k])failInfo.push({k,type:'max',need:maxFilters[k],worst});});
+        document.getElementById('sf-results-area').innerHTML=`<div class="empty-state"><div class="empty-icon">🔍</div><h3>No builds match all filters</h3>${failInfo.length?'<div style="margin-top:8px">'+failInfo.map(f=>f.type==='min'?`<div style="font-size:11px;color:var(--red2);padding:2px 0"><strong>${f.k}</strong>: need ≥ ${fmtV(f.need,f.k)}, best available ${fmtV(f.best,f.k)}</div>`:`<div style="font-size:11px;color:var(--red2);padding:2px 0"><strong>${f.k}</strong>: need ≤ ${fmtV(f.need,f.k)}, lowest available ${fmtV(f.worst,f.k)}</div>`).join('')+'</div>':'<p>Try relaxing your filters.</p>'}</div>`;
+        setSFStatus('No builds match filters.',true);
+      } else {
+        const topN=passing.slice(0,maxRes);
+        state.sfResults=topN;state.expandedS.clear();
+        renderResults('sf-results-area',state.sfResults,state.expandedS,'s');
+        const elapsed=((Date.now()-t0)/1000).toFixed(1);
+        setSFStatus(`Found ${passing.length} builds${passing.length>maxRes?' (showing '+maxRes+')':''} in ${elapsed}s`,false);
+      }
+      document.getElementById('sf-prog-fill').style.width='100%';
+    }catch(e){setSFStatus('Error: '+e.message,true);console.error(e);}
+    document.getElementById('sf-run-btn').disabled=false;
+    sfWrap.classList.remove('on');
+    setTimeout(()=>{document.getElementById('sf-prog-bar').style.display='none';},600);
+  },30);
+}
+function setSFStatus(t,warn){const el=document.getElementById('sf-status-txt');el.textContent=t;el.style.color=warn?'#f59e0b':'var(--text3)';}
+function runFilterOptimizer(){runSmartFilter();}
+
+// ── Upgrade Path advisor — "from My Build, what to level next to hit target stats" ──
+// ponytail: greedy gain/cost (same shape as buildExhaustive Phase 2). Heuristic, not guaranteed
+// globally optimal; swap to DP/knapsack only if an exact path is ever required. Lv1-20 (optimizer cap).
+function setUpStatus(t,warn){const el=document.getElementById('up-status');if(el){el.textContent=t;el.style.color=warn?'#f59e0b':'var(--text3)';}}
+function poolUsedBy(statues){const u={};POOLS.forEach(p=>u[p.name]=0);statues.forEach(st=>st.slots.forEach(s=>{if(!s.f)return;const f=FEATHERS.find(x=>x.name===s.f);if(f)u[f.pool]+=costAt(s.f,s.lv);}));return u;}
+function runUpgradePath(){
+  const out=document.getElementById('up-results');
+  if(!state.myBuild||!state.myBuild.statues){setUpStatus('ยังไม่มี My Build — ตั้งใน Get Started ก่อน',true);if(out)out.innerHTML='';return;}
+  const target={};Object.keys(state.upFiltersMin).forEach(k=>{const v=parseFloat(state.upFiltersMin[k]);if(!isNaN(v)&&v>0)target[k]=v;});
+  const hasTarget=Object.keys(target).length>0;
+  const hasWeights=Object.values(state.weights).some(v=>v>0);
+  if(!hasTarget&&!hasWeights){setUpStatus('กรอกสเตตัสขั้นต่ำที่อยากได้ (ช่อง Min) หรือใส่ Stat Priority',true);if(out)out.innerHTML='';return;}
+  setUpStatus('',false);
+  const statues=state.myBuild.statues.map(st=>({type:st.type,slots:st.slots.map(s=>({f:s.f,lv:s.lv}))}));
+  const used=poolUsedBy(statues);
+  const budget={};POOLS.forEach(p=>budget[p.name]=Math.max(0,(state.pools[p.name]||0)-used[p.name]));
+  const T=s=>{const t=getTotals({statues:s});t.ATK=(t.PATK||0)+(t.MATK||0);return t;}; // ponytail: getTotals omits derived ATK — add it so ATK targets/weights/display work
+  const startTotals=T(statues);
+  // gap: with target -> sum of normalized shortfall (0 = met); without -> negative weighted score (so progress = score gain)
+  const gap=tot=>hasTarget?Object.keys(target).reduce((s,k)=>s+Math.max(0,target[k]-(tot[k]||0))*(STAT_SCALE[k]||1),0):-scoreFromStatsNorm(tot,state.weights);
+  let curTotals={...startTotals};const rawSteps=[];let guard=0;
+  while(guard++<400){
+    let best=null,bestVal=0,bestTot=null;const curGap=gap(curTotals);
+    for(let si=0;si<statues.length;si++)for(let sl=0;sl<statues[si].slots.length;sl++){
+      const s=statues[si].slots[sl];if(!s.f||s.lv>=20)continue;
+      const f=FEATHERS.find(x=>x.name===s.f);if(!f)continue;
+      const cost=costAt(s.f,s.lv+1)-costAt(s.f,s.lv);if(cost<=0||budget[f.pool]<cost)continue;
+      s.lv++;const nt=T(statues);s.lv--;
+      const prog=curGap-gap(nt);if(prog<=1e-12)continue;     // only steps that move us toward the goal
+      const val=prog/cost;if(val>bestVal){bestVal=val;best={si,sl,f,cost};bestTot=nt;}
+    }
+    if(!best)break;
+    const s=statues[best.si].slots[best.sl];
+    rawSteps.push({si:best.si,type:statues[best.si].type,feather:best.f.name,pool:best.f.pool,fromLv:s.lv,cost:best.cost});
+    s.lv++;budget[best.f.pool]-=best.cost;curTotals=bestTot;
+    if(hasTarget&&gap(curTotals)<=1e-9)break;               // all targets met
+  }
+  // merge consecutive levels of the same slot+feather into one row (keep greedy first-pick order)
+  const agg={},order=[];
+  rawSteps.forEach(st=>{const key=st.si+'/'+st.feather;if(!agg[key]){agg[key]={type:st.type,statueNum:(st.si%5)+1,feather:st.feather,pool:st.pool,fromLv:st.fromLv,toLv:st.fromLv+1,cost:st.cost};order.push(key);}else{agg[key].toLv=st.fromLv+1;agg[key].cost+=st.cost;}});
+  const totalCost=rawSteps.reduce((a,b)=>a+b.cost,0);
+  const reached=hasTarget?Object.keys(target).every(k=>(curTotals[k]||0)>=target[k]):null;
+  state.upResult={rows:order.map(k=>agg[k]),startTotals,endTotals:curTotals,target,hasTarget,totalCost,reached,levels:rawSteps.length};
+  renderUpgradePath();
+}
+function renderUpgradePath(){
+  const el=document.getElementById('up-results');if(!el)return;const r=state.upResult;if(!r){el.innerHTML='';return;}
+  if(!r.rows.length){el.innerHTML='<div class="up-empty">ไม่มี step ที่อัพได้ — เช็คว่ายังมี copy เหลือใน Pool Inventory และ feather ยังไม่ Lv20 (หรือถึงเป้าอยู่แล้ว)</div>';return;}
+  const poolTag={'25SF Purple':'25P','90SF Purple':'90P','Light/Dark':'L/D','Time/Space':'T/S','Day/Night':'D/N','Sky/Terra':'S/T'};
+  const stepRows=r.rows.map((s,i)=>`<div class="up-step"><span class="up-step-n">${i+1}</span><span class="up-step-f">${s.feather}</span><span class="up-step-loc">${s.type} ${s.statueNum}</span><span class="up-step-lv">Lv${s.fromLv}→${s.toLv}</span><span class="up-step-cost">−${s.cost}<small> ${poolTag[s.pool]||s.pool}</small></span></div>`).join('');
+  const showKeys=r.hasTarget?Object.keys(r.target):['ATK','HP','PvEDMG','PvPDMG','PDEF','MDEF'].filter(k=>r.endTotals[k]);
+  const cmp=showKeys.map(k=>{const a=r.startTotals[k]||0,b=r.endTotals[k]||0,tg=r.target[k];const ok=tg?b>=tg:true;return `<div class="up-cmp${tg&&!ok?' up-short':''}"><b>${WEIGHT_META[k]?.label||k}</b> ${fmtV(a,k)}→${fmtV(b,k)}${tg?` <small>/ ${fmtV(tg,k)} ${ok?'✓':'✗'}</small>`:''}</div>`;}).join('');
+  let head;
+  if(r.hasTarget) head=r.reached?`<div class="up-head up-ok">✓ ถึงเป้าแล้ว — ใช้ ${r.totalCost} copy (${r.levels} เลเวล)</div>`:`<div class="up-head up-warn">⚠ อัพ/งบหมดแล้วยังไม่ถึงเป้า (ใช้ ${r.totalCost} copy) — ดูช่อง ✗ · ลองกด Run Optimizer หา layout ใหม่</div>`;
+  else head=`<div class="up-head">ลำดับอัพที่คุ้มสุดตาม Stat Priority — ${r.totalCost} copy (${r.levels} เลเวล)</div>`;
+  el.innerHTML=`${head}<div class="up-cmp-row">${cmp}</div><div class="up-steps">${stepRows}</div>`;
+}
+function renderFilterResults(){
+  const area=document.getElementById('filter-results-area');
+  if(!state.filterResults.length){area.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><h3>No filters set</h3><p>Set minimum stat values, enter pool inventory, then click Find Builds.</p></div>';return;}
+  const filters={};Object.keys(state.filters).forEach(k=>{const v=parseFloat(state.filters[k]);if(!isNaN(v)&&v>0)filters[k]=v;});
+  const labels=['ATK 1','ATK 2','ATK 3','ATK 4','ATK 5','DEF 1','DEF 2','DEF 3','DEF 4','DEF 5'];
+  let html='';
+  state.filterResults.forEach((build,i)=>{
+    const exp=state.expandedF.has(i);
+    const tot=build.filterTotals||getTotals(build);
+    const effPct=Math.round(build.efficiency*1000)/10;
+    const chips=Object.keys(filters).map(k=>{const v=tot[k]||0;const pass=v>=filters[k];return`<span class="b-chip b-chip-${STAT_META[k]?.cat||'atk'}" style="border-color:${pass?'var(--green2)':'var(--red2)'}">${WEIGHT_META[k]?.label||k} ${fmtV(v,k)}${pass?' ✓':' ✗'}</span>`;}).join('');
+    html+=`<div class="build-card" id="fbc-${i}"><div class="build-hdr"><span class="b-rank">#${i+1}</span><div class="b-score-block"><span class="b-score">${effPct}</span><span class="b-score-lbl">effcy</span></div><div class="b-chips"><span class="b-chip b-chip-atk" style="font-weight:700">ATK T${build.statues.slice(0,5).map(st=>Math.min(...st.slots.map(s=>s.lv))).join('-')}</span><span class="b-chip b-chip-def" style="font-weight:700">DEF T${build.statues.slice(5,10).map(st=>Math.min(...st.slots.map(s=>s.lv))).join('-')}</span>${chips}</div><button class="b-toggle" onclick="toggleFilterBuild(${i})">${exp?'▲':'▼'}</button></div><div class="build-detail ${exp?'on':''}">`;
+    if(exp){
+      html+=`<div class="tier-dist">`;build.statues.slice(0,5).forEach((st,j)=>{const at=Math.min(...st.slots.map(s=>s.lv));html+=`<span class="td-pill td-atk">ATK${j+1} T${at}</span>`;});build.statues.slice(5,10).forEach((st,j)=>{const dt=Math.min(...st.slots.map(s=>s.lv));html+=`<span class="td-pill td-def">DEF${j+1} T${dt}</span>`;});html+=`</div>`;
+      build.statues.forEach((st,si)=>{
+        const comp=checkSet(st.slots);const actualTier=Math.min(...st.slots.map(s=>s.lv));
+        html+=`<div class="st-row"><span class="st-lbl">${labels[si]} <span class="tier-b">T${actualTier}</span><span class="set-b ${comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid'}">${comp.name}</span></span>`;
+        st.slots.forEach(sl=>{const f=FEATHERS.find(x=>x.name===sl.f);const above=sl.lv>(sl.floor||st.tier);html+=`<span class="f-chip ${f?.r==='Yellow'?'f-yellow':'f-purple'}${above?' above':''}">${sl.f} <span style="opacity:.7">Lv${sl.lv}${above?'↑':''}</span></span>`;});html+=`</div>`;
+      });
+      html+=`<div class="divider"></div><div class="stat-sum">`;
+      Object.keys(filters).forEach(k=>{const v=tot[k]||0;const pass=v>=filters[k];html+=`<div class="ss-row"><span class="ss-n" style="color:${pass?'var(--green3)':'var(--red3)'}">${WEIGHT_META[k]?.label||k}</span><span class="ss-v">${fmtV(v,k)} <span style="font-size:9px;color:var(--text3)">/ ${filters[k]}</span></span></div>`;});
+      html+=`</div>`;
+    }
+    html+=`</div></div>`;
+  });
+  area.innerHTML=html;
+}
+function toggleFilterBuild(i){if(state.expandedF.has(i))state.expandedF.delete(i);else state.expandedF.add(i);renderFilterResults();}
+// Table state
+const tblState={sortCol:'score',sortDir:-1,groups:{atk:true,def:true,pve:false,pvp:false,primary:false}};
+const COL_GROUPS={
+  atk:{label:'ATK',cols:['PATK','MATK','IgnorePDEF','IgnoreMDEF','PDMG','MDMG'],cls:'col-grp-atk'},
+  def:{label:'DEF',cols:['PDEF','MDEF','HP','PDMGRed','MDMGRed'],cls:'col-grp-def'},
+  pve:{label:'PvE',cols:['PvEDMG','PvEDMGRed'],cls:'col-grp-pve'},
+  pvp:{label:'PvP',cols:['PvPDMG','PvPDMGRed'],cls:'col-grp-pvp'},
+  primary:{label:'Primary',cols:['STR','INT','DEX','VIT'],cls:'col-grp-primary'},
+};
+const COL_LABELS={PATK:'PATK',MATK:'MATK',IgnorePDEF:'Ign.PDEF',IgnoreMDEF:'Ign.MDEF',PDMG:'PDMG',MDMG:'MDMG',PDEF:'PDEF',MDEF:'MDEF',HP:'HP',PDMGRed:'PDMGRed',MDMGRed:'MDMGRed',PvEDMG:'PvEDMG',PvEDMGRed:'PvEDMGRed',PvPDMG:'PvPDMG',PvPDMGRed:'PvPDMGRed',STR:'STR',INT:'INT',DEX:'DEX',VIT:'VIT'};
+function getVisibleCols(){const c=[];Object.entries(COL_GROUPS).forEach(([g,m])=>{if(tblState.groups[g])m.cols.forEach(k=>c.push({k,g,cls:m.cls}));});return c;}
+function getSetBonusStats(setCode,type,tier){
+  // Returns object of set bonus stats at this tier
+  const b = setCode==='RH'&&type==='ATK'?RH_ATK[tier]:
+            setCode==='RH'&&type==='DEF'?RH_DEF[tier]:
+            setCode==='RP'&&type==='ATK'?RP_ATK[tier]:
+            setCode==='RP'&&type==='DEF'?RP_DEF[tier]:
+            setCode==='RD'&&type==='ATK'?RD_ATK[tier]:
+            setCode==='RD'&&type==='DEF'?RD_DEF[tier]:
+            setCode==='RE'&&type==='ATK'?RE_ATK[tier]:
+            setCode==='RE'&&type==='DEF'?RE_DEF[tier]:null;
+  if(!b) return [];
+  const rows=[];
+  // Flat bonuses
+  if(b.patkFlat)  rows.push({label:'PATK',val:'+'+b.patkFlat});
+  if(b.matkFlat)  rows.push({label:'MATK',val:'+'+b.matkFlat});
+  if(b.hpFlat)    rows.push({label:'Max HP',val:'+'+b.hpFlat});
+  if(b.pvpDmgBonus) rows.push({label:'PvP DMG Bonus',val:'+'+b.pvpDmgBonus});
+  if(b.pvpDmgRed)   rows.push({label:'PvP DMG Red.',val:'+'+b.pvpDmgRed});
+  // Multipliers — only show relevant ones per statue type
+  if(b.atkMult && type==='ATK') rows.push({label:'Attack Stats',val:'+'+(b.atkMult*100).toFixed(0)+'%'});
+  if(b.pveMult)                 rows.push({label:'PvE Stats',   val:'+'+(b.pveMult*100).toFixed(0)+'%'});
+  if(b.pvpMult)                 rows.push({label:'PvP Stats',   val:'+'+(b.pvpMult*100).toFixed(0)+'%'});
+  if(b.defMult && type==='DEF') rows.push({label:'Defense Stats',val:'+'+(b.defMult*100).toFixed(0)+'%'});
+  return rows;
+}
+function applySetBonusNoFlats(raw,type,tier,setName){
+  // Same as applySetBonus but WITHOUT flat additions (patkFlat, matkFlat, hpFlat, pvpDmgBonus, pvpDmgRed)
+  // Matches what the game shows in "Feather Bonuses Overview" — multipliers only
+  const s={...raw};
+  const isRD=setName==='RD', isRP=setName==='RP';
+  if(type==='DEF'){
+    const isRE=setName==='RE';
+    const b=isRE?RE_DEF[tier]:isRD?RD_DEF[tier]:isRP?RP_DEF[tier]:RH_DEF[tier];
+    if(!b)return s;
+    // Apply multipliers only — no hpFlat, no pvpDmgBonus/pvpDmgRed
+    if(setName==='RH'){
+      s.PDEF=Math.floor(s.PDEF*(1+b.defMult));
+      s.MDEF=Math.floor(s.MDEF*(1+b.defMult));
+      s.HP=Math.floor(s.HP*(1+b.defMult));
+      s.PDMGRed=s.PDMGRed*(1+b.defMult);
+      s.MDMGRed=s.MDMGRed*(1+b.defMult);
+      s.PvEDMGRed=Math.floor(s.PvEDMGRed*(1+b.pveMult));
+      s.PvPDMGRed=Math.floor(s.PvPDMGRed*(1+b.pvpMult));
+    } else if(setName==='RP'){
+      // RP DEF no-flats: defMult on PDEF/HP/PDMGRed/MDMGRed, pveMult on PvEDMGRed
+      s.PvEDMGRed=Math.floor(s.PvEDMGRed*(1+b.pveMult));
+      s.PDEF=Math.floor(s.PDEF*(1+b.defMult));
+      s.MDEF=Math.floor(s.MDEF*(1+b.defMult));
+      s.HP=Math.floor(s.HP*(1+b.defMult));
+      s.PDMGRed=s.PDMGRed*(1+b.defMult);
+      s.MDMGRed=s.MDMGRed*(1+b.defMult);
+    } else if(setName==='RE'){
+      // RE DEF no-flats: defMult on PDEF/MDEF/HP/PDMGRed/MDMGRed
+      s.PDEF=Math.floor(s.PDEF*(1+b.defMult));
+      s.MDEF=Math.floor(s.MDEF*(1+b.defMult));
+      s.HP=Math.floor(s.HP*(1+b.defMult));
+      s.PDMGRed=s.PDMGRed*(1+b.defMult);
+      s.MDMGRed=s.MDMGRed*(1+b.defMult);
+    } else {
+      // RD DEF no-flats: defMult on PDEF/MDEF/HP/PDMGRed/MDMGRed, pveMult on PvEDMGRed
+      s.PDEF=Math.floor(s.PDEF*(1+b.defMult));
+      s.MDEF=Math.floor(s.MDEF*(1+b.defMult));
+      s.HP=Math.floor(s.HP*(1+b.defMult));
+      s.PDMGRed=s.PDMGRed*(1+b.defMult);
+      s.MDMGRed=s.MDMGRed*(1+b.defMult);
+      s.PvEDMGRed=Math.floor(s.PvEDMGRed*(1+b.pveMult));
+    }
+  } else {
+    const isRE2=setName==='RE';
+    const b=isRE2?RE_ATK[tier]:isRD?RD_ATK[tier]:isRP?RP_ATK[tier]:RH_ATK[tier];
+    if(!b)return s;
+    if(setName==='RH'){
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PvEDMG=Math.floor(s.PvEDMG*(1+b.pveMult));
+      s.PvPDMG=Math.floor(s.PvPDMG*(1+b.pvpMult));
+      s.PvPDMGRed=Math.floor(s.PvPDMGRed*(1+b.pvpMult));
+    } else if(setName==='RP'){
+      // RP ATK no-flats: atkMult on ATK stats only (no defMult)
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PvEDMG=Math.floor(s.PvEDMG*(1+b.pveMult));
+    } else if(setName==='RE'){
+      // RE ATK no-flats: atkMult on ATK stats only
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+    } else {
+      // RD ATK: atkMult + pveMult only, no flat
+      s.PATK=Math.floor(s.PATK*(1+b.atkMult));
+      s.MATK=Math.floor(s.MATK*(1+b.atkMult));
+      s.IgnorePDEF=Math.floor(s.IgnorePDEF*(1+b.atkMult));
+      s.IgnoreMDEF=Math.floor(s.IgnoreMDEF*(1+b.atkMult));
+      s.PDMG=s.PDMG*(1+b.atkMult);
+      s.MDMG=s.MDMG*(1+b.atkMult);
+      s.PvEDMG=Math.floor(s.PvEDMG*(1+b.pveMult));
+    }
+  }
+  s.ATK=(s.PATK||0)+(s.MATK||0);
+  return s;
+}
+
+function getStatueStats(slots,type){
+  // Returns {raw, withBonus, withBonusNoFlats, comp, tier} for a statue
+  const comp=checkSet(slots);
+  const filledLvs=slots.filter(s=>s.f).map(s=>s.lv);
+  const tier=filledLvs.length?Math.min(...filledLvs):1;
+  const raw=slots.reduce((o,sl)=>{
+    if(!sl.f)return o;
+    const s=statObj(sl.f,sl.lv);
+    Object.keys(s).forEach(k=>{o[k]=(o[k]||0)+s[k];});
+    return o;
+  },{});
+  const withBonus=comp.valid?applySetBonus({...raw},type,tier,comp.set):{...raw};
+  const withBonusNoFlats=comp.valid?applySetBonusNoFlats({...raw},type,tier,comp.set):{...raw};
+  return{raw,withBonus,withBonusNoFlats,comp,tier};
+}
+const STAT_DISPLAY=[
+  // Show PATK only (labeled PATK/MATK) since they're always equal — skip MATK and ATK(sum)
+  {k:'PATK',label:'PATK/MATK'},
+  {k:'IgnorePDEF',label:'Ignore PDEF'},{k:'IgnoreMDEF',label:'Ignore MDEF'},
+  {k:'PvEDMG',label:'PvE DMG Bonus'},{k:'PvPDMG',label:'PvP DMG Bonus'},
+  {k:'PDMG',label:'PDMG%',pct:true},{k:'MDMG',label:'MDMG%',pct:true},
+  {k:'PDEF',label:'PDEF'},{k:'MDEF',label:'MDEF'},{k:'HP',label:'Max HP'},{k:'VIT',label:'VIT'},
+  {k:'PvEDMGRed',label:'PvE DMG Red.'},{k:'PvPDMGRed',label:'PvP DMG Red.'},
+  {k:'PDMGRed',label:'PDMG Red.%',pct:true},{k:'MDMGRed',label:'MDMG Red.%',pct:true},
+];
+function renderStatueBonusRows(stats){
+  const rows=STAT_DISPLAY.filter(d=>{
+    const v=stats[d.k]||0;
+    return d.pct?(Math.abs(v)>0.0001):(Math.abs(v)>0.001);
+  }).map(d=>{
+    const v=stats[d.k]||0;
+    const disp=d.pct?(v*100).toFixed(2)+'%':Math.round(v).toLocaleString();
+    return `<div class="bonus-row"><span class="bonus-n">${d.label}</span><span class="bonus-v">+${disp}</span></div>`;
+  }).join('');
+  return `<div class="bonus-rows-grid">${rows}</div>`;
+}
+function renderResults(areaId,results,expandedSet,sfx){
+  const area=document.getElementById(areaId);
+  if(!results.length){area.innerHTML=`<div class="empty-state"><div class="empty-icon">⚗</div><h3>No builds yet</h3><p>Enter pool inventory, set stat priority, then click Run Optimizer.</p></div>`;return;}
+  const visCols=getVisibleCols();
+  // toolbar
+  let toolbar=`<div class="res-toolbar"><span class="res-toolbar-lbl">Columns:</span>`;
+  Object.entries(COL_GROUPS).forEach(([g,m])=>{
+    const tip=g==='primary'?' title="STR/INT/DEX/VIT shown for reference only — not included in scoring. Actual substats vary by class."':'';
+    toolbar+=`<span class="col-toggle ${tblState.groups[g]?'on':''}"${tip} onclick="toggleColGroup('${g}','${areaId}','${sfx}')">${m.label}</span>`;
+  });
+  toolbar+=`<button class="csv-btn" onclick="exportCSV(${sfx==='2'?'state.results2':sfx==='s'?'state.sfResults':'state.results'})">⬇ CSV</button></div>`;
+  // header
+  let thead=`<tr><th>#</th><th onclick="sortTable('score','${areaId}','${sfx}')">Score${tblState.sortCol==='score'?(tblState.sortDir<0?' ↓':' ↑'):''}</th><th>Tiers</th>`;
+  visCols.forEach(({k,cls})=>{thead+=`<th class="${cls}" onclick="sortTable('${k}','${areaId}','${sfx}')">${COL_LABELS[k]}${tblState.sortCol===k?(tblState.sortDir<0?' ↓':' ↑'):''}</th>`;});
+  thead+=`</tr>`;
+  // sort results
+  const sorted=[...results].sort((a,b)=>{
+    const ta=getTotals(a),tb=getTotals(b);
+    const va=tblState.sortCol==='score'?a.score:(ta[tblState.sortCol]||0);
+    const vb=tblState.sortCol==='score'?b.score:(tb[tblState.sortCol]||0);
+    return (vb-va)*tblState.sortDir*-1;
+  });
+  // rows
+  let tbody='';
+  sorted.forEach((build,si)=>{
+    const i=results.indexOf(build);
+    const exp=expandedSet.has(si);
+    const tot=getTotals(build);
+    const atkT=build.statues.slice(0,5).map(st=>Math.min(...st.slots.map(s=>s.lv)));
+    const defT=build.statues.slice(5,10).map(st=>Math.min(...st.slots.map(s=>s.lv)));
+    const tiersHtml=`<div class="tiers-cell"><span class="td-pill td-atk">ATK ${atkT.join('-')}</span><span class="td-pill td-def">DEF ${defT.join('-')}</span></div>`;
+    const hasMB=state.myBuild&&state.myBuild.statues;
+    let tr=`<tr class="data-row${exp?' expanded':''}" onclick="toggleBuildTbl(${si},'${areaId}','${sfx}')"><td>${si+1}</td><td>${Math.round(build.score).toLocaleString()}${hasMB?renderScoreDelta(build):''}  </td><td>${tiersHtml}</td>`;
+    const myTot=hasMB?getMyBuildTotals():null;
+    visCols.forEach(({k})=>{
+      const v=tot[k]||0;
+      const show=PCT_STATS.has(k)?v!==0:v>0.001;
+      let delta='';
+      if(myTot){
+        const mv=myTot[k]||0;
+        const diff=v-mv;
+        const thresh=PCT_STATS.has(k)?0.00001:0.5;
+        if(Math.abs(diff)>thresh){
+          const diffFmt=fmtV(Math.abs(diff),k);
+          delta=diff>0?`<span class="delta-pos"> ▲${diffFmt}</span>`:`<span class="delta-neg"> ▼${diffFmt}</span>`;
+        }
+      }
+      tr+=`<td>${show?fmtV(v,k):'—'}${delta}</td>`;
+    });
+    tr+=`</tr>`;
+    // detail row
+    tr+=`<tr class="detail-row${exp?' on':''}" data-si="${si}"><td colspan="${3+visCols.length}" style="padding:0">`;
+    if(exp){
+      const statueLabels=['ATK 1','ATK 2','ATK 3','ATK 4','ATK 5','DEF 1','DEF 2','DEF 3','DEF 4','DEF 5'];
+      // compute copies used per pool for this build
+      const poolUsed={};POOLS.forEach(p=>{poolUsed[p.name]=0;});
+      build.statues.forEach(st=>st.slots.forEach(sl=>{
+        if(!sl.f)return;
+        const f=FEATHERS.find(x=>x.name===sl.f);
+        if(f)poolUsed[f.pool]=(poolUsed[f.pool]||0)+costAt(sl.f,sl.lv);
+      }));
+      // which feathers used/unused per pool
+      const usedFeathers=new Set(build.statues.flatMap(st=>st.slots.map(s=>s.f)));
+      let detail=`<div class="detail-panel"><div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <button onclick="saveResultAsCurrentBuild(${i},'${sfx}');event.stopPropagation()" class="save-as-current-btn" title="Sync this build to Get Started tab — updates My Build feathers, pool inventory, and stat comparison">⚡ Set as Active Build</button>
+      </div>`;
+      // ATK statues row + DEF statues row
+      const renderStatueCard=(st,si)=>{
+        const {withBonusNoFlats,comp,tier}=getStatueStats(st.slots,st.type);
+        const setBonusRows=getSetBonusStats(comp.set,st.type,tier);
+        const badgeCls=comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid';
+        const chips=st.slots.filter(s=>s.f).map(sl=>{
+          const f=FEATHERS.find(x=>x.name===sl.f);
+          const above=sl.lv>(sl.floor||st.tier);
+          return `<span class="f-chip ${f?.r==='Yellow'?'f-yellow':'f-purple'}">${sl.f} <span style="opacity:.7">Lv${sl.lv}${above?'↑':''}</span></span>`;
+        }).join('');
+        const setStatHtml=setBonusRows.length?setBonusRows.map(r=>`<div class="bonus-row"><span class="bonus-n">${r.label}</span><span class="bonus-v pos">${r.val}</span></div>`).join(''):'<span style="font-size:10px;color:var(--text3)">—</span>';
+        return `<div class="statue-detail" style="flex:1;min-width:0">
+          <div class="statue-detail-hdr">
+            <span style="font-size:11px;font-weight:700;color:var(--text2)">${statueLabels[si]}</span>
+            <span class="tier-b">T${tier}</span>
+            <span class="set-b ${badgeCls}" style="font-size:9px">${comp.name}</span>
+          </div>
+          <div class="statue-detail-slots" style="margin-bottom:8px">${chips}</div>
+          <div class="bonus-col-hdr set" style="margin-bottom:4px">Set Stat — T${tier}</div>
+          <div class="bonus-rows-grid" style="margin-bottom:8px">${setStatHtml}</div>
+          <div class="bonus-col-hdr total" style="margin-bottom:4px">Feather Bonuses</div>
+          ${renderStatueBonusRows(withBonusNoFlats)}
+        </div>`;
+      };
+      // ATK row
+      detail+=`<div style="margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#e8705e;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">⚔ ATK Statues</div>
+        <div style="display:flex;gap:8px">${build.statues.slice(0,5).map((st,si)=>renderStatueCard(st,si)).join('')}</div>
+      </div>`;
+      // DEF row
+      detail+=`<div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#4fa06a;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">🛡 DEF Statues</div>
+        <div style="display:flex;gap:8px">${build.statues.slice(5,10).map((st,si)=>renderStatueCard(st,si+5)).join('')}</div>
+      </div>`;
+      // pool utilization section
+      detail+=`<div class="pool-util-section">`;
+      POOLS.forEach(p=>{
+        const budget=state.pools[p.name]||0;
+        const used=poolUsed[p.name]||0;
+        const pct=budget>0?Math.min(100,Math.round(used/budget*100)):0;
+        const cls=pct>=100?'over':pct>=80?'warn':'ok';
+        const usedNames=p.members.filter(f=>usedFeathers.has(f));
+        const unusedNames=p.members.filter(f=>!usedFeathers.has(f));
+        detail+=`<div class="pool-util-row">
+          <div class="pool-util-hdr">
+            <span class="pool-util-name">${p.name}</span>
+            <span class="pool-util-nums ${cls}">${used} / ${budget} copies</span>
+          </div>
+          <div class="pool-bar-track"><div class="pool-bar-fill ${cls}" style="width:${pct}%"></div></div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">`;
+        usedNames.forEach(n=>{const f=FEATHERS.find(x=>x.name===n);detail+=`<span class="f-chip ${f?.r==='Yellow'?'f-yellow':'f-purple'}" style="font-size:9px;padding:1px 5px">${n}</span>`;});
+        unusedNames.forEach(n=>{const f=FEATHERS.find(x=>x.name===n);detail+=`<span class="f-chip ${f?.r==='Yellow'?'f-yellow':'f-purple'} f-unused" style="font-size:9px;padding:1px 5px">${n}</span>`;});
+        detail+=`</div></div>`;
+      });
+      detail+=`</div>`;
+      // stat summary
+      detail+=`<div class="detail-stats">`;
+      Object.entries(COL_LABELS).forEach(([k,lbl])=>{const v=tot[k];if(!PCT_STATS.has(k)&&(!v||Math.round(Math.abs(v)*10000)===0))return;if(PCT_STATS.has(k)&&!v)return;detail+=`<div class="ds-row"><span class="ds-n">${lbl}</span><span class="ds-v">${fmtV(v,k)}</span></div>`;});
+      detail+=`</div></div>`;
+      tr+=detail;
+    }
+    tr+=`</td></tr>`;
+    tbody+=tr;
+  });
+  area.innerHTML=toolbar+`<div class="res-table-wrap"><table class="res-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`;
+}
+function toggleBuildTbl(i,areaId,sfx){
+  const expandedSet=sfx==='2'?state.expanded2:sfx==='s'?state.expandedS:state.expanded;
+  const results=sfx==='2'?state.results2:sfx==='s'?state.sfResults:state.results;
+  if(expandedSet.has(i))expandedSet.delete(i);else expandedSet.add(i);
+  renderResults(areaId,results,expandedSet,sfx);
+}
+function toggleBuild(i){toggleBuildTbl(i,'results-area','');}
+function toggleBuild2(i){toggleBuildTbl(i,'results-area2','2');}
+function sortTable(col,areaId,sfx){
+  if(tblState.sortCol===col){tblState.sortDir*=-1;}else{tblState.sortCol=col;tblState.sortDir=-1;}
+  const results=sfx==='2'?state.results2:sfx==='s'?state.sfResults:state.results;
+  const expandedSet=sfx==='2'?state.expanded2:sfx==='s'?state.expandedS:state.expanded;
+  renderResults(areaId,results,expandedSet,sfx);
+}
+function toggleColGroup(g,areaId,sfx){
+  tblState.groups[g]=!tblState.groups[g];
+  const results=sfx==='2'?state.results2:sfx==='s'?state.sfResults:state.results;
+  const expandedSet=sfx==='2'?state.expanded2:sfx==='s'?state.expandedS:state.expanded;
+  renderResults(areaId,results,expandedSet,sfx);
+}
+function exportCSV(results){
+  if(!results||!results.length)return;
+  const cols=Object.keys(COL_LABELS);
+  const header=['Rank','Score','ATK Tiers','DEF Tiers',...cols.map(k=>COL_LABELS[k])];
+  const rows=results.map((b,i)=>{
+    const tot=getTotals(b);
+    const atkT=b.statues.slice(0,5).map(st=>Math.min(...st.slots.map(s=>s.lv))).join('-');
+    const defT=b.statues.slice(5,10).map(st=>Math.min(...st.slots.map(s=>s.lv))).join('-');
+    return[i+1,Math.round(b.score),atkT,defT,...cols.map(k=>fmtV(tot[k]||0,k))];
+  });
+  const csv=[header,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);a.download='feather-builds.csv';a.click();
+}
+function showTab(id){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',['gs','opt','social'][i]===id));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  document.getElementById('pane-'+id).classList.add('on');
+  if(id==='gs'){renderGS();}
+  // ponytail: social tab + renderSocialTab() removed
+}
+function setStatus(t,warn){
+  const el=document.getElementById('status-txt');
+  el.textContent=t;
+  el.style.color=warn?'#f59e0b':'var(--text3)';
+}
+function startTimer(){
+  const t0=Date.now();
+  const wrap=document.getElementById('spin-wrap');
+  const msg=document.getElementById('spin-msg');
+  wrap.classList.add('on');
+  msg.textContent='Strategy 0 / — · 0.0s';
+  return{
+    t0,
+    update(done,total){
+      const s=((Date.now()-t0)/1000).toFixed(1);
+      msg.textContent='Strategy '+done+' / '+total+' · '+s+'s';
+    },
+    stop(text){
+      wrap.classList.remove('on');
+      const el=document.getElementById('status-txt');
+      el.textContent=text;
+      el.style.color='var(--text3)';
+    }
+  };
+}
+function showProg(v){
+  document.getElementById('prog-bar').style.display=v?'block':'none';
+  const adEl=document.getElementById('ad-mid-run');
+  if(adEl) adEl.classList.toggle('on',v);
+}
+function setProg(v){document.getElementById('prog-fill').style.width=v+'%';}
+renderPriorityChips();try{const _inv=localStorage.getItem('rooc_inventory');if(_inv)state.inventory=JSON.parse(_inv);}catch(e){}renderFeatherInventory();gsComputeTotal();
+
+// ── Inventory Calculator ──────────────────────────────────────────────────────
+const INV_LS_KEY='rooc_inv_grid';
+// invGrid[featherName][level] = count
+const invGrid={__pool__:{}};
+FEATHERS.forEach(f=>{invGrid[f.name]={};});
+
+function invLoadLS(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(INV_LS_KEY)||'{}');
+    FEATHERS.forEach(f=>{
+      invGrid[f.name]={};
+      if(saved[f.name]) Object.entries(saved[f.name]).forEach(([lv,cnt])=>{if(cnt>0)invGrid[f.name][lv]=cnt;});
+    });
+    invGrid['__pool__']={};
+    if(saved['__pool__']) Object.entries(saved['__pool__']).forEach(([k,cnt])=>{if(cnt>0)invGrid['__pool__'][k]=cnt;});
+  }catch(e){}
+}
+let _invSyncTimeout = null;
+function invSaveLS(){
+  try{localStorage.setItem(INV_LS_KEY,JSON.stringify(invGrid));}catch(e){}
+  clearTimeout(_invSyncTimeout);
+  _invSyncTimeout = setTimeout(() => syncProfileToServer({ inv_grid: invGrid }), 800);
+}
+
+function openInvCalc(){
+  invLoadLS();
+  renderInvTable();
+  renderInvSummary();
+  document.getElementById('inv-calc-overlay').classList.add('on');
+  document.body.style.overflow='hidden';
+}
+function closeInvCalc(){
+  document.getElementById('inv-calc-overlay').classList.remove('on');
+  document.body.style.overflow='';
+}
+function handleInvCalcOverlay(e){/* outside click disabled */}
+
+function invCellChange(name,lv,val){
+  const n=Math.max(0,parseInt(val)||0);
+  if(n===0) delete invGrid[name][lv]; else invGrid[name][lv]=n;
+  invSaveLS();
+  const inp=document.getElementById(`ic-${name}-${lv}`);
+  if(inp){inp.classList.toggle('has-val',n>0);if(n===0)inp.value='';}
+}
+function invPoolCellChange(poolName,lv,val){
+  const n=Math.max(0,parseInt(val)||0);
+  const key=poolName+'__'+lv;
+  if(n===0) delete invGrid['__pool__'][key]; else invGrid['__pool__'][key]=n;
+  invSaveLS();
+  const safeId=poolName.replace(/\//g,'-');
+  const inp=document.getElementById(`ic-pool-${safeId}-${lv}`);
+  if(inp){inp.classList.toggle('has-val',n>0);if(n===0)inp.value='';}
+  renderInvSummary();
+}
+
+function getPoolSpent(pool){
+  // Use pool-level grid: each cell = count of feathers from this pool at that level
+  // Cost per feather = costAt(first member, lv) — all members in same pool share same cost curve
+  const poolEntries=Object.entries(invGrid['__pool__']||{})
+    .filter(([key])=>key.startsWith(pool.name+'__'));
+  if(!poolEntries.length) return 0;
+  return poolEntries.reduce((tot,[key,cnt])=>{
+    const lv=parseInt(key.split('__')[1]);
+    // Use pool's cost curve via first member
+    return tot+costAt(pool.members[0],lv)*cnt;
+  },0);
+}
+
+function renderInvTable(){
+  let h='<table class="inv-tbl"><thead><tr>';
+  h+=`<th class="th-lv">Lv</th>`;
+  POOLS.forEach(p=>{
+    h+=`<th class="th-pool ${p.r==='Yellow'?'y':'p'}">${p.name}<br><span style="font-size:9px;font-weight:400;color:var(--text3)">${p.members.join(' · ')}</span></th>`;
+  });
+  h+='</tr></thead><tbody>';
+  for(let lv=1;lv<=20;lv++){
+    h+=`<tr><td class="td-lv">${lv}</td>`;
+    POOLS.forEach(p=>{
+      // Single input per pool per level — total feathers of this pool at this level
+      const poolKey=p.name+'__'+lv;
+      const cnt=invGrid['__pool__']?.[poolKey]||0;
+      h+=`<td class="td-cell"><input id="ic-pool-${p.name.replace(/\//g,'-')}-${lv}" class="inv-cell-inp${cnt?' has-val':''}"
+        type="number" min="0" max="99" ${cnt?`value="${cnt}"`:''}
+        oninput="invPoolCellChange('${p.name}',${lv},this.value)"></td>`;
+    });
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+  document.getElementById('inv-calc-body').innerHTML=h;
+}
+
+
+function renderInvSummary(){
+  let h='';
+  POOLS.forEach(p=>{
+    const spent=getPoolSpent(p);
+    const color=spent>0?'var(--gold)':'var(--text3)';
+    h+=`<div style="flex:1;min-width:0;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
+      <div style="font-size:10px;font-weight:700;color:var(--text2);margin-bottom:3px">${p.name}</div>
+      <div style="font-size:9px;color:var(--text3);margin-bottom:4px">copies consumed</div>
+      <div style="font-size:13px;font-weight:700;color:${color}">${spent>0?spent:'—'}</div>
+    </div>`;
+  });
+  const el=document.getElementById('inv-calc-summary');
+  if(el) el.innerHTML=h;
+}
+function applyInvCalc(){
+  POOLS.forEach(p=>{
+    const spent=getPoolSpent(p);
+    if(spent>0) state.pools[p.name]=spent;
+  });
+  try{localStorage.setItem('rooc_pools',JSON.stringify(state.pools));}catch(e){}
+  renderPools();
+  closeInvCalc();
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── My Build ──────────────────────────────────────────────────────────────────
+const MB_LS_KEY='rooc_mybuild';
+// myBuild = {statues:[{type,slots:[{f,lv}×5]}×10]}
+if(!state.myBuild) state.myBuild=null;
+
+const STATUE_TYPES=['ATK','ATK','ATK','ATK','ATK','DEF','DEF','DEF','DEF','DEF'];
+const STATUE_LABELS=['ATK 1','ATK 2','ATK 3','ATK 4','ATK 5','DEF 1','DEF 2','DEF 3','DEF 4','DEF 5'];
+
+// Feather options per statue type (ATK accepts ATK+MIX, DEF accepts DEF+MIX)
+function featherOptionsFor(type){
+  return FEATHERS.filter(f=>f.t===type||f.t==='MIX');
+}
+
+function loadMyBuild(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(MB_LS_KEY));
+    if(saved&&saved.statues){
+      state.myBuild=saved;
+    }
+  }catch(e){}
+}
+
+function loadAndSyncMyBuild(){
+  loadMyBuild();
+  if(state.myBuild) updateMyBuildBanner();
+}
+
+function saveMyBuild(){
+  // Read all selects/inputs from the modal
+  const statues=[];
+  for(let si=0;si<10;si++){
+    const type=STATUE_TYPES[si];
+    const slots=[];
+    for(let sl=0;sl<5;sl++){
+      const sel=document.getElementById(`mb-sel-${si}-${sl}`);
+      const lvinp=document.getElementById(`mb-lv-${si}-${sl}`);
+      const f=sel?sel.value:'';
+      const lv=f?Math.min(20,Math.max(1,parseInt(lvinp?.value)||1)):0;
+      slots.push({f,lv});
+    }
+    statues.push({type,slots});
+  }
+  state.myBuild={statues};
+  try{localStorage.setItem(MB_LS_KEY,JSON.stringify(state.myBuild));}catch(e){}
+  // Re-render results to show updated deltas
+  if(state.results.length) renderResults('results-area',state.results,state.expanded,'');
+  if(state.sfResults&&state.sfResults.length) renderResults('sf-results-area',state.sfResults,state.expandedS,'s');
+  updateMyBuildBanner();
+  // If banner is expanded, keep it expanded after save
+  const body=document.getElementById('mybuild-compare-body');
+  const caret=document.getElementById('mybuild-compare-caret');
+  if(body&&!body.classList.contains('open')){body.classList.add('open');if(caret)caret.classList.add('open');}
+  closeMyBuild();
+}
+
+function clearMyBuild(){
+  state.myBuild=null;
+  try{localStorage.removeItem(MB_LS_KEY);}catch(e){}
+  renderMyBuildModal();
+  updateMyBuildBanner();
+}
+
+function importBuildAsMyBuild(i,sfx){
+  const results=sfx==='s'?state.sfResults:state.results;
+  const build=results[i];
+  if(!build)return;
+  state.myBuild={
+    statues:build.statues.map(st=>({
+      type:st.type,
+      slots:st.slots.map(s=>({f:s.f,lv:s.lv}))
+    }))
+  };
+  try{localStorage.setItem(MB_LS_KEY,JSON.stringify(state.myBuild));}catch(e){}
+  updateMyBuildBanner();
+  // Flash the header button
+  // My Build header button removed — no flash needed
+  // Re-render results to show deltas
+  const expandedSet=sfx==='s'?state.expandedS:state.expanded;
+  renderResults(sfx==='s'?'sf-results-area':'results-area',results,expandedSet,sfx);
+}
+
+function getMyBuildTotals(){
+  if(!state.myBuild)return null;
+  const t={};SK.forEach(k=>{t[k]=0;});
+  state.myBuild.statues.forEach(st=>{
+    const r=calcStatueResult(st.slots,st.type);
+    if(r)SK.forEach(k=>{t[k]+=(r.stats[k]||0);});
+  });
+  return t;
+}
+
+function renderScoreDelta(build){
+  if(!state.myBuild)return'';
+  const myTot=getMyBuildTotals();
+  const buildTot=getTotals(build);
+  // Score delta based on active weights
+  const w=state.weights;
+  const myScore=Object.keys(w).reduce((s,k)=>s+((myTot[k]||0)*(STAT_SCALE[k]||1))*(w[k]||0),0);
+  const buildScore=Object.keys(w).reduce((s,k)=>s+((buildTot[k]||0)*(STAT_SCALE[k]||1))*(w[k]||0),0);
+  const delta=Math.round(buildScore-myScore);
+  if(Math.abs(delta)<1)return'';
+  return delta>0
+    ?`<span class="delta-pos">▲${delta.toLocaleString()}</span>`
+    :`<span class="delta-neg">▼${Math.abs(delta).toLocaleString()}</span>`;
+}
+
+function toggleMyBuildBanner(){
+  const body=document.getElementById('mybuild-compare-body');
+  const caret=document.getElementById('mybuild-compare-caret');
+  if(!body)return;
+  const open=body.classList.toggle('open');
+  if(caret)caret.classList.toggle('open',open);
+  // Re-render per-statue content when opening
+  if(open) updateMyBuildBanner();
+}
+
+function updateMyBuildBanner(){
+  const banner=document.getElementById('mybuild-compare');
+  const statsEl=document.getElementById('mybuild-compare-stats');
+  const summaryEl=document.getElementById('mybuild-summary-row');
+  const tiersEl=document.getElementById('mybuild-compare-tiers');
+  if(!banner)return;
+  if(!state.myBuild){banner.classList.remove('on');return;}
+  banner.classList.add('on');
+
+  // Tiers
+  const atkT=state.myBuild.statues.slice(0,5).map(st=>{const f=st.slots.filter(s=>s.f);return f.length===5?Math.min(...f.map(s=>s.lv)):'?';});
+  const defT=state.myBuild.statues.slice(5,10).map(st=>{const f=st.slots.filter(s=>s.f);return f.length===5?Math.min(...f.map(s=>s.lv)):'?';});
+  if(tiersEl)tiersEl.textContent=`ATK ${atkT.join('-')}  ·  DEF ${defT.join('-')}`;
+
+  // Collapsed summary — key totals in one line
+  const tot=getMyBuildTotals();
+  if(summaryEl){
+    const keys=Object.entries(COL_LABELS).filter(([k])=>{
+      const v=tot[k]||0;
+      return PCT_STATS.has(k)?Math.abs(v)>0.0001:Math.abs(v)>0.001;
+    });
+    summaryEl.innerHTML=keys.map(([k,lbl])=>`<span class="mbs-stat">${lbl}<span>${fmtV(tot[k],k)}</span></span>`).join('');
+  }
+
+  // Expanded — per-statue cards using same detail panel style
+  if(!statsEl)return;
+  const statueLabels=['ATK 1','ATK 2','ATK 3','ATK 4','ATK 5','DEF 1','DEF 2','DEF 3','DEF 4','DEF 5'];
+  let html='';
+  state.myBuild.statues.forEach((st,si)=>{
+    const filled=st.slots.filter(s=>s.f);
+    if(!filled.length)return; // skip fully empty statues
+    const {raw,withBonus,withBonusNoFlats,comp,tier}=getStatueStats(st.slots,st.type);
+    const setBonusRows=comp.valid?getSetBonusStats(comp.set,st.type,tier):[];
+    const badgeCls=comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid';
+    html+=`<div class="statue-detail">`;
+    // Header
+    html+=`<div class="statue-detail-hdr">
+      <span style="font-size:12px;font-weight:700;color:var(--text2)">${statueLabels[si]}</span>
+      ${filled.length===5?`<span class="tier-b">T${tier}</span><span class="set-b ${badgeCls}">${comp.name}</span>`:`<span style="font-size:10px;color:var(--text3)">${filled.length}/5 feathers</span>`}
+    </div>`;
+    // Feather chips
+    html+=`<div class="statue-detail-slots">`;
+    st.slots.forEach(sl=>{
+      if(!sl.f)return;
+      const f=FEATHERS.find(x=>x.name===sl.f);
+      html+=`<span class="f-chip ${f?.r==='Yellow'?'f-yellow':'f-purple'}">${sl.f} <span style="opacity:.7">Lv${sl.lv}</span></span>`;
+    });
+    html+=`</div>`;
+    // Set stat + feather bonuses — only if complete
+    if(filled.length===5){
+      html+=`<div class="statue-bonus-grid">
+        <div class="statue-bonus-col">
+          <div class="bonus-col-hdr set">Set Stat — T${tier}</div>
+          <div class="bonus-rows-grid">${setBonusRows.length?setBonusRows.map(r=>`<div class="bonus-row"><span class="bonus-n">${r.label}</span><span class="bonus-v pos">${r.val}</span></div>`).join(''):'<div class="bonus-row"><span class="bonus-n" style="color:var(--text3)">No active set bonus</span></div>'}</div>
+        </div>
+        <div class="statue-bonus-col">
+          <div class="bonus-col-hdr total">Feather Bonuses Overview</div>
+          ${renderStatueBonusRows(withBonusNoFlats)}
+        </div>
+      </div>`;
+    }
+    html+=`</div>`;
+  });
+  statsEl.innerHTML=html||`<div style="font-size:11px;color:var(--text3);padding:8px">No complete statues yet. Fill in feathers to see per-statue breakdown.</div>`;
+}
+
+function renderMyBuildModal(){
+  const statues=state.myBuild?state.myBuild.statues:null;
+  let html='';
+  // ATK group
+  html+=`<div class="mb-group-hdr atk">⚔ ATK Statues</div><div class="mb-statues">`;
+  for(let si=0;si<5;si++) html+=renderMyBuildStatue(si,statues);
+  html+=`</div>`;
+  // DEF group
+  html+=`<div class="mb-group-hdr def">🛡 DEF Statues</div><div class="mb-statues">`;
+  for(let si=5;si<10;si++) html+=renderMyBuildStatue(si,statues);
+  html+=`</div>`;
+  document.getElementById('mb-body').innerHTML=html;
+}
+
+function renderMyBuildStatue(si,statues){
+  const type=STATUE_TYPES[si];
+  const savedSlots=statues?statues[si].slots:null;
+  const opts=featherOptionsFor(type);
+  // Show set info if we have saved slots
+  let setInfo='';
+  if(savedSlots&&savedSlots.every(s=>s.f)){
+    const comp=checkSet(savedSlots.map(s=>({f:s.f})));
+    // Only use filled slots for tier calculation
+    const filledLevels=savedSlots.filter(s=>s.f).map(s=>s.lv);
+    const tier=filledLevels.length?Math.min(...filledLevels):1;
+    const badgeCls=comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid';
+    setInfo=`<span class="tier-b">T${tier}</span><span class="set-b ${badgeCls}" style="font-size:9px">${comp.name}</span>`;
+  }
+  let html=`<div class="mb-statue">
+    <div class="mb-statue-hdr">
+      <span class="mb-statue-lbl">${STATUE_LABELS[si]}</span>
+      <span class="mb-statue-setinfo" id="mb-setinfo-${si}">${setInfo}</span>
+    </div>
+    <div class="mb-slots">`;
+  for(let sl=0;sl<5;sl++){
+    const saved=savedSlots?savedSlots[sl]:null;
+    const selVal=saved&&saved.f?saved.f:'';
+    const lvVal=saved&&saved.f?saved.lv:0;
+    html+=`<div class="mb-slot">
+      <select id="mb-sel-${si}-${sl}" class="mb-slot-sel" onchange="mbSelChanged(${si},${sl})">
+        <option value="">— select feather —</option>`;
+    opts.forEach(f=>{
+      const rLabel=f.r==='Yellow'?'[Y]':'[P]';
+      html+=`<option value="${f.name}"${selVal===f.name?' selected':''}>${rLabel} ${f.name}</option>`;
+    });
+    html+=`</select>
+      <input id="mb-lv-${si}-${sl}" class="mb-slot-lv" type="number" min="1" max="20" value="${lvVal}" placeholder="Lv" oninput="mbSlotChanged(${si},${sl})">
+    </div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+
+function mbSelChanged(si,sl){
+  // If feather cleared, reset level to 0
+  const sel=document.getElementById(`mb-sel-${si}-${sl}`);
+  const lv=document.getElementById(`mb-lv-${si}-${sl}`);
+  // ponytail: no duplicate feather within a statue
+  if(sel&&sel.value){for(let s=0;s<5;s++){if(s===sl)continue;const o=document.getElementById(`mb-sel-${si}-${s}`);if(o&&o.value===sel.value){sel.value='';setStatus('⚠ ใส่ขนซ้ำใน statue เดียวกันไม่ได้',true);break;}}}
+  if(sel&&!sel.value&&lv) lv.value=0;
+  mbSlotChanged(si,sl);
+}
+function mbSlotChanged(si,sl){
+  // Re-render statue header to update set badge live
+  const slots=[];
+  for(let s=0;s<5;s++){
+    const sel=document.getElementById(`mb-sel-${si}-${s}`);
+    const lv=document.getElementById(`mb-lv-${si}-${s}`);
+    slots.push({f:sel?sel.value:'',lv:lv?parseInt(lv.value)||1:1});
+  }
+  // Only show badge when all 5 slots are filled
+  const hdr=document.getElementById(`mb-setinfo-${si}`);
+  if(!hdr) return;
+  if(slots.every(s=>s.f)){
+    const comp=checkSet(slots.map(s=>({f:s.f})));
+    // Tier = min of FILLED slots only
+    const filledLevels=slots.filter(s=>s.f).map(s=>s.lv);
+    const tier=filledLevels.length?Math.min(...filledLevels):1;
+    const badgeCls=comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid';
+    hdr.innerHTML=`<span class="tier-b">T${tier}</span><span class="set-b ${badgeCls}" style="font-size:9px">${comp.name}</span>`;
+  } else {
+    hdr.innerHTML='';
+  }
+}
+
+function openMyBuild(){
+  loadMyBuild();
+  renderMyBuildModal();
+  document.getElementById('mybuild-overlay').classList.add('on');
+  document.body.style.overflow='hidden';
+}
+function closeMyBuild(){
+  document.getElementById('mybuild-overlay').classList.remove('on');
+  document.body.style.overflow='';
+}
+function handleMyBuildOverlay(e){/* outside click disabled */}
+// ──────────────────────────────────────────────────────────────────────────────
+
+
+// ── Save Build Modal ──────────────────────────────────────────────────────────
+let _saveBuildCtx = null; // {buildIdx, sfx}
+
+function confirmCloseMyBuild() {
+  if (confirm('Close without saving? Any unsaved changes will be lost.')) closeMyBuild();
+}
+function confirmCloseInvCalc() {
+  if (confirm('Close without saving? Any unsaved changes will be lost.')) closeInvCalc();
+}
+function showGsToast(msg) {
+  const t = document.getElementById('gs-toast');
+  if (!t) return;
+  t.textContent = msg || 'Saved!';
+  t.classList.add('show');
+  setTimeout(()=>{ t.classList.remove('show'); t.textContent='Saved!'; }, 3000);
+}
+
+// ── Save as Current Build (from result row) ───────────────────────────────────
+function saveResultAsCurrentBuild(i, sfx) {
+  const results = sfx==='s' ? state.sfResults : state.results;
+  const build = results[i];
+  if (!build) return;
+
+  // 1. Update state.myBuild
+  state.myBuild = { statues: build.statues.map(st=>({type:st.type, slots:st.slots.map(s=>({f:s.f, lv:s.lv}))})) };
+  try { localStorage.setItem('rooc_mybuild', JSON.stringify(state.myBuild)); } catch(e) {}
+
+  // 2. Unslotted = total pool inventory minus what this build consumes
+  const unslotted = {};
+  POOLS.forEach(p => {
+    const total = state.pools[p.name] || 0;
+    const used  = (build.poolUsed && build.poolUsed[p.name]) || 0;
+    unslotted[p.name] = Math.max(0, total - used);
+  });
+  try { localStorage.setItem('rooc_unslotted', JSON.stringify(unslotted)); } catch(e) {}
+  try { localStorage.setItem('rooc_pools', JSON.stringify(state.pools)); } catch(e) {}
+
+  // 2b. Update in-memory state.unslotted and GS input fields so gsComputeTotal is accurate
+  if (!state.unslotted) state.unslotted = {};
+  POOLS.forEach(p => {
+    state.unslotted[p.name] = unslotted[p.name];
+    const safeId = p.name.replace(/\//g,'-').replace(/ /g,'-');
+    const inp = document.getElementById(`gs-unslotted-${safeId}`);
+    if (inp) inp.value = unslotted[p.name];
+  });
+
+  // 3. Sync to server
+  syncProfileToServer({ my_build: state.myBuild, unslotted });
+
+  // 4. Re-render everything
+  updateMyBuildBanner();
+  renderPoolReadonly();
+  renderResults('results-area', state.results, state.expanded, '');
+
+  // 5. Re-render Get Started if active
+  const gsPane = document.getElementById('pane-gs');
+  if (gsPane?.classList.contains('on')) renderGS();
+
+  showGsToast('✓ Active build synced!');
+}
+
+// ── Social Tab ────────────────────────────────────────────────────────────────
+
+// ponytail: social/community/auth UI + Save-to-Profile all deleted (concept moves to woe-party).
+// _authUser pinned null + syncProfileToServer() no-op'd — build/inventory/char-profile persist locally
+// via localStorage; the kept call sites (save MB, inventory edit, char profile) just hit the no-op.
+let _authUser = null;
+function syncProfileToServer(){}
+
+// Run on load
+applyTheme();loadLocks();updateLockBadge();
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── Get Started Tab ───────────────────────────────────────────────────────────
+const GS_MB_KEY='rooc_mybuild';
+const GS_UNSLOTTED_KEY='rooc_unslotted';
+
+// Pool order constant for dropdowns (matches new POOLS order)
+const POOL_ORDER=['Light/Dark','Time/Space','Day/Night','Sky/Terra','90SF Purple','25SF Purple'];
+
+function gsToggle(bodyId, caretId){
+  const body=document.getElementById(bodyId);
+  const caret=document.getElementById(caretId);
+  if(!body)return;
+  const open=body.classList.toggle('open');
+  if(caret)caret.classList.toggle('open',open);
+}
+
+function featherOptgroupsFor(type){
+  // Returns HTML string of <optgroup> elements filtered by statue type
+  let html='<option value="">— select feather —</option>';
+  POOLS.forEach(p=>{
+    const valid=FEATHERS.filter(f=>f.pool===p.name&&(f.t===type||f.t==='MIX'));
+    if(!valid.length)return;
+    html+=`<optgroup label="${p.name}">`;
+    // Already sorted alphabetically in POOLS.members
+    valid.sort((a,b)=>a.name.localeCompare(b.name)).forEach(f=>{
+      html+=`<option value="${f.name}">${f.name}</option>`;
+    });
+    html+='</optgroup>';
+  });
+  return html;
+}
+
+// ── Feather Inventory → Pool Inventory ─────────────────────────────────────────
+// ponytail: copies in a pool = Σ over its feathers of (count × costAt(feather, level)).
+// ponytail: each feather can have MULTIPLE level-entries (e.g. Dark: 1×Lv1, 1×Lv2, ...) — inventory[fn] = [{lv,count},...]
+function invEntries(fn){
+  let a=state.inventory[fn];
+  if(!Array.isArray(a)){ a = (a&&typeof a==='object') ? [{lv:a.lv||1,count:a.count||0}] : [{lv:1,count:0}]; state.inventory[fn]=a; } // migrate old single-entry
+  if(!a.length) a.push({lv:1,count:0});
+  return a;
+}
+function invSaveInv(){ try{localStorage.setItem('rooc_inventory',JSON.stringify(state.inventory));}catch(e){} }
+function gsComputeTotal(){
+  POOLS.forEach(p=>state.pools[p.name]=0);
+  FEATHERS.forEach(f=>{
+    const entries=state.inventory[f.name]; if(!Array.isArray(entries))return;
+    entries.forEach(e=>{ if(e&&e.count>0) state.pools[f.pool]+=e.count*costAt(f.name, Math.min(20,Math.max(1,e.lv||1))); });
+  });
+  const grid=document.getElementById('gs-total-grid');
+  if(grid) grid.innerHTML=POOLS.map(p=>`<div class="gs-total-card"><div class="gs-total-name">${p.name}<span class="${p.r==='Yellow'?'badge-y':'badge-p'}" style="font-size:8px">${p.r}</span></div><div class="gs-total-val">${(state.pools[p.name]||0).toLocaleString()}</div><div class="gs-total-breakdown">copies</div></div>`).join('');
+  try{localStorage.setItem('rooc_pools',JSON.stringify(state.pools));}catch(e){}
+}
+function invSetEntry(fn,idx,key,val){
+  const e=invEntries(fn)[idx]; if(!e)return;
+  e[key]= key==='lv'?Math.min(20,Math.max(1,parseInt(val)||1)):Math.max(0,parseInt(val)||0);
+  gsComputeTotal(); invSaveInv();
+}
+function invAddEntry(fn){ invEntries(fn).push({lv:1,count:0}); renderFeatherInventory(); invSaveInv(); }
+function invRemoveEntry(fn,idx){ const a=invEntries(fn); a.splice(idx,1); if(!a.length)a.push({lv:1,count:0}); renderFeatherInventory(); gsComputeTotal(); invSaveInv(); }
+function renderFeatherInventory(){
+  const el=document.getElementById('inv-grid'); if(!el)return;
+  el.innerHTML=POOLS.map(p=>{
+    const feaths=p.members.map(fn=>{
+      const f=FEATHERS.find(x=>x.name===fn); const entries=invEntries(fn);
+      const rows=entries.map((e,i)=>`<div class="inv-row"><label class="inv-lab">Lv<input type="number" min="1" max="20" value="${e.lv}" oninput="invSetEntry('${fn}',${i},'lv',this.value)"></label><label class="inv-lab">×<input type="number" min="0" value="${e.count}" oninput="invSetEntry('${fn}',${i},'count',this.value)"></label><button class="inv-rm" title="ลบเลเวลนี้" onclick="invRemoveEntry('${fn}',${i})">×</button></div>`).join('');
+      return `<div class="inv-feather"><div class="inv-f-hd"><span class="inv-f ${p.r==='Yellow'?'inv-y':'inv-p'}" title="${f.t}">${fn}</span><button class="inv-add" onclick="invAddEntry('${fn}')">+ เลเวล</button></div>${rows}</div>`;
+    }).join('');
+    return `<div class="inv-pool"><div class="inv-pool-hd">${p.name} <span class="${p.r==='Yellow'?'badge-y':'badge-p'}">${p.r}</span></div>${feaths}</div>`;
+  }).join('');
+}
+
+function renderPoolReadonly(){
+  ['pool-readonly-opt','pool-readonly-sf'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    let html='';
+    POOLS.forEach(p=>{
+      html+=`<div class="pool-ro-card">
+        <div class="pool-ro-name">${p.name}<span class="${p.r==='Yellow'?'badge-y':'badge-p'}" style="font-size:8px;margin-left:4px">${p.r}</span></div>
+        <div class="pool-ro-val">${state.pools[p.name]||0}</div>
+      </div>`;
+    });
+    el.innerHTML=html;
+  });
+}
+
+function gsSlotChanged(si,sl){
+  // Update set badge
+  const slots=[];
+  for(let s=0;s<5;s++){
+    const sel=document.getElementById(`gs-sel-${si}-${s}`);
+    const lv=document.getElementById(`gs-lv-${si}-${s}`);
+    slots.push({f:sel?.value||'',lv:parseInt(lv?.value)||1});
+  }
+  const hdr=document.getElementById(`gs-setinfo-${si}`);
+  if(hdr){
+    if(slots.every(s=>s.f)){
+      const comp=checkSet(slots.map(s=>({f:s.f})));
+      const filledLevels=slots.filter(s=>s.f).map(s=>s.lv);
+      const tier=filledLevels.length?Math.min(...filledLevels):1;
+      const badgeCls=comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid';
+      hdr.innerHTML=`<span class="tier-b">T${tier}</span><span class="set-b ${badgeCls}" style="font-size:9px">${comp.name}</span>`;
+    } else {
+      hdr.innerHTML='';
+    }
+  }
+  gsComputeTotal();
+  // ponytail: auto-save (save buttons removed) — keep state.myBuild + localStorage current on every edit
+  state.myBuild=gatherMBData();
+  try{localStorage.setItem(GS_MB_KEY,JSON.stringify(state.myBuild));}catch(e){}
+  updateMyBuildBanner();
+}
+
+function gsSelChanged(si,sl){
+  const sel=document.getElementById(`gs-sel-${si}-${sl}`);
+  const lv=document.getElementById(`gs-lv-${si}-${sl}`);
+  // ponytail: no duplicate feather within a statue — revert if already in a sibling slot
+  if(sel&&sel.value){for(let s=0;s<5;s++){if(s===sl)continue;const o=document.getElementById(`gs-sel-${si}-${s}`);if(o&&o.value===sel.value){sel.value='';setStatus('⚠ ใส่ขนซ้ำใน statue เดียวกันไม่ได้',true);break;}}}
+  if(sel&&!sel.value&&lv) lv.value=0;
+  gsSlotChanged(si,sl);
+}
+
+function renderGSStatue(si,savedSlots){
+  const type=si<5?'ATK':'DEF';
+  const labels=['ATK 1','ATK 2','ATK 3','ATK 4','ATK 5','DEF 1','DEF 2','DEF 3','DEF 4','DEF 5'];
+  const opts=featherOptgroupsFor(type);
+
+  let setInfo='';
+  if(savedSlots&&savedSlots.every(s=>s.f)){
+    const comp=checkSet(savedSlots.map(s=>({f:s.f})));
+    const filledLevels=savedSlots.filter(s=>s.f).map(s=>s.lv);
+    const tier=filledLevels.length?Math.min(...filledLevels):1;
+    const badgeCls=comp.set==='RH'?'set-rh':comp.set==='RP'?'set-rp':comp.set==='RD'?'set-rd':comp.valid?'set-valid':'set-invalid';
+    setInfo=`<span class="tier-b">T${tier}</span><span class="set-b ${badgeCls}" style="font-size:9px">${comp.name}</span>`;
+  }
+
+  let html=`<div class="gs-statue">
+    <div class="gs-statue-hdr">
+      <span class="gs-statue-lbl">${labels[si]}</span>
+      <span class="gs-statue-setinfo" id="gs-setinfo-${si}">${setInfo}</span>
+    </div>
+    <div class="gs-slots">`;
+
+  for(let sl=0;sl<5;sl++){
+    const saved=savedSlots?savedSlots[sl]:null;
+    const selVal=saved?.f||'';
+    const lvVal=saved?.f?saved.lv:0;
+    html+=`<div class="gs-slot">
+      <select id="gs-sel-${si}-${sl}" class="gs-slot-sel" onchange="gsSelChanged(${si},${sl})">${opts.replace(`value="${selVal}"`,`value="${selVal}" selected`)}</select>
+      <input id="gs-lv-${si}-${sl}" class="gs-slot-lv" type="number" min="0" max="20" value="${lvVal}" placeholder="Lv" oninput="gsSlotChanged(${si},${sl})">
+    </div>`;
+  }
+  html+=`</div></div>`;
+  return html;
+}
+
+function renderGSUnslotted(savedUnslotted){
+  const grid=document.getElementById('gs-unslotted-grid');
+  if(!grid)return;
+  let html='';
+  POOLS.forEach(p=>{
+    const safeId=p.name.replace(/\//g,'-').replace(/ /g,'-');
+    const val=savedUnslotted?.[p.name]||0;
+    html+=`<div class="gs-pool-card">
+      <div class="gs-pool-name">${p.name}<span class="${p.r==='Yellow'?'badge-y':'badge-p'}" style="font-size:8px">${p.r}</span></div>
+      <input id="gs-unslotted-${safeId}" class="gs-pool-inp" type="number" min="0" max="99999"
+        value="${val||''}" placeholder="0" oninput="gsComputeTotal()">
+    </div>`;
+  });
+  grid.innerHTML=html;
+}
+
+function renderGS(){
+  // Load saved data
+  let savedMB=null, savedUnslotted=null;
+  try{
+    const mb=localStorage.getItem(GS_MB_KEY);
+    if(mb) savedMB=JSON.parse(mb);
+  }catch(e){}
+  try{
+    const us=localStorage.getItem(GS_UNSLOTTED_KEY);
+    if(us) savedUnslotted=JSON.parse(us);
+  }catch(e){}
+
+  // Migrate old rooc_pools if new system not set up yet
+  if(!savedUnslotted){
+    try{
+      const oldPools=localStorage.getItem('rooc_pools');
+      if(oldPools){
+        const d=JSON.parse(oldPools);
+        savedUnslotted={};
+        POOLS.forEach(p=>{if(d[p.name]) savedUnslotted[p.name]=d[p.name];});
+      }
+    }catch(e){}
+  }
+
+  // Render ATK statues (0-4)
+  const atkGrid=document.getElementById('gs-atk-grid');
+  if(atkGrid){
+    let html='';
+    for(let si=0;si<5;si++) html+=renderGSStatue(si,savedMB?.statues?.[si]?.slots);
+    atkGrid.innerHTML=html;
+  }
+
+  // Render DEF statues (5-9)
+  const defGrid=document.getElementById('gs-def-grid');
+  if(defGrid){
+    let html='';
+    for(let si=5;si<10;si++) html+=renderGSStatue(si,savedMB?.statues?.[si]?.slots);
+    defGrid.innerHTML=html;
+  }
+
+  // Render unslotted
+  renderGSUnslotted(savedUnslotted);
+
+  // Compute totals
+  gsComputeTotal();
+}
+
+function gatherMBData(){
+  const statues=[];
+  for(let si=0;si<10;si++){
+    const type=si<5?'ATK':'DEF';
+    const slots=[];
+    for(let sl=0;sl<5;sl++){
+      const sel=document.getElementById(`gs-sel-${si}-${sl}`);
+      const lv=document.getElementById(`gs-lv-${si}-${sl}`);
+      const f=sel?.value||'';
+      const lvv=f?Math.min(20,Math.max(1,parseInt(lv?.value)||1)):0;
+      slots.push({f,lv:lvv});
+    }
+    statues.push({type,slots});
+  }
+  return{statues};
+}
+
+function gatherUnslottedData(){
+  const d={};
+  POOLS.forEach(p=>{
+    const safeId=p.name.replace(/\//g,'-').replace(/ /g,'-');
+    const inp=document.getElementById(`gs-unslotted-${safeId}`);
+    d[p.name]=Math.max(0,parseInt(inp?.value)||0);
+  });
+  return d;
+}
+
+function showToast(){
+  const t=document.getElementById('gs-toast');
+  if(!t)return;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+function toggleTheme(){
+  const html=document.documentElement;
+  const isLight=html.getAttribute('data-theme')==='light';
+  html.setAttribute('data-theme',isLight?'dark':'light');
+  document.getElementById('theme-toggle').textContent=isLight?'🌙':'☀️';
+  try{localStorage.setItem('rooc_theme',isLight?'dark':'light');}catch(e){}
+}
+function applyTheme(){
+  const saved=localStorage.getItem('rooc_theme')||'dark';
+  document.documentElement.setAttribute('data-theme',saved);
+  const btn=document.getElementById('theme-toggle');
+  if(btn)btn.textContent=saved==='light'?'☀️':'🌙';
+}
+
+function clearMyBuild(){
+  if(!confirm('Clear all feather slots in My Build?'))return;
+  for(let si=0;si<10;si++)for(let sl=0;sl<5;sl++){
+    const sel=document.getElementById(`gs-sel-${si}-${sl}`);
+    const lv=document.getElementById(`gs-lv-${si}-${sl}`);
+    if(sel)sel.value='';
+    if(lv)lv.value='0';
+  }
+  state.myBuild={statues:Array.from({length:10},(_,i)=>({type:i<5?'ATK':'DEF',slots:Array(5).fill(null).map(()=>({f:'',lv:0}))}))};
+  try{localStorage.setItem('rooc_mybuild',JSON.stringify(state.myBuild));}catch(e){}
+  gsComputeTotal();
+  updateMyBuildBanner();
+  if(_authUser)syncProfileToServer({my_build:state.myBuild});
+  showGsToast('Cleared!');
+}
+
+function clearUnslotted(){
+  if(!confirm('Clear all unslotted feather counts?'))return;
+  POOLS.forEach(p=>{
+    const safeId=p.name.replace(/\//g,'-').replace(/ /g,'-');
+    const inp=document.getElementById(`gs-unslotted-${safeId}`);
+    if(inp)inp.value='0';
+  });
+  const empty={};POOLS.forEach(p=>{empty[p.name]=0;});
+  try{localStorage.setItem('rooc_unslotted',JSON.stringify(empty));}catch(e){}
+  gsComputeTotal();
+  if(_authUser)syncProfileToServer({unslotted:empty});
+  showGsToast('Cleared!');
+}
+
+function saveMB(){
+  const mb=gatherMBData();
+  try{localStorage.setItem(GS_MB_KEY,JSON.stringify(mb));}catch(e){}
+  // Also sync to state.myBuild for comparison
+  state.myBuild=mb;
+  updateMyBuildBanner();
+  if(state.results.length) renderResults('results-area',state.results,state.expanded,'');
+  showToast();
+  syncProfileToServer({ my_build: mb });
+}
+
+function saveUnslotted(){
+  const us=gatherUnslottedData();
+  try{localStorage.setItem(GS_UNSLOTTED_KEY,JSON.stringify(us));}catch(e){}
+  try{
+    // Also update rooc_pools for backwards compat
+    const pools={};POOLS.forEach(p=>{pools[p.name]=state.pools[p.name]||0;});
+    localStorage.setItem('rooc_pools',JSON.stringify(pools));
+  }catch(e){}
+  showToast();
+  syncProfileToServer({ unslotted: us });
+}
+
+function saveAll(){
+  saveMB();
+  saveUnslotted();
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ponytail: donate modal + openDonate/closeDonate/handleOverlayClick + Escape-to-close all deleted — zero callers remained
+</script>
+<!-- Inventory Calculator Modal -->
+<div class="modal-overlay" id="inv-calc-overlay" onclick="handleInvCalcOverlay(event)">
+  <div class="inv-modal-box">
+    <button class="modal-close" onclick="confirmCloseInvCalc()" title="Close">×</button>
+    <div class="modal-title" style="text-align:left;margin-bottom:6px">🧮 Inventory Calculator</div>
+    <div class="inv-note">
+      <strong>How to use:</strong> Each column is a feather pool. Each row is a level. Enter how many feathers you own from that pool at that level — e.g. if you have 1 Sky at Lv8 and 2 Terra at Lv8, enter <strong>3</strong> in Sky/Terra · Lv8. The calculator adds up all copies consumed by your existing feathers. Hit <strong>Submit</strong> to fill Pool Inventory with those totals.
+    </div>
+    <div class="inv-modal-scroll">
+      <div id="inv-calc-body"></div>
+    </div>
+    <div id="inv-calc-summary" style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap"></div>
+    <button class="inv-submit-btn" onclick="applyInvCalc()">✓ Submit — Fill Pool Inventory with Unspent Copies</button>
+  </div>
+</div>
+
+
+</body>
+</html>
