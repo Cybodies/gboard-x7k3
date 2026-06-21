@@ -2366,7 +2366,8 @@
   body[data-mode="roster"] .hamburger-btn   { display: none; }
   body[data-mode="roster"] .sidebar-backdrop { display: none !important; }
 
-  /* Mobile mode dropdown — replaces .mode-toggle below 700px */
+  /* Mode dropdown — replaces .mode-toggle on narrow viewports (≤1420px guest /
+     ≤1560px admin, see media queries below) and on mobile (≤700px). */
   .mode-select {
     display: none;
     background: var(--accent);
@@ -2397,6 +2398,20 @@
   body.sidebar-open .sidebar-backdrop { display: block; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
+  /* Tab bar → compact dropdown BEFORE the 10-tab row overflows the header.
+     Measured header min width: guest ≈1393px, admin ≈1533px (admin shows the
+     wider e-mail label). So collapse to the mobile-style <select> earlier — the
+     one-click bar stays only where it comfortably fits. The ≤700px block below
+     still handles true mobile (hamburger + overlay sidebar). */
+  @media (max-width: 1420px) {
+    .mode-toggle { display: none; }
+    .mode-select { display: inline-block; flex: 0 1 auto; min-width: 0; max-width: 240px; }
+  }
+  @media (max-width: 1560px) {
+    body[data-admin="true"] .mode-toggle { display: none; }
+    body[data-admin="true"] .mode-select { display: inline-block; flex: 0 1 auto; min-width: 0; max-width: 240px; }
+  }
 
   /* ===== Tablet (≤1100px) ===== */
   @media (max-width: 1100px) {
@@ -5325,7 +5340,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.21.1";
+const APP_VERSION = "2026.06.21.2";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
