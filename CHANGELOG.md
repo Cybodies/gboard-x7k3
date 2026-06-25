@@ -10,6 +10,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.25.1]
+### Changed
+- **กลับมาใช้ GL 4 แมพ (เกมเปลี่ยนกลับด่วน).** ย้อนการยุบแมพ Guild League เป็น Vigrid Field
+  แมพเดียว (v.2026.06.22.1–.2) กลับเป็นผัง **4 แมพเดิม**: เกิดบน = Main+Sub, เกิดล่าง = Main+Sub
+  (`EMBEDDED_MAPS` slot 1,2,4,5 = `maps/main.png`/`maps/sub.png`). คืนค่า `app.html`/`index.html`/
+  `test/run.js` จากสภาพ v2026.06.21.2 — งานอื่น (แท็บคำนวนขนนก, teams fix, dropdown) ยังครบ.
+  เก็บ `maps/vigrid_field.png` ไว้ในรีโป เผื่อเกมสลับกลับ Vigrid จะได้สลับคืนเร็ว.
+
 ## [2026.06.22.2]
 ### Changed
 - **แมพ GL แบ่งตี้คนละ 8 ต่อแมพ.** จากเดิม (v.1) แต่ละแมพโชว์ครบ 16 ตี้ → เปลี่ยนเป็น

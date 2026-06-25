@@ -746,8 +746,10 @@ t("buildMapHtml renders multi-select chips with the active ones lit", () => {
 
 t("map cards: upload v2 controls on EVERY map for admin, NONE for guests", () => {
   const cards = () => [
-    ["GL Vigrid (เกิดบน)", 1, app.call("buildMapHtml", 1)],
-    ["GL Vigrid (เกิดล่าง)", 4, app.call("buildMapHtml", 4)],
+    ["GL main (top)", 1, app.call("buildMapHtml", 1)],
+    ["GL sub (top)", 2, app.call("buildMapHtml", 2)],
+    ["GL main (bottom)", 4, app.call("buildMapHtml", 4)],
+    ["GL sub (bottom)", 5, app.call("buildMapHtml", 5)],
     ["Overrun", 3, app.call("buildOverrunMapHtml")],
   ];
   app.setAdmin(true);
@@ -1083,10 +1085,9 @@ console.log("\n[landing — front door wiring]");
     ok(/ref\("markers_bottom"\)\.on\("value"/.test(appHtml), "markers_bottom listener present");
     ok(/ref\("markers_bottom"\)\.set/.test(appHtml), "markers_bottom pushed in fbPushAll");
   });
-  t("GL 2-plan: 2 Vigrid maps (เกิดบน/เกิดล่าง) + Vigrid image + store helper", () => {
-    ok(/buildMapHtml\(1\)/.test(appHtml) && /buildMapHtml\(4\)/.test(appHtml), "maps 1 (เกิดบน) & 4 (เกิดล่าง) emitted");
-    ok(!/buildMapHtml\(5\)/.test(appHtml), "old Sub map (5) retired");
-    ok(/1:\s*"maps\/vigrid_field\.png"/.test(appHtml) && /4:\s*"maps\/vigrid_field\.png"/.test(appHtml), "EMBEDDED_MAPS 1 & 4 both use the Vigrid Field image");
+  t("GL 2-plan: 4 league cards + same image + store helper", () => {
+    ok(/buildMapHtml\(4\)/.test(appHtml) && /buildMapHtml\(5\)/.test(appHtml), "cards 4 & 5 emitted");
+    ok(/4:\s*"maps\/main\.png"/.test(appHtml) && /5:\s*"maps\/sub\.png"/.test(appHtml), "EMBEDDED_MAPS 4/5 reuse same images");
     ok(/function leagueMarkerStore/.test(appHtml), "leagueMarkerStore helper exists");
   });
 
@@ -1112,9 +1113,9 @@ console.log("\n[landing — front door wiring]");
     ok(v.includes("length < 900000"), "size cap enforced server-side");
     ok(v.includes("$mapNum.matches(/^[1-6]$/)"), "only map slots 1-6 allowed (6 = Overrun Emperium map)");
   });
-  t("league renders one Vigrid row (เกิดบน + เกิดล่าง), no Sub-battlefield row", () => {
-    ok(/maps-row">' \+ buildMapHtml\(1\) \+ buildMapHtml\(4\)/.test(appHtml), "single row = map 1 (เกิดบน) + map 4 (เกิดล่าง)");
-    ok(!/buildMapHtml\(2\)/.test(appHtml) && !/buildMapHtml\(5\)/.test(appHtml), "Sub-battlefield maps 2 & 5 no longer rendered");
+  t("league maps render main+main row then sub+sub row (no sub between mains)", () => {
+    ok(/maps-row">' \+ buildMapHtml\(1\) \+ buildMapHtml\(4\)/.test(appHtml), "row 1 = maps 1+4 (both main)");
+    ok(/maps-row">' \+ buildMapHtml\(2\) \+ buildMapHtml\(5\)/.test(appHtml), "row 2 = maps 2+5 (both sub)");
   });
   t("parties: auto-sanitize must NOT write back to Firebase (silent-wipe guard)", () => {
     // Fix A: the members + /parties listeners used to .set() the sanitized parties

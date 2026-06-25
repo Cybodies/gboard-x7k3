@@ -3134,11 +3134,11 @@ let _isDragging = false;
 let _pendingRenderAfterDrag = false;
 // Map filter state — a SET of ids to show; EMPTY set = show ALL (preserves the
 // old "0 = all" semantics). Multi-select: click several party/group chips to view
-// them together (e.g. ตี้ 4 + 5 on the เกิดบน map). Each map card has its OWN
-// filter (GL เกิดบน = ตี้ 1-8, เกิดล่าง = ตี้ 9-16, Overrun group ids independently).
+// them together (e.g. ตี้ 4 + 5 on the Main map). Each battlefield card has its
+// OWN filter (Main 1-8, Sub 9-16, Overrun group ids chosen independently).
 // Per-viewer + in-memory only — reset to empty (all) on every page load, NOT synced.
-let _mapFilterMain    = new Set();   // GL เกิดบน map filter — empty = all; else party ids 1-8
-let _mapFilterSub     = new Set();   // GL เกิดล่าง map filter — empty = all; else party ids 9-16
+let _mapFilterMain    = new Set();   // empty = all; else party ids 1-8
+let _mapFilterSub     = new Set();   // empty = all; else party ids 9-16
 let _mapFilterOverrun = new Set();   // empty = all; else OVERRUN_GROUPS ids (1..length)
 let _mapFilterOverrunB = new Set();  // 2nd Overrun map (Emperium) — INDEPENDENT filter
 
@@ -3878,27 +3878,24 @@ function initMarkers() {
   }
 }
 
-/* GL helpers. One Vigrid battlefield, 16 parties split across two maps by spawn:
- * mapNum 1 = เกิดบน (ตี้ 1-8, state.markers), mapNum 4 = เกิดล่าง (ตี้ 9-16,
- * state.markersBottom). Filters INDEPENDENT per map; range circles render on both.
- * (Old Sub maps 2/5 retired.) */
+/* GL 2-plan (เกิดบน/เกิดล่าง) helpers. League maps: mapNum 1,2 = top plan
+ * (state.markers), 4,5 = bottom plan (state.markersBottom). 1,4 = Main (ตี้ 1-8),
+ * 2,5 = Sub (ตี้ 9-16). Range circles + filters + rosters are SHARED across plans. */
 function leagueMapIsMain(mapNum) { return mapNum === 1 || mapNum === 4; }
 function leagueMapPlan(mapNum) { return mapNum >= 4 ? "bottom" : "top"; }
 function leagueMarkerStore(mapNum) {
   if (!state.markersBottom) state.markersBottom = {};
   return leagueMapPlan(mapNum) === "bottom" ? state.markersBottom : state.markers;
 }
-// 16 parties split across the two maps: เกิดบน = ตี้ 1-8 (_mapFilterMain),
-// เกิดล่าง = ตี้ 9-16 (_mapFilterSub). Filters/markers stay independent per map.
-function leagueRangeFor(mapNum) { return leagueMapPlan(mapNum) === "bottom" ? [9,10,11,12,13,14,15,16] : [1,2,3,4,5,6,7,8]; }
-function leagueFilterFor(mapNum) { return leagueMapPlan(mapNum) === "bottom" ? _mapFilterSub : _mapFilterMain; }
+function leagueRangeFor(mapNum) { return leagueMapIsMain(mapNum) ? [1,2,3,4,5,6,7,8] : [9,10,11,12,13,14,15,16]; }
+function leagueFilterFor(mapNum) { return leagueMapIsMain(mapNum) ? _mapFilterMain : _mapFilterSub; }
 
 function renderMarkers() {
   if (state.mode === "overrun") {
     renderOverrunMarkers();
     return;
   }
-  for (const mapNum of [1, 4]) {
+  for (const mapNum of [1, 2, 4, 5]) {
     const wrap = document.getElementById("mapWrap" + mapNum);
     if (!wrap) continue;
     wrap.querySelectorAll(".marker").forEach(n => n.remove());
@@ -3926,7 +3923,7 @@ function renderMarkers() {
       wrap.appendChild(div);
     }
     renderArrows(mapNum);
-    // Range circles render on both Vigrid plan maps. Draw AFTER renderArrows (which
+    // Range circles live only on the GL Main map. Draw AFTER renderArrows (which
     // does svg.innerHTML="") so they aren't wiped, and so they sit on top.
     if (leagueMapIsMain(mapNum)) renderRangeCircles(mapNum);
   }
@@ -4562,15 +4559,15 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Embedded map images (don't change, so we ship them with the app).
-// GL (League) now uses ONE battlefield — Vigrid Avenge's Main/Sub/Ruinscape
-// share the same layout, so slot 1 = เกิดบน plan, slot 4 = เกิดล่าง plan, both
-// on maps/vigrid_field.png. (Old Sub-battlefield slots 2 & 5 = maps/sub.png were
-// removed when GL collapsed to one map.) 3 = Overrun world map, 6 = Overrun 2nd
-// map (Emperium room · Prontera WoE castle). Markers/arrows on top STILL sync via Firebase.
+// 1 = Main Battlefield (cross), 2 = Sub Battlefield (rectangular hall),
+// 3 = Overrun world map, 6 = Overrun 2nd map (Emperium room · Prontera WoE
+// castle). Markers/arrows on top of them STILL sync via Firebase.
 const EMBEDDED_MAPS = {
-  1: "maps/vigrid_field.png",
+  1: "maps/main.png",
+  2: "maps/sub.png",
   3: "maps/overrun.png",
-  4: "maps/vigrid_field.png",
+  4: "maps/main.png",
+  5: "maps/sub.png",
   6: "maps/emperium.png"
 };
 
@@ -5043,20 +5040,19 @@ function buildOverrunMapHtml() {
 }
 
 function buildMapHtml(mapNum) {
-  const isBottom = leagueMapPlan(mapNum) === "bottom";
-  const planLabel = isBottom ? "เกิดล่าง" : "เกิดบน";
-  // Both plan maps are the SAME Vigrid battlefield; tint by plan (เกิดบน = main
-  // color, เกิดล่าง = sub color) so the pair is easy to tell apart.
-  const cls = isBottom ? 'sub' : 'main';
-  const subWrapCls = isBottom ? 'sub-map' : '';
+  const isMain = leagueMapIsMain(mapNum);
+  const planLabel = leagueMapPlan(mapNum) === "bottom" ? "เกิดล่าง" : "เกิดบน";
+  const cls = isMain ? 'main' : 'sub';
+  const subWrapCls = isMain ? '' : 'sub-map';
   const icon = '🗺️';
-  const title = 'Vigrid Field';
-  // เกิดบน map = ตี้ 1-8, เกิดล่าง map = ตี้ 9-16; the two filters stay independent so
-  // admin can focus one map's teams while leaving the other showing all of its 8.
+  const title = (isMain ? 'Main' : 'Sub') + ' Battlefield Map';
+  // Per-map filter — Main shows only its 8 parties, Sub shows only its 8.
+  // The two dropdowns are independent so admin can focus one team on the
+  // Main map while leaving the Sub map showing everyone (or vice versa).
   const range          = leagueRangeFor(mapNum);
-  const currentFilter  = isBottom ? _mapFilterSub : _mapFilterMain;
-  const toggleFnName   = isBottom ? "toggleMapFilterSub" : "toggleMapFilterMain";
-  const clearFnName    = isBottom ? "clearMapFilterSub"  : "clearMapFilterMain";
+  const currentFilter  = isMain ? _mapFilterMain : _mapFilterSub;
+  const toggleFnName   = isMain ? "toggleMapFilterMain" : "toggleMapFilterSub";
+  const clearFnName    = isMain ? "clearMapFilterMain"  : "clearMapFilterSub";
   // Multi-select filter chips: "ทุกตี้" (active when the set is empty) + one chip
   // per party. Active chips get their team color so they match their map markers.
   const allActive = currentFilter.size === 0 ? " active" : "";
@@ -5069,16 +5065,17 @@ function buildMapHtml(mapNum) {
       const style = on ? ` style="background:${teamColor(partyId)};border-color:${teamColor(partyId)};color:#fff"` : "";
       return `<button class="map-filter-chip${on ? " active" : ""}" onclick="${toggleFnName}(${partyId})"${style} title="${escapeHtml(nm)}">${partyId}</button>`;
     }).join("");
-  // Range-circle controls — on BOTH Vigrid plan maps (same battlefield). Toggle for
-  // everyone; the reset button appears only when circles are on AND the viewer is admin.
-  const rangeCircleBtns =
-    `<button onclick="toggleRangeCircles()" class="${_rangeCirclesOn ? "rc-toggle-on" : ""}" title="วงระยะ 3 จุด (กลาง/ซ้าย/ขวา)">◯ ระยะ</button>` +
-    ((_rangeCirclesOn && typeof isAdmin === "function" && isAdmin())
-      ? `<button onclick="resetRangeCircles()" title="คืนวงระยะกลับค่าเริ่มต้น">↺ รีเซ็ตวงระยะ</button>` : "");
+  // Range-circle controls — GL Main map (mapNum 1) only. Toggle for everyone; the
+  // reset button appears only when circles are on AND the viewer is an admin.
+  const rangeCircleBtns = isMain
+    ? `<button onclick="toggleRangeCircles()" class="${_rangeCirclesOn ? "rc-toggle-on" : ""}" title="วงระยะ 3 จุด (กลาง/ซ้าย/ขวา)">◯ ระยะ</button>` +
+      ((_rangeCirclesOn && typeof isAdmin === "function" && isAdmin())
+        ? `<button onclick="resetRangeCircles()" title="คืนวงระยะกลับค่าเริ่มต้น">↺ รีเซ็ตวงระยะ</button>` : "")
+    : "";
   return `
     <div class="map-card">
       <div class="map-title ${cls}">
-        <span>${icon} ${title} · <b>${planLabel}</b> (ตี้ ${isBottom ? '9–16' : '1–8'})</span>
+        <span>${icon} ${title} · <b>${planLabel}</b> (ตี้ ${isMain?'1–8':'9–16'})</span>
         <span class="actions">
           <span class="map-filter-chips" title="ติ๊กได้หลายตี้พร้อมกัน">${filterChips}</span>
           ${rangeCircleBtns}
@@ -5343,7 +5340,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.22.2";
+const APP_VERSION = "2026.06.25.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -9835,11 +9832,11 @@ function renderBattlefields() {
     center.innerHTML =
       buildBfHtml(0) +
       buildBfHtml(1) +
-      // One Vigrid battlefield, two plan maps side by side: เกิดบน (map 1) +
-      // เกิดล่าง (map 4). The old Sub-battlefield row (maps 2/5) is retired —
-      // Vigrid Avenge's fields share the same layout.
-      '<div class="maps-row">' + buildMapHtml(1) + buildMapHtml(4) + '</div>';
-    applyMapBg(1); applyMapBg(4);
+      // Row 1 = both MAIN plans, row 2 = both SUB plans (2026-06-12: was
+      // main/sub per plan, which interleaved sub between the two mains).
+      '<div class="maps-row">' + buildMapHtml(1) + buildMapHtml(4) + '</div>' +
+      '<div class="maps-row">' + buildMapHtml(2) + buildMapHtml(5) + '</div>';
+    applyMapBg(1); applyMapBg(2); applyMapBg(4); applyMapBg(5);
   }
 }
 
