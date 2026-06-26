@@ -10,6 +10,13 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.26.1]
+### Changed
+- **เปลี่ยนชื่อ repo + URL เว็บ (กันลิงก์หลุดหลังมีคนออกกิลด์).** rename `one-o-clock-woe`
+  → `gboard-x7k3` ⇒ URL เก่า `cybodies.github.io/one-o-clock-woe` กลายเป็น **404**,
+  URL ใหม่ = `cybodies.github.io/gboard-x7k3/`. อัปเดต og:image/og:url + ลิงก์ GitHub ใน
+  `index.html` ตามชื่อใหม่. (ยังเป็น public repo — กันคนถือลิงก์เก่าเท่านั้น ไม่ใช่ auth จริง.)
+
 ## [2026.06.25.1]
 ### Changed
 - **กลับมาใช้ GL 4 แมพ (เกมเปลี่ยนกลับด่วน).** ย้อนการยุบแมพ Guild League เป็น Vigrid Field
