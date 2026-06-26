@@ -5340,7 +5340,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.26.1";
+const APP_VERSION = "2026.06.27.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -6767,12 +6767,10 @@ function rosterAdd() {
   if (!name || !name.trim()) return;
   const job         = prompt(`Job (ปล่อยว่างได้ — เลือกจาก dropdown หลังเพิ่ม):\n\n${JOB_LIST.join(" / ")}`, "") || "";
   const discord     = prompt("Discord username (เช่น @johnny):", "") || "";
-  const discordId   = prompt("Discord ID:", "") || "";
   _fbMembersRef.push(rosterClampFields({
     name:        name.trim(),
     job:         job.trim(),
     discord:     discord.trim(),
-    discordId: discordId.trim(),
     cp:          0,
     updatedAt:   Date.now(),
     updatedBy:   rosterActorName()
@@ -6891,7 +6889,7 @@ function rosterMineDraft() {
   const row = document.querySelector(".roster-table tr.r-mine");
   if (!row) return null;
   const pick = f => { const el = row.querySelector(`[data-rme="${f}"]`); return el ? el.value : ""; };
-  return { name: pick("name"), job: pick("job"), discord: pick("discord"), discordId: pick("discordId"), cp: pick("cp") };
+  return { name: pick("name"), job: pick("job"), discord: pick("discord"), cp: pick("cp") };
 }
 function rosterApplyMineDraft(d) {
   const row = document.querySelector(".roster-table tr.r-mine");
@@ -6913,7 +6911,7 @@ function rosterSaveMine(id) {
   if (!d) return;
   const name = String(d.name).trim();
   if (!name) { toast("ชื่อห้ามว่าง", "error"); return; }  // keep the draft so it can be fixed
-  for (const f of ["name", "job", "discord", "discordId"]) {
+  for (const f of ["name", "job", "discord"]) {
     if (String(d[f]).trim().length > ROSTER_FIELD_MAX[f]) {
       toast(`${ROSTER_FIELD_LABEL[f]} ยาวเกิน ${ROSTER_FIELD_MAX[f]} ตัวอักษร`, "error");
       return;
@@ -6929,7 +6927,6 @@ function rosterSaveMine(id) {
     name,
     job:       String(d.job).trim(),
     discord:   String(d.discord).trim(),
-    discordId: String(d.discordId).trim(),
     cp,
     updatedAt: Date.now(),
     // Guest renaming themselves: stamp the NEW name (not the stale cache
@@ -7153,13 +7150,13 @@ function buildRosterRowsHtml() {
         (m.discordId || "").toLowerCase().includes(search));
   if (!filtered.length) {
     if (!rosterCache.length) {
-      return `<tr><td colspan="8" class="roster-empty">
+      return `<tr><td colspan="7" class="roster-empty">
         ยังไม่มีสมาชิกใน Roster<br>
         ${admin ? '<b>Admin:</b> กด <b>➕ เพิ่มสมาชิก</b> หรือ <b>📥 Import จาก Sheet</b>'
                 : 'รอ Admin เพิ่มสมาชิก'}
       </td></tr>`;
     }
-    return `<tr><td colspan="8" class="roster-empty">ไม่พบ "${escapeHtml(search)}"</td></tr>`;
+    return `<tr><td colspan="7" class="roster-empty">ไม่พบ "${escapeHtml(search)}"</td></tr>`;
   }
   return rosterApplySort(filtered).map((m, i) => {
     // Self-edit rendering, three modes per cell:
@@ -7196,11 +7193,6 @@ function buildRosterRowsHtml() {
         : mine
         ? `<input class="r-input" data-rme="discord" value="${escapeHtml(m.discord || "")}" placeholder="@username" oninput="rosterMarkMineDirty()" />`
         : rosterStaticCell("r-discord", m.discord)}</td>
-      <td data-label="Discord ID">${admin
-        ? `<input class="r-input" value="${escapeHtml(m.discordId || "")}" placeholder="Discord ID" onchange="rosterUpdate('${m.id}','discordId',this.value)" />`
-        : mine
-        ? `<input class="r-input" data-rme="discordId" value="${escapeHtml(m.discordId || "")}" placeholder="Discord ID" oninput="rosterMarkMineDirty()" />`
-        : rosterStaticCell("r-discord-id", m.discordId)}</td>
       <td data-label="CP">${admin
         ? `<input class="r-input r-cp" type="text" inputmode="numeric" pattern="[0-9]*"
                value="${m.cp || 0}" onchange="rosterUpdate('${m.id}','cp',this.value)" />`
@@ -7346,7 +7338,7 @@ function buildRosterHtml() {
         <input class="r-search" placeholder="🔎 ค้นหาชื่อ/Job..." oninput="rosterSearchInput(this.value)" value="${escapeHtml(_rosterSearch)}" />
         ${admin ? `
           <button class="primary" onclick="rosterAdd()">➕ เพิ่มสมาชิก</button>
-          <button onclick="rosterImportFromSheet()" title="ดึง Name / Job / Discord / Discord ID / CP จาก Google Sheet">📥 Import จาก Sheet</button>
+          <button onclick="rosterImportFromSheet()" title="ดึง Name / Job / Discord / CP จาก Google Sheet">📥 Import จาก Sheet</button>
           <button onclick="rosterDedupe()" title="รวมแถวซ้ำ (ชื่อ + Job เดียวกัน)">🧹 ล้างของซ้ำ</button>
         ` : buildRosterClaimHtml()}
       </div>
@@ -7358,7 +7350,6 @@ function buildRosterHtml() {
               <th class="r-th-sort" onclick="rosterSort('name')">ชื่อ${rosterSortArrow("name")}</th>
               <th class="r-th-sort" onclick="rosterSort('job')">Job${rosterSortArrow("job")}</th>
               <th class="r-th-sort" onclick="rosterSort('discord')">Discord${rosterSortArrow("discord")}</th>
-              <th class="r-th-sort" onclick="rosterSort('discordId')">Discord ID${rosterSortArrow("discordId")}</th>
               <th class="r-th-sort" style="width:140px;text-align:right" onclick="rosterSort('cp')">CP${rosterSortArrow("cp")}</th>
               <th class="r-th-sort" style="width:110px" onclick="rosterSort('updatedAt')">Last Update${rosterSortArrow("updatedAt")}</th>
               <th style="width:50px"></th>

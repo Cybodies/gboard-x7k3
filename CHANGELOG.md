@@ -10,6 +10,14 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.27.1]
+### Changed
+- **Roster: เอาคอลัมน์ Discord ID ออก เหลือแค่ Discord.** ลบหัวตาราง + เซลล์ Discord ID,
+  prompt ตอน ➕ เพิ่มสมาชิก ไม่ถาม Discord ID แล้ว, และ self-edit (💾 เซฟแถวตัวเอง) ไม่แตะ
+  ฟิลด์ discordId อีก (กันเขียนทับค่าเดิมเป็นค่าว่าง). ปรับ colspan empty-state 8→7.
+  หมายเหตุ: ฟิลด์ `discordId` ยังคงอยู่ใน data layer (Firebase rules ล็อกเป็น 1 ใน 9 keys +
+  import จาก Sheet ยังเก็บ) — แค่ไม่โชว์/ไม่แก้บนหน้า roster แล้ว ข้อมูลเดิมไม่ถูกลบ.
+
 ## [2026.06.26.1]
 ### Changed
 - **เปลี่ยนชื่อ repo + URL เว็บ (กันลิงก์หลุดหลังมีคนออกกิลด์).** rename `one-o-clock-woe`
