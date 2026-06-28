@@ -10,6 +10,21 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.28.4]
+### Added
+- **อาชีพแยก GL / Overrun ต่อคน.** เดิมสมาชิกมีอาชีพเดียวใช้ร่วมทุกหน้า — ตอนนี้กรอกได้ 2 อาชีพ
+  ในหน้า Roster: **Job (GL)** (ช่อง `m.job` เดิม — ข้อมูลเก่าทั้งหมดกลายเป็นอาชีพ GL อัตโนมัติ) และ
+  **Job (Overrun)** (ช่องใหม่ `m.jobOverrun`). ป้ายอาชีพ + การจัดตี้ "ไปตามหน้า": หน้า League/ประมูล GL
+  ใช้อาชีพ GL, หน้า Overrun/ประมูล Overrun ใช้อาชีพ Overrun. ถ้ายังไม่กรอกอาชีพ Overrun ของใคร
+  หน้า Overrun จะ **fallback ไปอาชีพ GL** ให้อัตโนมัติ.
+- ทุกจุด "การจัดตี้" ตามหน้า: ป้ายในช่องตี้ (`slot-job`), แถบสรุปอาชีพต่อ battlefield (pills),
+  ปุ่มจัดเรียงตามอาชีพ (`sortPartyByJob`/`sortAllPartiesByJob`), แผงเลือกสมาชิก (picker) + ตัวกรองอาชีพ,
+  และป้ายอาชีพในหน้าประมูล GL/Overrun — ทั้งหมด resolve ผ่าน helper `jobForMode(m, ctx)`.
+- หน้า "สรุปอาชีพในกิลด์" + "เป้าอาชีพ" (jobTargets) + Job Breakdown ยังใช้ **ชุดเดียวอิงอาชีพ GL**
+  (ตามที่ตกลง — ไม่แยกต่อหน้า). ตัวระบุตัวคนใน snapshot/import/dedupe ยังใช้ `m.job` เดิม → ไม่กระทบ.
+- **Firebase rules:** เพิ่ม field `jobOverrun` ใน whitelist ของ `/members/$mid` (string ≤ 64).
+  ⚠️ ต้อง **publish rules ก่อน** deploy แอป ไม่งั้นการเขียน `jobOverrun` จะถูก reject.
+
 ## [2026.06.28.3]
 ### Changed
 - **ปุ่มดึงรายชื่อที่อนุมัติ: เปลี่ยนจาก merge → REPLACE.** ของเดิม (merge) เติมที่ขาดอย่างเดียว

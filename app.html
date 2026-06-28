@@ -3062,6 +3062,11 @@ function switchMode(newMode) {
 
   state.mode = newMode;
 
+  // The job filter is page-aware now (matches jobForMode); a selection made on
+  // one page would silently hide everyone on the other, so clear it on switch.
+  const _jf = document.getElementById("jobFilter");
+  if (_jf) _jf.value = "";
+
   if (newMode === "league" || newMode === "overrun") {
     let next = newMode === "league" ? state.partiesLeague : state.partiesOverrun;
     if (!Array.isArray(next) || next.length !== PARTIES) next = makeEmptyParties();
@@ -3269,7 +3274,7 @@ function buildPartyTipHtml(p) {
     if (!memId) return null;
     const m = findMember(memId);
     if (!m) return null;
-    return `<div class="tip-row"><b>${escapeHtml(m.job)}</b> · ${escapeHtml(m.name)}</div>`;
+    return `<div class="tip-row"><b>${escapeHtml(jobForMode(m))}</b> · ${escapeHtml(m.name)}</div>`;
   }).filter(Boolean);
   const title = `<div class="tip-title">${escapeHtml(p.name)} · ${members.length} คน</div>`;
   return title + (members.length ? members.join("") : `<div class="tip-empty">(ยังว่าง)</div>`);
@@ -3370,8 +3375,15 @@ function isAssigned(memberId) {
   return state.parties.some(p => p.slots.includes(memberId));
 }
 function uniqueJobs() {
+  // Union of GL + Overrun jobs across members — the #jobFilter dropdown is
+  // shared between League/Overrun pages and only rebuilt on member changes
+  // (not on mode switch), so it must list every job that can appear in either
+  // mode. The per-page picker filter matches against jobForMode(m).
   const set = new Set();
-  state.members.forEach(m => m.job && set.add(m.job));
+  state.members.forEach(m => {
+    if (m.job) set.add(m.job);
+    if (m.jobOverrun) set.add(m.jobOverrun);
+  });
   return Array.from(set).sort();
 }
 
@@ -4211,7 +4223,7 @@ function renderOverrunMarkersFor(cfg) {
       if (!p) continue;
       const subMembers = p.slots.filter(Boolean).map(memId => {
         const m = findMember(memId);
-        return m ? `${m.job} · ${m.name}` : null;
+        return m ? `${jobForMode(m)} · ${m.name}` : null;
       }).filter(Boolean);
       if (subMembers.length) memLines.push(`[ตี้ ${id}] ${subMembers.join(", ")}`);
     }
@@ -4780,8 +4792,8 @@ function renderMembers() {
   };
 
   const filtered = state.members
-    .filter(m => !jobF || m.job === jobF)
-    .filter(m => !search || m.name.toLowerCase().includes(search) || m.job.toLowerCase().includes(search))
+    .filter(m => !jobF || jobForMode(m) === jobF)
+    .filter(m => !search || m.name.toLowerCase().includes(search) || jobForMode(m).toLowerCase().includes(search))
     .filter(m => !hideAssigned || !isAssigned(m.id))
     .filter(m => !hideLeave || !isOnLeave(m));
   // Preserve the member-list scroll position across this re-render: .member-list
@@ -4804,8 +4816,8 @@ function renderMembers() {
            ondragstart="dragMemberStart(event, '${m.id}')"
            ondragend="dragMemberEnd(event)"
            ondblclick="${m.source === 'manual' ? `deleteMember('${m.id}')` : ''}"
-           title="${escapeHtml(m.name)} · ${escapeHtml(m.job)}${onLeave?' · ลา (มาร์คในตี้)':''}${m.source==='manual'?' (dblclick=ลบ)':''}">
-        <div class="mjob">${escapeHtml(m.job)}</div>
+           title="${escapeHtml(m.name)} · ${escapeHtml(jobForMode(m))}${onLeave?' · ลา (มาร์คในตี้)':''}${m.source==='manual'?' (dblclick=ลบ)':''}">
+        <div class="mjob">${escapeHtml(jobForMode(m))}</div>
         <div class="mname">${escapeHtml(m.name)}${onLeave ? '<span class="leave-badge">ลา</span>' : ''}${auctionBadge}</div>
       </div>`;
   }).join("") || `<div style="padding:20px;color:var(--muted);font-size:12px;text-align:center">
@@ -4906,7 +4918,7 @@ function buildPartyRowHtml(p) {
                  ondragover="dragOverEl(event)" ondragleave="dragLeaveEl(event)"
                  ondrop="dropSlot(event, ${p.id}, ${i})">
           ${leaveEnabled() ? `<button class="slot-leave-btn" onclick="event.stopPropagation(); toggleLeave('${m.id}')" title="${onLeave ? 'คนนี้ลาอยู่ — กดเพื่อให้กลับมาพร้อม' : 'มาร์คว่าคนนี้ลา (อยู่ในตี้เหมือนเดิม ไม่ย้าย)'}">${onLeave ? 'ลา ✓' : 'ลา'}</button>` : ''}
-          <span class="slot-job">${escapeHtml(m.job)}</span>
+          <span class="slot-job">${escapeHtml(jobForMode(m))}</span>
           <div class="slot-info">
             <span class="slot-name">${escapeHtml(m.name)}</span>
             ${cpHtml}
@@ -4941,8 +4953,10 @@ function buildBfJobSummary(range) {
     for (const memId of p.slots) {
       if (!memId) continue;
       const m = findMember(memId);
-      if (!m || !m.job) continue;
-      counts[m.job] = (counts[m.job] || 0) + 1;
+      if (!m) continue;
+      const j = jobForMode(m);
+      if (!j) continue;
+      counts[j] = (counts[j] || 0) + 1;
     }
   }
   const jobs = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
@@ -5346,7 +5360,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.28.3";
+const APP_VERSION = "2026.06.28.4";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5405,10 +5419,26 @@ const JOB_PRIORITY = {
   "Dancer":      13,
   "High Priest": 14,  "Priest":       14
 };
+/** Resolve a member's job for a given page/context. GL pages use `m.job`
+ *  (the canonical/primary job — also the identity key for snapshots/import,
+ *  so it never changes meaning). Overrun pages use `m.jobOverrun`, falling
+ *  back to `m.job` when the Overrun job hasn't been filled in.
+ *  `ctx` defaults to state.mode; any context string containing "overrun"
+ *  (i.e. "overrun" or "auction-overrun", plus the auction kind "overrun")
+ *  is treated as Overrun — everything else (league, auction-gl, kind "gl")
+ *  is GL. */
+function jobForMode(m, ctx) {
+  if (!m) return "";
+  ctx = ctx || (state && state.mode) || "";
+  const overrun = String(ctx).includes("overrun");
+  return (overrun ? (m.jobOverrun || m.job) : m.job) || "";
+}
+
 function jobOrderOf(memberId) {
   const m = findMember(memberId);
   if (!m) return 999;
-  return JOB_PRIORITY[m.job] != null ? JOB_PRIORITY[m.job] : 999;
+  const j = jobForMode(m);
+  return JOB_PRIORITY[j] != null ? JOB_PRIORITY[j] : 999;
 }
 
 /** Reorder one party's slots by job priority. Empty slots sink to the
@@ -5992,6 +6022,7 @@ function fbSubscribeAll() {
         id,
         name:        r.name        || "",
         job:         r.job         || "",
+        jobOverrun:  r.jobOverrun  || "",
         discord:     r.discord     || "",
         discordId: r.discordId || "",
         cp:          Number(r.cp)  || 0,
@@ -6003,7 +6034,7 @@ function fbSubscribeAll() {
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th"));
     _fbApplyingRemote = true;
     state.members = rosterCache.map(r => ({
-      id: r.id, name: r.name, job: r.job, discord: r.discord, discordId: r.discordId, cp: r.cp,
+      id: r.id, name: r.name, job: r.job, jobOverrun: r.jobOverrun, discord: r.discord, discordId: r.discordId, cp: r.cp,
       onLeaveLeague: r.onLeaveLeague, onLeaveOverrun: r.onLeaveOverrun, source: "firebase"
     }));
     _fbApplyingRemote = false;
@@ -6779,11 +6810,12 @@ function migrateToFirebase() {
   (state.members || []).forEach(m => {
     if (!m.id || !m.name) return;
     // .set() REPLACES the node — include every field state.members mirrors
-    // (discord/discordId), or a migrate click would erase them for all
-    // members. onLeave* flags are daily-transient and acceptable to drop.
+    // (job/jobOverrun/discord/discordId), or a migrate click would erase them
+    // for all members. onLeave* flags are daily-transient and acceptable to drop.
     _fbDB.ref("members/" + m.id).set(rosterClampFields({
       name: m.name,
       job: m.job || "",
+      jobOverrun: m.jobOverrun || "",
       discord: m.discord || "",
       discordId: m.discordId || "",
       cp: Number(m.cp) || 0,
@@ -6841,8 +6873,8 @@ function rosterCanEdit(id) {
   return isAdmin() || claimGetMemberId() === id;
 }
 
-const ROSTER_FIELD_MAX   = { name: 64, job: 64, discord: 64, discordId: 32 };
-const ROSTER_FIELD_LABEL = { name: "ชื่อ", job: "Job", discord: "Discord", discordId: "Discord ID" };
+const ROSTER_FIELD_MAX   = { name: 64, job: 64, jobOverrun: 64, discord: 64, discordId: 32 };
+const ROSTER_FIELD_LABEL = { name: "ชื่อ", job: "Job (GL)", jobOverrun: "Job (Overrun)", discord: "Discord", discordId: "Discord ID" };
 const ROSTER_CP_MAX      = 100000000;  // 100M — sanity cap, mirrors rules .validate
 
 /** Actor for updatedBy stamps: admin → email, guest → "👤 " + claimed name.
@@ -6927,7 +6959,7 @@ function rosterMineDraft() {
   const row = document.querySelector(".roster-table tr.r-mine");
   if (!row) return null;
   const pick = f => { const el = row.querySelector(`[data-rme="${f}"]`); return el ? el.value : ""; };
-  return { name: pick("name"), job: pick("job"), discord: pick("discord"), cp: pick("cp") };
+  return { name: pick("name"), job: pick("job"), jobOverrun: pick("jobOverrun"), discord: pick("discord"), cp: pick("cp") };
 }
 function rosterApplyMineDraft(d) {
   const row = document.querySelector(".roster-table tr.r-mine");
@@ -6949,7 +6981,7 @@ function rosterSaveMine(id) {
   if (!d) return;
   const name = String(d.name).trim();
   if (!name) { toast("ชื่อห้ามว่าง", "error"); return; }  // keep the draft so it can be fixed
-  for (const f of ["name", "job", "discord"]) {
+  for (const f of ["name", "job", "jobOverrun", "discord"]) {
     if (String(d[f]).trim().length > ROSTER_FIELD_MAX[f]) {
       toast(`${ROSTER_FIELD_LABEL[f]} ยาวเกิน ${ROSTER_FIELD_MAX[f]} ตัวอักษร`, "error");
       return;
@@ -6963,8 +6995,9 @@ function rosterSaveMine(id) {
   _rosterMineDirty = false;  // release the render hold; the listener refresh shows the saved row
   _fbMembersRef.child(id).update({
     name,
-    job:       String(d.job).trim(),
-    discord:   String(d.discord).trim(),
+    job:        String(d.job).trim(),
+    jobOverrun: String(d.jobOverrun).trim(),
+    discord:    String(d.discord).trim(),
     cp,
     updatedAt: Date.now(),
     // Guest renaming themselves: stamp the NEW name (not the stale cache
@@ -7184,17 +7217,18 @@ function buildRosterRowsHtml() {
     : rosterCache.filter(m =>
         (m.name        || "").toLowerCase().includes(search) ||
         (m.job         || "").toLowerCase().includes(search) ||
+        (m.jobOverrun  || "").toLowerCase().includes(search) ||
         (m.discord     || "").toLowerCase().includes(search) ||
         (m.discordId || "").toLowerCase().includes(search));
   if (!filtered.length) {
     if (!rosterCache.length) {
-      return `<tr><td colspan="7" class="roster-empty">
+      return `<tr><td colspan="8" class="roster-empty">
         ยังไม่มีสมาชิกใน Roster<br>
         ${admin ? '<b>Admin:</b> กด <b>➕ เพิ่มสมาชิก</b> หรือ <b>📥 Import จาก Sheet</b>'
                 : 'รอ Admin เพิ่มสมาชิก'}
       </td></tr>`;
     }
-    return `<tr><td colspan="7" class="roster-empty">ไม่พบ "${escapeHtml(search)}"</td></tr>`;
+    return `<tr><td colspan="8" class="roster-empty">ไม่พบ "${escapeHtml(search)}"</td></tr>`;
   }
   return rosterApplySort(filtered).map((m, i) => {
     // Self-edit rendering, three modes per cell:
@@ -7211,21 +7245,8 @@ function buildRosterRowsHtml() {
         : mine
         ? `<input class="r-input" data-rme="name" value="${escapeHtml(m.name)}" oninput="rosterMarkMineDirty()" />`
         : rosterStaticCell("", m.name)}</td>
-      <td data-label="Job">${(() => {
-        const cur = m.job || "";
-        if (!admin && !mine) return rosterStaticCell("r-job", cur);
-        const inList = JOB_LIST.includes(cur);
-        const opts = JOB_LIST.map(j =>
-          `<option value="${j}" ${j === cur ? "selected" : ""}>${j}</option>`).join("");
-        const customOpt = (cur && !inList)
-          ? `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (custom)</option>`
-          : `<option value="" ${!cur ? "selected" : ""}>— เลือก Job —</option>`;
-        return `<select class="r-input r-job-select"${mine
-          ? ' data-rme="job" onchange="rosterMarkMineDirty()"'
-          : ` onchange="rosterUpdate('${m.id}','job',this.value)"`}>
-          ${customOpt}${opts}
-        </select>`;
-      })()}</td>
+      ${rosterJobCell(m, "job", "Job (GL)", admin, mine)}
+      ${rosterJobCell(m, "jobOverrun", "Job (Overrun)", admin, mine)}
       <td data-label="Discord">${admin
         ? `<input class="r-input" value="${escapeHtml(m.discord || "")}" placeholder="@username" onchange="rosterUpdate('${m.id}','discord',this.value)" />`
         : mine
@@ -7251,6 +7272,27 @@ function buildRosterRowsHtml() {
 /** Read-only roster cell: escaped value, or a muted dash when empty. */
 function rosterStaticCell(cls, val) {
   return `<div class="r-cell-static${cls ? " " + cls : ""}">${val ? escapeHtml(String(val)) : '<span style="color:var(--muted)">—</span>'}</div>`;
+}
+
+/** Roster Job cell — used for both Job (GL) `job` and Job (Overrun)
+ *  `jobOverrun`. Three render modes mirror the other cells: admin → live
+ *  select (per-field realtime save via rosterUpdate); own row → draft select
+ *  (data-rme, saved by 💾); else → static text. */
+function rosterJobCell(m, field, label, admin, mine) {
+  const cur = m[field] || "";
+  if (!admin && !mine) return `<td data-label="${label}">${rosterStaticCell("r-job", cur)}</td>`;
+  const inList = JOB_LIST.includes(cur);
+  const opts = JOB_LIST.map(j =>
+    `<option value="${j}" ${j === cur ? "selected" : ""}>${j}</option>`).join("");
+  const customOpt = (cur && !inList)
+    ? `<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)} (custom)</option>`
+    : `<option value="" ${!cur ? "selected" : ""}>— เลือก ${label} —</option>`;
+  const select = `<select class="r-input r-job-select"${mine
+    ? ` data-rme="${field}" onchange="rosterMarkMineDirty()"`
+    : ` onchange="rosterUpdate('${m.id}','${field}',this.value)"`}>
+      ${customOpt}${opts}
+    </select>`;
+  return `<td data-label="${label}">${select}</td>`;
 }
 
 /* Job-breakdown section — merged from the old Members tab. Shows job count,
@@ -7386,7 +7428,8 @@ function buildRosterHtml() {
             <tr>
               <th style="width:36px">#</th>
               <th class="r-th-sort" onclick="rosterSort('name')">ชื่อ${rosterSortArrow("name")}</th>
-              <th class="r-th-sort" onclick="rosterSort('job')">Job${rosterSortArrow("job")}</th>
+              <th class="r-th-sort" onclick="rosterSort('job')">Job (GL)${rosterSortArrow("job")}</th>
+              <th class="r-th-sort" onclick="rosterSort('jobOverrun')">Job (Overrun)${rosterSortArrow("jobOverrun")}</th>
               <th class="r-th-sort" onclick="rosterSort('discord')">Discord${rosterSortArrow("discord")}</th>
               <th class="r-th-sort" style="width:140px;text-align:right" onclick="rosterSort('cp')">CP${rosterSortArrow("cp")}</th>
               <th class="r-th-sort" style="width:110px" onclick="rosterSort('updatedAt')">Last Update${rosterSortArrow("updatedAt")}</th>
@@ -7892,7 +7935,7 @@ function buildAuctionView(kind) {
           <span class="aar-rk">${i + 1}.</span>
           <div class="aar-info">
             <span class="aar-name">${escapeHtml(m.name)}</span>
-            <span class="aar-job">${escapeHtml(m.job || "")}</span>
+            <span class="aar-job">${escapeHtml(jobForMode(m, data.kind))}</span>
             ${pageBadge}
           </div>
           <span class="aar-del" title="ลบออก"
@@ -8664,7 +8707,7 @@ function formatDayShortBkk(iso) {
 function arRenderRow(r, asAdmin, queueNo) {
   const m = findMember(r.memberId);
   const name = m ? m.name : (r.memberName || "?");
-  const job  = m ? (m.job || "") : "";
+  const job  = m ? jobForMode(m, r.mode) : "";
   const items = (r.items || []).map(k => `<span class="ar-item-chip">${AR_ITEM_META[k] ? AR_ITEM_META[k].label : k}</span>`).join("");
   // Re-detect field at render time so the main/sub tag tracks the
   // member's current party assignment instead of the snapshot from

@@ -973,13 +973,13 @@ console.log("\n[roster self-edit — guest claims own row]");
     const rules = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "database.rules.json"), "utf8"));
     const mid = rules.rules.members["$mid"];
     ok(mid && typeof mid[".write"] === "string", "members.$mid .write kept");
-    for (const k of ["name", "job", "discord", "discordId", "cp", "updatedAt", "updatedBy", "onLeaveLeague", "onLeaveOverrun"]) {
+    for (const k of ["name", "job", "jobOverrun", "discord", "discordId", "cp", "updatedAt", "updatedBy", "onLeaveLeague", "onLeaveOverrun"]) {
       ok(mid[k] && typeof mid[k][".validate"] === "string", "validator for " + k);
       // Deep-write lock: /members/$mid/<field>/<child> must be denied — a
       // parent .validate is NOT evaluated for writes below it (RTDB footgun)
       eq(mid[k]["$x"][".validate"], false, k + " has a child-write lock");
     }
-    eq(mid["$other"][".validate"], false, "$other:false — unknown keys rejected (all 9 writer keys are whitelisted)");
+    eq(mid["$other"][".validate"], false, "$other:false — unknown keys rejected (all 10 writer keys are whitelisted)");
     ok(mid.name[".validate"].indexOf("length >= 1") === -1 && mid.name[".validate"].indexOf("length > 0") === -1,
        "name validator must allow '' (dedupe ghost rows)");
   });
@@ -987,7 +987,7 @@ console.log("\n[roster self-edit — guest claims own row]");
     const rules = JSON.parse(require("fs").readFileSync(require("path").join(__dirname, "..", "database.rules.json"), "utf8"));
     const mid = rules.rules.members["$mid"];
     const lim = app.rosterLimits;
-    for (const k of ["name", "job", "discord", "discordId"]) {
+    for (const k of ["name", "job", "jobOverrun", "discord", "discordId"]) {
       const m = mid[k][".validate"].match(/length <= (\d+)/);
       ok(m, k + " has a length cap");
       eq(Number(m[1]), lim.fields[k], k + " cap matches client");
@@ -1001,6 +1001,93 @@ console.log("\n[roster self-edit — guest claims own row]");
     ok(/_rosterMineDirty && state\.mode === "roster"/.test(appHtml), "safeRender holds while draft open");
     ok(appHtml.includes("_rosterMineDirty = false;  // any full roster rebuild discards the draft"), "flag reset on full rebuild");
   });
+})();
+
+console.log("\n[dual-job GL/Overrun]");
+(function () {
+  // A has a different Overrun job; B has none (must fall back to its GL job).
+  const A = { id: "A", name: "Aa", job: "Knight",  jobOverrun: "Wizard", cp: 1 };
+  const B = { id: "B", name: "Bb", job: "Paladin", jobOverrun: "",       cp: 1 };
+  const setMembers = () => { app.state.members = [A, B]; };
+  // Snapshot shared state — this block mutates members/parties/mode; restore at
+  // the end so later blocks (overrun, wheel) see the state they expect.
+  const _saved = { members: app.state.members, parties: app.state.parties, mode: app.state.mode };
+
+  t("jobForMode: GL ctx → m.job · Overrun ctx → m.jobOverrun · missing OR → GL fallback", () => {
+    eq(app.call("jobForMode", A, "league"),         "Knight", "league uses GL job");
+    eq(app.call("jobForMode", A, "auction-gl"),     "Knight", "auction-gl uses GL job");
+    eq(app.call("jobForMode", A, "gl"),             "Knight", "auction kind 'gl' = GL");
+    eq(app.call("jobForMode", A, "overrun"),        "Wizard", "overrun uses jobOverrun");
+    eq(app.call("jobForMode", A, "auction-overrun"),"Wizard", "auction-overrun uses jobOverrun");
+    eq(app.call("jobForMode", B, "overrun"),        "Paladin","missing jobOverrun falls back to GL job");
+    eq(app.call("jobForMode", null, "overrun"),     "",       "null member → empty string");
+  });
+
+  t("jobForMode: defaults to state.mode when ctx omitted", () => {
+    setMembers();
+    app.state.mode = "overrun";
+    eq(app.call("jobForMode", A), "Wizard", "default ctx = state.mode (overrun)");
+    app.state.mode = "league";
+    eq(app.call("jobForMode", A), "Knight", "default ctx = state.mode (league)");
+  });
+
+  t("jobOrderOf (sort) follows the active page's job", () => {
+    setMembers();
+    app.state.mode = "league";
+    eq(app.call("jobOrderOf", "A"), 1, "league sorts by GL job (Knight=1)");
+    app.state.mode = "overrun";
+    eq(app.call("jobOrderOf", "A"), 3, "overrun sorts by Overrun job (Wizard=3)");
+  });
+
+  t("buildBfJobSummary pills count the page's job (GL vs Overrun, with fallback)", () => {
+    setMembers();
+    app.state.parties = [{ id: 1, name: "P1", slots: ["A", "B", null, null, null] }];
+    app.state.mode = "league";
+    const gl = app.call("buildBfJobSummary", [1]);
+    ok(gl.includes("<b>Knight</b>") && gl.includes("<b>Paladin</b>"), "league pills = GL jobs");
+    ok(!gl.includes("Wizard"), "league must NOT show the Overrun job");
+    app.state.mode = "overrun";
+    const or = app.call("buildBfJobSummary", [1]);
+    ok(or.includes("<b>Wizard</b>"),  "overrun pill uses jobOverrun");
+    ok(or.includes("<b>Paladin</b>"), "B with no Overrun job falls back to GL (Paladin)");
+    ok(!or.includes("Knight"),        "overrun must NOT show A's GL job");
+  });
+
+  t("rosterUpdate writes the jobOverrun field (admin, trimmed)", () => {
+    let writes = [];
+    const refStub = { child(id){ return { update(p){ writes.push({ id, p }); return Promise.resolve(); } }; } };
+    app.setAdmin(true);
+    app.setMembersRef(refStub);
+    app.call("rosterUpdate", "A", "jobOverrun", "  Stalker  ");
+    eq(writes.length, 1, "one write");
+    eq(writes[0].p.jobOverrun, "Stalker", "jobOverrun trimmed + written");
+  });
+
+  t("members listener projection keeps jobOverrun (no silent drop)", () => {
+    const appHtml = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+    ok(/jobOverrun:\s*r\.jobOverrun\s*\|\|\s*""/.test(appHtml), "rosterCache projection carries jobOverrun");
+    ok(/jobOverrun:\s*r\.jobOverrun,/.test(appHtml),            "state.members projection carries jobOverrun");
+  });
+
+  t("Roster table renders both Job (GL) and Job (Overrun) cells", () => {
+    const appHtml = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+    ok(appHtml.includes('rosterJobCell(m, "job", "Job (GL)"'),           "GL job cell wired");
+    ok(appHtml.includes('rosterJobCell(m, "jobOverrun", "Job (Overrun)"'),"Overrun job cell wired");
+    ok(appHtml.includes("onclick=\"rosterSort('jobOverrun')\""),         "Overrun column is sortable");
+  });
+
+  t("Overrun map marker + migrate writer respect jobOverrun (no missed/lossy surface)", () => {
+    const appHtml = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+    ok(appHtml.includes("${jobForMode(m)} · ${m.name}"), "Overrun map-marker tooltip uses jobForMode");
+    ok(!appHtml.includes("${m.job} · ${m.name}"),        "old raw-m.job marker tooltip pattern is gone");
+    ok(/jobOverrun:\s*m\.jobOverrun\s*\|\|\s*""/.test(appHtml),
+       "migrate writer carries jobOverrun (its .set() REPLACE would erase it otherwise)");
+  });
+
+  // Restore shared state so the blocks below run against what they expect.
+  app.state.members = _saved.members;
+  app.state.parties = _saved.parties;
+  app.state.mode    = _saved.mode;
 })();
 
 console.log("\n[map admin gate — guests view-only, filters allowed]");

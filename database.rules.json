@@ -10,6 +10,7 @@
         ".write": "auth != null && data.exists() && newData.exists()",
         "name":           { ".validate": "newData.isString() && newData.val().length <= 64", "$x": { ".validate": false } },
         "job":            { ".validate": "newData.isString() && newData.val().length <= 64", "$x": { ".validate": false } },
+        "jobOverrun":     { ".validate": "newData.isString() && newData.val().length <= 64", "$x": { ".validate": false } },
         "discord":        { ".validate": "newData.isString() && newData.val().length <= 64", "$x": { ".validate": false } },
         "discordId":      { ".validate": "newData.isString() && newData.val().length <= 32", "$x": { ".validate": false } },
         "cp":             { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000", "$x": { ".validate": false } },
