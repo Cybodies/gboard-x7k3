@@ -1334,6 +1334,26 @@ console.log("\n[auction-request queue]");
     ok(!approvedPart.includes("ar-queue-no"), "no queue numbers on history rows");
   });
 
+  t("resync: approved → auction = merge by name, idempotent, overrun→main", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["AlphaX", "BetaY"]));              // member id == name here
+    app.state.auctionOverrun = app.call("normalizeAuctionState", {}, "overrun");
+    app.state.auctionRequests = { [date]: { overrun: {
+      o1: { id:"o1", memberId:"AlphaX",  memberName:"AlphaX", items:["cards"],    status:"approved", computedField:"sub",  requestedAt:10 },
+      o2: { id:"o2", memberId:"dead_id", memberName:"BetaY",  items:["illusion"], status:"approved", computedField:"main", requestedAt:20 },
+      o3: { id:"o3", memberId:"AlphaX",  memberName:"AlphaX", items:["cards"],    status:"pending",  computedField:"main", requestedAt:30 },
+    } } };
+    // async fn, but the assignment MERGE runs synchronously before the await
+    // (_fbDB is null in the harness → the write throws and is caught after).
+    app.call("arResyncApprovedToAuction", date, "overrun");
+    const a = app.state.auctionOverrun.assignments;
+    eq(a.main.cards, ["AlphaX"], "overrun forces main even though computedField=sub");
+    eq(a.main.illusion, ["BetaY"], "name fallback: dead memberId resolved to BetaY by name");
+    ok(!(a.sub.cards || []).includes("AlphaX"), "nothing leaked into sub for overrun");
+    app.call("arResyncApprovedToAuction", date, "overrun");  // re-run
+    eq(a.main.cards, ["AlphaX"], "idempotent — pending ignored + no duplicate on re-run");
+  });
+
   t("queue: arFormatTime formats BKK time and dashes invalid input", () => {
     ok(/^\d{1,2}:\d{2}:\d{2}$/.test(app.call("arFormatTime", 1718160000000).trim()), "ms → HH:MM:SS");
     eq(app.call("arFormatTime", 0), "—", "0 → dash");

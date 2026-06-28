@@ -10,6 +10,22 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.28.2]
+### Fixed
+- **Auction โดน wipe แบบเดียวกับ parties (overrun bug "ที่อนุมัติไม่ตรงกับ auction").**
+  `state.auctionGL/Overrun` init เป็น object ที่มี assignments **ว่างเปล่า** (ไม่ใช่ `{}`)
+  → `fbPushAll` เขียน auction แบบไม่มี guard → เครื่องใหม่ (มือถือ) push assignments เปล่า
+  ทับคอลัมน์ที่อนุมัติไว้ ก่อน listener โหลดของจริง → คนที่อนุมัติหายจากคอลัมน์ แต่คำขอ
+  status=approved ยังอยู่. แก้ด้วย hydration guard `_auctionHydrated.{gl,overrun}` ที่ `fbPushAll`
+  (ตั้ง true ที่หัว auction listener แต่ละตัว).
+- **`remapAuctionIds` ลืม `illusion`.** ตอนรีเฟรช roster จาก Sheet (member id เปลี่ยนใหม่หมด)
+  remap แค่ cards/white/black → คนประมูล Illusion หลุดทุกครั้ง. เพิ่ม `illusion` เข้า list.
+### Added
+- **ปุ่ม "🔄 ดึงเข้า Auction GL / Overrun"** ในหมวด "✅ อนุมัติแล้ว" ของหน้าคิวคำขอ —
+  ดึงทุกคำขอ status=approved กลับเข้าคอลัมน์ auction แบบ **merge** (เติมที่ขาด ไม่ลบของเดิม),
+  จับคู่ด้วย **ชื่อ** (fallback จาก id) เลยทนต่อ id ที่เปลี่ยนหลังรีเฟรช roster. ใช้กู้คอลัมน์
+  ที่โดน wipe + ซิงค์ซ้ำได้ทุกเมื่อ (idempotent, admin-only).
+
 ## [2026.06.28.1]
 ### Fixed
 - **บั๊กข้อมูลหาย "ตี้เด้งออก" ตอน admin เปิดในมือถือ (ร้ายแรง).** เครื่องที่ไม่เคยเปิดแอป

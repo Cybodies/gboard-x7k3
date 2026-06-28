@@ -3544,7 +3544,7 @@ async function refreshFromSheet() {
       if (!assignments) return;
       ["main", "sub"].forEach(field => {
         if (!assignments[field]) return;
-        ["cards", "white", "black"].forEach(key => {
+        ["cards", "illusion", "white", "black"].forEach(key => {
           if (!Array.isArray(assignments[field][key])) return;
           assignments[field][key] = assignments[field][key].map(oldId => {
             if (!oldId) return null;
@@ -5346,7 +5346,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.28.1";
+const APP_VERSION = "2026.06.28.2";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5893,6 +5893,11 @@ let _localPartiesGuardUntil = 0;
 // even for an empty node — RTDB always fires the initial value event, so a
 // brand-new guild can still create its first board).
 let _partiesHydrated = { league: false, overrun: false };
+// Same hydration guard for the auction boards (auction_gl / auction_overrun).
+// state.auctionGL/Overrun init to a normalized object with EMPTY assignment
+// arrays (not {}), so a pre-hydration fbPushAll would write empty assignments
+// over real approved-bid columns — the same mobile wipe, hitting the auction.
+let _auctionHydrated = { gl: false, overrun: false };
 
 let rosterCache = [];          // sorted by name asc
 
@@ -6169,6 +6174,7 @@ function fbSubscribeAll() {
   // auction_gl
   _fbDB.ref("auction_gl").on("value", snap => {
     const v = snap.val();
+    _auctionHydrated.gl = true;  // heard from Firebase → auction writes now allowed
     if (!v || typeof v !== "object") return;
     _fbApplyingRemote = true;
     state.auctionGL = normalizeAuctionState(v, "gl");
@@ -6179,6 +6185,7 @@ function fbSubscribeAll() {
   // auction_overrun
   _fbDB.ref("auction_overrun").on("value", snap => {
     const v = snap.val();
+    _auctionHydrated.overrun = true;  // heard from Firebase → auction writes now allowed
     if (!v || typeof v !== "object") return;
     _fbApplyingRemote = true;
     state.auctionOverrun = normalizeAuctionState(v, "overrun");
@@ -6496,8 +6503,10 @@ function fbPushAll() {
     // or a fresh device's empty board overwrites everyone (the mobile wipe).
     if (_partiesHydrated.league)  _fbDB.ref("parties/league").set(state.partiesLeague || makeEmptyParties());
     if (_partiesHydrated.overrun) _fbDB.ref("parties/overrun").set(state.partiesOverrun || makeEmptyParties());
-    _fbDB.ref("auction_gl").set(state.auctionGL);
-    _fbDB.ref("auction_overrun").set(state.auctionOverrun);
+    // Same gate for auction — state.auction* defaults to empty-assignment objects,
+    // so an un-hydrated push would wipe approved-bid columns (the overrun bug).
+    if (_auctionHydrated.gl)      _fbDB.ref("auction_gl").set(state.auctionGL);
+    if (_auctionHydrated.overrun) _fbDB.ref("auction_overrun").set(state.auctionOverrun);
     _fbDB.ref("job_targets").set(state.jobTargets || {});
     _fbDB.ref("markers").set(state.markers || {});
     _fbDB.ref("markers_bottom").set(state.markersBottom || {});
@@ -8367,6 +8376,48 @@ async function arBulkApprove(date, mode) {
   toast(`✅ อนุมัติ ${pending.length} คน · ถ้าเกินจำนวนของ ไป trim ในหน้า Auction ${mode === "gl" ? "GL" : "Overrun"}`, "success");
 }
 
+/** Recovery / resync: re-pull every APPROVED request for this date+mode into the
+ *  auction columns. Idempotent MERGE — adds anyone missing, never removes a name
+ *  the admin dragged in manually. Matches by current member id, falling back to
+ *  NAME (req.memberName) so it survives a roster refresh that reassigned ids
+ *  (the same id churn that lets the columns drift from the approved list). Used to
+ *  recover columns wiped by the mobile hydration bug, and reusable any time the
+ *  auction page disagrees with "✅ อนุมัติแล้ว". */
+async function arResyncApprovedToAuction(date, mode) {
+  if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
+  const obj = state[mode === "gl" ? "auctionGL" : "auctionOverrun"];
+  if (!obj) { toast("ยังไม่ได้ตั้งค่า auction state", "error"); return; }
+  // Ensure shape (same as arApproveRequest) so a fresh/empty board doesn't throw.
+  if (!obj.assignments) obj.assignments = { main: {}, sub: {} };
+  ["main","sub"].forEach(f => {
+    if (!obj.assignments[f]) obj.assignments[f] = { cards: [], illusion: [], white: [], black: [] };
+    ["cards","illusion","white","black"].forEach(k => {
+      if (!Array.isArray(obj.assignments[f][k])) obj.assignments[f][k] = [];
+    });
+  });
+  const approved = arGetRequests(date, mode).filter(r => r.status === "approved");
+  let added = 0, missing = 0;
+  approved.forEach(req => {
+    // current id first, then name fallback (roster refresh churns ids)
+    const m = findMember(req.memberId) || state.members.find(mm => mm.name === req.memberName);
+    if (!m) { missing++; return; }
+    // Overrun has no sub column in the UI — force main (matches arApproveRequest).
+    const field = (mode === "overrun") ? "main" : (arDetectField(m.id, mode) || req.computedField || "main");
+    (req.items || []).forEach(item => {
+      const bucket = obj.assignments[field][item];
+      if (bucket && !bucket.includes(m.id)) { bucket.push(m.id); added++; }
+    });
+  });
+  try {
+    await _fbDB.ref(mode === "gl" ? "auction_gl" : "auction_overrun").set(obj);
+  } catch (e) {
+    toast(`ซิงค์ไม่สำเร็จ: ${e.message}`, "error"); console.error("[auction-resync] write failed", e); return;
+  }
+  if (typeof render === "function") render();
+  toast(`🔄 ดึงเข้า ${mode === "gl" ? "GL" : "Overrun"}: เพิ่ม ${added} รายการ`
+        + (missing ? ` · หาไม่เจอ ${missing} คน (ไม่อยู่ใน roster)` : ""), added || missing ? "success" : "");
+}
+
 function arClearDay(date) {
   if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
   if (!confirm(`ล้างคำขอทั้งหมดของ ${date}?`)) return;
@@ -8721,6 +8772,14 @@ function arBuildAdminQueue(date, eventMode) {
   const approvedSection = (approvedGl.length || approvedOver.length) ? `
     <div class="ar-section">
       <h3>✅ อนุมัติแล้ว (${approvedGl.length + approvedOver.length})</h3>
+      <div class="ar-bulk-bar">
+        ${approvedGl.length ? `<button class="primary"
+          onclick="arResyncApprovedToAuction('${date}','gl')"
+          title="เติมคนที่อนุมัติ กลับเข้าคอลัมน์ Auction GL (ไม่ลบของเดิม)">🔄 ดึงเข้า Auction GL</button>` : ""}
+        ${approvedOver.length ? `<button class="primary"
+          onclick="arResyncApprovedToAuction('${date}','overrun')"
+          title="เติมคนที่อนุมัติ กลับเข้าคอลัมน์ Auction Overrun (ไม่ลบของเดิม)">🔄 ดึงเข้า Auction Overrun</button>` : ""}
+      </div>
       ${renderGroup("⚔️ GL", "gl", approvedGl)}
       ${renderGroup("🏆 Overrun", "overrun", approvedOver)}
     </div>` : "";
