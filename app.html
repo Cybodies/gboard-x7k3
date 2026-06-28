@@ -5346,7 +5346,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.28.2";
+const APP_VERSION = "2026.06.28.3";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -8376,25 +8376,26 @@ async function arBulkApprove(date, mode) {
   toast(`✅ อนุมัติ ${pending.length} คน · ถ้าเกินจำนวนของ ไป trim ในหน้า Auction ${mode === "gl" ? "GL" : "Overrun"}`, "success");
 }
 
-/** Recovery / resync: re-pull every APPROVED request for this date+mode into the
- *  auction columns. Idempotent MERGE — adds anyone missing, never removes a name
- *  the admin dragged in manually. Matches by current member id, falling back to
- *  NAME (req.memberName) so it survives a roster refresh that reassigned ids
- *  (the same id churn that lets the columns drift from the approved list). Used to
- *  recover columns wiped by the mobile hydration bug, and reusable any time the
- *  auction page disagrees with "✅ อนุมัติแล้ว". */
+/** Rebuild the auction columns to EXACTLY match the current approved requests for
+ *  this date+mode — REPLACE, not merge: wipe every bucket, then re-add each
+ *  approved bidder. Drops stale ids AND any manual drag-in that has no approved
+ *  request, so the columns end up matching "✅ อนุมัติแล้ว" 1:1. Matches by current
+ *  member id, falling back to NAME (req.memberName) so it survives a roster refresh
+ *  that churned ids. Overrun forces field "main" (no sub column). Admin-only +
+ *  confirm-gated because it discards manual additions. Recovers columns wiped by
+ *  the mobile hydration bug, and reusable to re-sync any time. */
 async function arResyncApprovedToAuction(date, mode) {
   if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
   const obj = state[mode === "gl" ? "auctionGL" : "auctionOverrun"];
   if (!obj) { toast("ยังไม่ได้ตั้งค่า auction state", "error"); return; }
-  // Ensure shape (same as arApproveRequest) so a fresh/empty board doesn't throw.
-  if (!obj.assignments) obj.assignments = { main: {}, sub: {} };
-  ["main","sub"].forEach(f => {
-    if (!obj.assignments[f]) obj.assignments[f] = { cards: [], illusion: [], white: [], black: [] };
-    ["cards","illusion","white","black"].forEach(k => {
-      if (!Array.isArray(obj.assignments[f][k])) obj.assignments[f][k] = [];
-    });
-  });
+  const label = mode === "gl" ? "GL" : "Overrun";
+  if (!confirm(`แทนที่คอลัมน์ Auction ${label} ทั้งหมดด้วยรายชื่อที่อนุมัติตอนนี้?\n(คนที่ลากใส่เองโดยไม่มีคำขอจะถูกลบออก)`)) return;
+  // REPLACE: wipe every bucket, then refill from approved → columns match the
+  // approved list 1:1 (drops stale ids + manual adds with no request).
+  obj.assignments = {
+    main: { cards: [], illusion: [], white: [], black: [] },
+    sub:  { cards: [], illusion: [], white: [], black: [] }
+  };
   const approved = arGetRequests(date, mode).filter(r => r.status === "approved");
   let added = 0, missing = 0;
   approved.forEach(req => {
@@ -8411,11 +8412,11 @@ async function arResyncApprovedToAuction(date, mode) {
   try {
     await _fbDB.ref(mode === "gl" ? "auction_gl" : "auction_overrun").set(obj);
   } catch (e) {
-    toast(`ซิงค์ไม่สำเร็จ: ${e.message}`, "error"); console.error("[auction-resync] write failed", e); return;
+    toast(`แทนที่ไม่สำเร็จ: ${e.message}`, "error"); console.error("[auction-resync] write failed", e); return;
   }
   if (typeof render === "function") render();
-  toast(`🔄 ดึงเข้า ${mode === "gl" ? "GL" : "Overrun"}: เพิ่ม ${added} รายการ`
-        + (missing ? ` · หาไม่เจอ ${missing} คน (ไม่อยู่ใน roster)` : ""), added || missing ? "success" : "");
+  toast(`✅ แทนที่ ${label} ด้วยที่อนุมัติ: ${added} รายการ`
+        + (missing ? ` · หาไม่เจอ ${missing} คน (ไม่อยู่ใน roster)` : ""), "success");
 }
 
 function arClearDay(date) {
@@ -8775,10 +8776,10 @@ function arBuildAdminQueue(date, eventMode) {
       <div class="ar-bulk-bar">
         ${approvedGl.length ? `<button class="primary"
           onclick="arResyncApprovedToAuction('${date}','gl')"
-          title="เติมคนที่อนุมัติ กลับเข้าคอลัมน์ Auction GL (ไม่ลบของเดิม)">🔄 ดึงเข้า Auction GL</button>` : ""}
+          title="ล้างคอลัมน์ Auction GL แล้วใส่เฉพาะคนที่อนุมัติตอนนี้ (แทนที่ทั้งหมด)">♻️ แทนที่ Auction GL ด้วยที่อนุมัติ</button>` : ""}
         ${approvedOver.length ? `<button class="primary"
           onclick="arResyncApprovedToAuction('${date}','overrun')"
-          title="เติมคนที่อนุมัติ กลับเข้าคอลัมน์ Auction Overrun (ไม่ลบของเดิม)">🔄 ดึงเข้า Auction Overrun</button>` : ""}
+          title="ล้างคอลัมน์ Auction Overrun แล้วใส่เฉพาะคนที่อนุมัติตอนนี้ (แทนที่ทั้งหมด)">♻️ แทนที่ Auction Overrun ด้วยที่อนุมัติ</button>` : ""}
       </div>
       ${renderGroup("⚔️ GL", "gl", approvedGl)}
       ${renderGroup("🏆 Overrun", "overrun", approvedOver)}

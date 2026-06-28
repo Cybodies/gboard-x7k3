@@ -1334,21 +1334,25 @@ console.log("\n[auction-request queue]");
     ok(!approvedPart.includes("ar-queue-no"), "no queue numbers on history rows");
   });
 
-  t("resync: approved → auction = merge by name, idempotent, overrun→main", () => {
+  t("resync: approved → auction = REPLACE (clears stale), by name, overrun→main", () => {
     app.setAdmin(true); app.setToday(date);
     reset(app, mkMembers(["AlphaX", "BetaY"]));              // member id == name here
     app.state.auctionOverrun = app.call("normalizeAuctionState", {}, "overrun");
+    // pre-existing stale / manual entries that REPLACE must wipe:
+    app.state.auctionOverrun.assignments.main.cards = ["GhostOld"];
+    app.state.auctionOverrun.assignments.main.white = ["AlphaX"];
     app.state.auctionRequests = { [date]: { overrun: {
       o1: { id:"o1", memberId:"AlphaX",  memberName:"AlphaX", items:["cards"],    status:"approved", computedField:"sub",  requestedAt:10 },
       o2: { id:"o2", memberId:"dead_id", memberName:"BetaY",  items:["illusion"], status:"approved", computedField:"main", requestedAt:20 },
       o3: { id:"o3", memberId:"AlphaX",  memberName:"AlphaX", items:["cards"],    status:"pending",  computedField:"main", requestedAt:30 },
     } } };
-    // async fn, but the assignment MERGE runs synchronously before the await
-    // (_fbDB is null in the harness → the write throws and is caught after).
+    // async fn, but the REPLACE runs synchronously before the await; the harness
+    // stubs confirm()=>true so it proceeds.
     app.call("arResyncApprovedToAuction", date, "overrun");
     const a = app.state.auctionOverrun.assignments;
-    eq(a.main.cards, ["AlphaX"], "overrun forces main even though computedField=sub");
+    eq(a.main.cards, ["AlphaX"], "replace: GhostOld cleared, approved AlphaX in (overrun forces main)");
     eq(a.main.illusion, ["BetaY"], "name fallback: dead memberId resolved to BetaY by name");
+    eq(a.main.white, [], "stale manual white entry cleared by replace");
     ok(!(a.sub.cards || []).includes("AlphaX"), "nothing leaked into sub for overrun");
     app.call("arResyncApprovedToAuction", date, "overrun");  // re-run
     eq(a.main.cards, ["AlphaX"], "idempotent — pending ignored + no duplicate on re-run");
