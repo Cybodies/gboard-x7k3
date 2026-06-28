@@ -10,6 +10,20 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.06.28.1]
+### Fixed
+- **บั๊กข้อมูลหาย "ตี้เด้งออก" ตอน admin เปิดในมือถือ (ร้ายแรง).** เครื่องที่ไม่เคยเปิดแอป
+  (ไม่มี `localStorage`) จะ init `partiesLeague/Overrun` เป็นกระดานเปล่าทุกช่อง **ก่อน**
+  Firebase listener โหลดตี้จริงมาทัน — ถ้ามี action ใดยิง `save()`/`commitPartiesNow` ในจังหวะนั้น
+  จะเขียนกระดานเปล่าทับของจริงใน Firebase แล้ว sync ไปลบทุกเครื่อง (คอมหายตาม). แก้ด้วย
+  **hydration guard**: flag `_partiesHydrated.{league,overrun}` ตั้ง `true` ที่หัว listener แต่ละตัว
+  (เหนือ `if(v==null) return` — กิลด์ใหม่สร้างตี้แรกได้ปกติ) แล้วกั้นการเขียน parties ทั้ง 3 จุด
+  (`commitPartiesNow`, `fbPushAll`, `repairGhostSlots`). หมายเหตุ: เช็คเดิม `if (state.partiesLeague)`
+  กันไม่ได้เพราะกระดานเปล่าเป็น array ที่ truthy.
+- **มือถือ: เผลอลบ/ย้ายสมาชิกตอนเลื่อนจอ.** `setupTouchDnD` ติดอาวุธ drag จากการแตะค้าง 200ms
+  แล้วไม่เช็คระยะลาก → แตะค้างนิ่งแล้วปล่อยนับเป็น drop ทันที. เพิ่มเกณฑ์ต้องลากจริง ≥24px
+  (`DRAG_MIN_PX`) ใน `end()` ถึงจะนับเป็นการวาง/ลบ.
+
 ## [2026.06.27.1]
 ### Changed
 - **Roster: เอาคอลัมน์ Discord ID ออก เหลือแค่ Discord.** ลบหัวตาราง + เซลล์ Discord ID,

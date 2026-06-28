@@ -3741,7 +3741,7 @@ function setupSidebarDrop() {
 // mouse-only (rare on phones) — add a touch case here if it's ever needed.
 function setupTouchDnD() {
   let t = null, holdTimer = null;
-  const SLOP = 10, HOLD_MS = 200;
+  const SLOP = 10, HOLD_MS = 200, DRAG_MIN_PX = 24;
   const clearOver = () => document.querySelectorAll(".slot.drag-over").forEach(s => s.classList.remove("drag-over"));
 
   function source(el) {
@@ -3789,7 +3789,13 @@ function setupTouchDnD() {
     if (cur.el) cur.el.classList.remove("dragging");
     if (!cur.armed) return;                   // never became a drag → leave taps/dblclick alone
     const pt = e.changedTouches && e.changedTouches[0];
-    const over = pt && document.elementFromPoint(pt.clientX, pt.clientY);
+    if (!pt) return;
+    // Require a REAL drag: an armed-but-near-stationary lift (a 200ms hold that
+    // never actually travelled — e.g. resting a finger to read, then scrolling)
+    // must NOT count as a drop, or it silently removes/moves a member.
+    // ponytail: bump DRAG_MIN_PX if accidental touch edits still slip through.
+    if (Math.abs(pt.clientX - cur.x0) < DRAG_MIN_PX && Math.abs(pt.clientY - cur.y0) < DRAG_MIN_PX) return;
+    const over = document.elementFromPoint(pt.clientX, pt.clientY);
     if (!over) return;
     const slot = over.closest && over.closest(".slot[data-pid]");
     if (slot) {
@@ -5340,7 +5346,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.27.1";
+const APP_VERSION = "2026.06.28.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5458,6 +5464,18 @@ function sortPartyByJob(partyId) {
 function commitPartiesNow() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
   if (!_fbDB || !isAdmin()) return;
+  // Hydration gate (NOT the truthiness check — makeEmptyParties() is a truthy
+  // array, so `if (state.partiesLeague)` passes for an all-null board). Only
+  // write a board once its listener has confirmed we've heard from Firebase.
+  const writes = [];
+  if (_partiesHydrated.league  && state.partiesLeague)  writes.push(_fbDB.ref("parties/league").set(state.partiesLeague));
+  if (_partiesHydrated.overrun && state.partiesOverrun) writes.push(_fbDB.ref("parties/overrun").set(state.partiesOverrun));
+  // Un-hydrated (e.g. a drag in the sub-second before the first listener snapshot):
+  // nothing to push, so bail BEFORE arming the echo-guard below. If we armed it,
+  // _localPartiesGuardUntil would suppress the incoming hydration snapshot (listener
+  // checks it), leaving stale local data that a later push could write back as a wipe.
+  // Also avoids logging a phantom audit row for an edit that never persisted.
+  if (!writes.length) return;
   // Note: we do NOT clearTimeout(_fbPushTimer) here — other state paths
   // (auction inputs, markers, job targets) may have a queued debounce we
   // shouldn't drop. We push parties directly and let the debounce keep
@@ -5468,9 +5486,6 @@ function commitPartiesNow() {
   // a member-delete can reach here from a non-board page → auditBoardLabel
   // labels that generically instead of mislabelling it as a specific board.
   logAudit("แก้ทีม " + auditBoardLabel(state.mode));
-  const writes = [];
-  if (state.partiesLeague)  writes.push(_fbDB.ref("parties/league").set(state.partiesLeague));
-  if (state.partiesOverrun) writes.push(_fbDB.ref("parties/overrun").set(state.partiesOverrun));
   Promise.all(writes).catch(e => {
     console.warn("[parties] direct push failed", e);
     toast("เซฟไม่สำเร็จ: " + (e.message || e.code), "error");
@@ -5869,6 +5884,16 @@ let _fbPushTimer = null;
 // could land mid-sort and wipe the sort result before our own push lands.
 let _localPartiesGuardUntil = 0;
 
+// Hydration guard against the "ตี้เด้งออก" mobile wipe: on a fresh device (no
+// localStorage) state.partiesLeague/Overrun start as makeEmptyParties() (all-null)
+// BEFORE the Firebase listeners deliver the real boards. Any write in that window
+// (save→fbPushAll, or commitPartiesNow from a touch-drop) would push the empty
+// board over everyone's data. We only allow a parties write once that board's
+// listener has fired at least once (flag flips true at the TOP of the listener,
+// even for an empty node — RTDB always fires the initial value event, so a
+// brand-new guild can still create its first board).
+let _partiesHydrated = { league: false, overrun: false };
+
 let rosterCache = [];          // sorted by name asc
 
 function firebaseConfigured() {
@@ -6040,8 +6065,8 @@ function fbSubscribeAll() {
       });
       return touched;
     };
-    if (strictClean(state.partiesLeague))  { _fbDB.ref("parties/league").set(state.partiesLeague);   trees++; }
-    if (strictClean(state.partiesOverrun)) { _fbDB.ref("parties/overrun").set(state.partiesOverrun); trees++; }
+    if (_partiesHydrated.league  && strictClean(state.partiesLeague))  { _fbDB.ref("parties/league").set(state.partiesLeague);   trees++; }
+    if (_partiesHydrated.overrun && strictClean(state.partiesOverrun)) { _fbDB.ref("parties/overrun").set(state.partiesOverrun); trees++; }
     console.log("[repair] cleaned", cleared, "slots across", trees, "tree(s)");
     if (typeof render === "function") render();
     if (typeof toast === "function") {
@@ -6080,6 +6105,7 @@ function fbSubscribeAll() {
   // parties/league
   _fbDB.ref("parties/league").on("value", snap => {
     const v = snap.val();
+    _partiesHydrated.league = true;  // heard from Firebase → writes to this board now allowed
     if (v == null) return;  // no data yet — don't wipe local state
     // Skip echoes that arrive during a recent local mutation window
     // (sort, drag). Otherwise an in-flight echo of a previous edit
@@ -6119,6 +6145,7 @@ function fbSubscribeAll() {
   // parties/overrun
   _fbDB.ref("parties/overrun").on("value", snap => {
     const v = snap.val();
+    _partiesHydrated.overrun = true;  // heard from Firebase → writes to this board now allowed
     if (v == null) return;  // no data yet — don't wipe local state
     if (Date.now() < _localPartiesGuardUntil) {
       console.log("[parties/overrun] echo suppressed — within local mutation guard");
@@ -6465,8 +6492,10 @@ function flashSyncIndicator(state) {
 function fbPushAll() {
   if (!_fbDB || !isAdmin() || _fbApplyingRemote) return;
   try {
-    _fbDB.ref("parties/league").set(state.partiesLeague || makeEmptyParties());
-    _fbDB.ref("parties/overrun").set(state.partiesOverrun || makeEmptyParties());
+    // Hydration gate — don't push a board until its listener has fired once,
+    // or a fresh device's empty board overwrites everyone (the mobile wipe).
+    if (_partiesHydrated.league)  _fbDB.ref("parties/league").set(state.partiesLeague || makeEmptyParties());
+    if (_partiesHydrated.overrun) _fbDB.ref("parties/overrun").set(state.partiesOverrun || makeEmptyParties());
     _fbDB.ref("auction_gl").set(state.auctionGL);
     _fbDB.ref("auction_overrun").set(state.auctionOverrun);
     _fbDB.ref("job_targets").set(state.jobTargets || {});
