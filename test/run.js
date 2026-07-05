@@ -1261,6 +1261,25 @@ console.log("\n[summary exact targets]");
        "target 0 jobs stay excluded");
   });
 
+  t("Gunslinger is a canonical job: Roster dropdown offers it (GL + Overrun)", () => {
+    const gl = app.call("rosterJobCell", { id: "x", job: "" }, "job", "Job (GL)", true, false);
+    const or = app.call("rosterJobCell", { id: "x", jobOverrun: "" }, "jobOverrun", "Job (Overrun)", true, false);
+    ok(gl.includes('value="Gunslinger"'), "GL job dropdown offers Gunslinger");
+    ok(or.includes('value="Gunslinger"'), "Overrun job dropdown offers Gunslinger");
+  });
+
+  t("Gunslinger sorts right after Sniper, before Assassin (จัดเรียงตามอาชีพ)", () => {
+    reset(app, [
+      { id: "s", name: "s", job: "Sniper" },
+      { id: "g", name: "g", job: "Gunslinger" },
+      { id: "a", name: "a", job: "Assassin" },
+    ]);
+    const os = app.call("jobOrderOf", "s");
+    const og = app.call("jobOrderOf", "g");
+    const oa = app.call("jobOrderOf", "a");
+    ok(os < og && og < oa, `expected Sniper(${os}) < Gunslinger(${og}) < Assassin(${oa})`);
+  });
+
   t("exact: move plan renders EVERY pair (no silent slice-4 truncation)", () => {
     const jobs = ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5"];
     const counts = { A1: 2, A2: 2, A3: 2, A4: 2, A5: 2, B1: 0, B2: 0, B3: 0, B4: 0, B5: 0 };
@@ -1450,6 +1469,85 @@ console.log("\n[auction-request queue]");
     eq(app.call("arFormatTime", 0), "—", "0 → dash");
     eq(app.call("arFormatTime", undefined), "—", "undefined → dash");
     eq(app.call("arFormatTime", NaN), "—", "NaN → dash");
+  });
+})();
+
+// ------------------------------------------------ auction allocate (จัดสรร)
+// arBulkApprove is capacity-aware: each member gets ONE item (the first item
+// they requested that still has a free slot = pool ÷ per-person rate), handed
+// out FIFO (oldest first); anyone who can't fit is rejected. Allocation into
+// the columns runs synchronously BEFORE the async Firebase write, so we assert
+// on state.auction* right after the (un-awaited) call — the same trick the
+// resync test uses. We swallow the stubbed async tail so it can't leak a
+// rejection into the runner.
+console.log("\n[auction allocate — จัดสรร by capacity, 1 item/person]");
+(() => {
+  const date = "2026-06-07"; // Sunday = Overrun (no main/sub split → simpler math)
+  const fire = (mode) => { const p = app.call("arBulkApprove", date, mode); if (p && p.catch) p.catch(() => {}); };
+  const seed = (reqs) => { app.state.auctionRequests = { [date]: { overrun: reqs } }; };
+
+  t("fills each item up to capacity (pool÷rate), FIFO; overflow left out", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m1", "m2", "m3"]));
+    app.state.auctionOverrun.cards = 2;                 // rate 1 → 2 slots
+    seed({
+      r1: { id:"r1", memberId:"m1", memberName:"m1", items:["cards"], status:"pending", computedField:"main", requestedAt:1 },
+      r2: { id:"r2", memberId:"m2", memberName:"m2", items:["cards"], status:"pending", computedField:"main", requestedAt:2 },
+      r3: { id:"r3", memberId:"m3", memberName:"m3", items:["cards"], status:"pending", computedField:"main", requestedAt:3 },
+    });
+    fire("overrun");
+    eq(app.state.auctionOverrun.assignments.main.cards, ["m1", "m2"], "first 2 (FIFO) get cards, m3 overflows");
+  });
+
+  t("counts people already in a column against capacity (no double-book)", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m0", "m1", "m2"]));
+    app.state.auctionOverrun.cards = 2;                 // 2 slots, 1 already taken
+    app.state.auctionOverrun.assignments.main.cards = ["m0"];
+    seed({
+      r1: { id:"r1", memberId:"m1", memberName:"m1", items:["cards"], status:"pending", computedField:"main", requestedAt:1 },
+      r2: { id:"r2", memberId:"m2", memberName:"m2", items:["cards"], status:"pending", computedField:"main", requestedAt:2 },
+    });
+    fire("overrun");
+    eq(app.state.auctionOverrun.assignments.main.cards, ["m0", "m1"], "only 1 free slot left → m1 in, m2 overflows");
+  });
+
+  t("legacy multi-item req: skips a full item, grants the next free one", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m0", "m1"]));
+    app.state.auctionOverrun.cards = 1;                 // 1 slot, taken by m0
+    app.state.auctionOverrun.white = 10;               // rate 10 → 1 slot
+    app.state.auctionOverrun.assignments.main.cards = ["m0"];
+    seed({
+      r1: { id:"r1", memberId:"m1", memberName:"m1", items:["cards","white"], status:"pending", computedField:"main", requestedAt:1 },
+    });
+    fire("overrun");
+    eq(app.state.auctionOverrun.assignments.main.cards, ["m0"], "cards full → m1 not added there");
+    eq(app.state.auctionOverrun.assignments.main.white, ["m1"], "m1 falls through to white (first free requested item)");
+  });
+
+  t("member already in a column + has a pending req for it: keeps seat, no slot double-count", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m0", "m1"]));
+    app.state.auctionOverrun.cards = 2;                 // 2 slots
+    app.state.auctionOverrun.assignments.main.cards = ["m0"]; // m0 dragged in AND requests below
+    seed({
+      r0: { id:"r0", memberId:"m0", memberName:"m0", items:["cards"], status:"pending", computedField:"main", requestedAt:1 },
+      r1: { id:"r1", memberId:"m1", memberName:"m1", items:["cards"], status:"pending", computedField:"main", requestedAt:2 },
+    });
+    fire("overrun");
+    // m0's seat counts once → m1 still fits the 2nd slot (no phantom slot burned).
+    eq(app.state.auctionOverrun.assignments.main.cards, ["m0", "m1"], "m0 kept once, m1 gets the real free slot");
+  });
+
+  t("empty pool (all counts 0) does NOT allocate — guard, don't reject whole queue", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m1"]));                      // auctionOverrun counts all 0
+    seed({
+      r1: { id:"r1", memberId:"m1", memberName:"m1", items:["cards"], status:"pending", computedField:"main", requestedAt:1 },
+    });
+    fire("overrun");
+    eq(app.state.auctionOverrun.assignments.main.cards, [], "empty-pool guard: nobody allocated");
   });
 })();
 

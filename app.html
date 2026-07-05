@@ -5360,7 +5360,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.06.28.4";
+const APP_VERSION = "2026.07.05.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5395,7 +5395,7 @@ const JOB_LIST = [
   "Wizard", "Professor",
   "Assassin", "Stalker",
   "Mastersmith", "Biochemist",
-  "Sniper", "Bard", "Summoner",
+  "Sniper", "Gunslinger", "Bard", "Summoner",
   "High Priest", "Dancer"
 ];
 
@@ -5410,14 +5410,15 @@ const JOB_PRIORITY = {
   "Professor":    4,
   "Summoner":     5,
   "Sniper":       6,
-  "Assassin":     7,
-  "Stalker":      8,
-  "Mastersmith":  9,  "MasterSmith":   9,
-  "Biochemist":  10,  "Bioalchemist": 10,
-  "Champion":    11,  "Monk":         11,
-  "Bard":        12,
-  "Dancer":      13,
-  "High Priest": 14,  "Priest":       14
+  "Gunslinger":   7,
+  "Assassin":     8,
+  "Stalker":      9,
+  "Mastersmith": 10,  "MasterSmith":  10,
+  "Biochemist":  11,  "Bioalchemist": 11,
+  "Champion":    12,  "Monk":         12,
+  "Bard":        13,
+  "Dancer":      14,
+  "High Priest": 15,  "Priest":       15
 };
 /** Resolve a member's job for a given page/context. GL pages use `m.job`
  *  (the canonical/primary job — also the identity key for snapshots/import,
@@ -8363,7 +8364,10 @@ function arRejectRequest(date, mode, requestId, reason) {
     const obj = state[auctionKey];
     const field = req.computedField || "main";
     if (obj && obj.assignments && obj.assignments[field]) {
-      (req.items || []).forEach(item => {
+      // Bulk-approved members sit in exactly one column (grantedItem); older
+      // manual approvals span all requested items. Remove only what applies.
+      const itemsToRemove = req.grantedItem ? [req.grantedItem] : (req.items || []);
+      itemsToRemove.forEach(item => {
         const arr = obj.assignments[field][item];
         if (Array.isArray(arr)) {
           const idx = arr.indexOf(req.memberId);
@@ -8394,29 +8398,129 @@ function arWithdrawRequest(date, mode, requestId) {
   _fbDB.ref(`auction_requests/${date}/${mode}/${requestId}`).remove();
 }
 
-/** Bulk approve all pending. FIFO (main field before sub, then oldest
- *  first). No capacity check — every request goes into the auction
- *  column even if it overflows the pool. Admin trims excess people
- *  manually on the Auction GL / Auction Overrun pages.
+/** Capacity-aware allocation for the "จัดสรรอัตโนมัติ" button. FIFO
+ *  (main field before sub, then oldest first). Each approved member gets
+ *  EXACTLY ONE item — the first item they requested that still has a free
+ *  slot (slots = pool ÷ per-person rate). Members whose every requested
+ *  item is already full are auto-rejected with a "ของไม่พอ" reason naming
+ *  the full items, so they know to ask for something else. People already
+ *  sitting in a column (manual drags / earlier approvals) count against
+ *  capacity so a slot is never double-booked.
  */
 async function arBulkApprove(date, mode) {
   if (!isAdmin()) { toast("ต้องเป็น admin", "error"); return; }
-  if (!confirm(`อนุมัติทุก request ของ ${date} (${mode === "gl" ? "GL" : "Overrun"})?`)) return;
+
+  const auctionKey = mode === "gl" ? "auctionGL" : "auctionOverrun";
+  const obj = state[auctionKey];
+  if (!obj) { toast("ยังไม่ได้ตั้งค่า auction state", "error"); return; }
+
+  // Pools + per-person rates come from the same computation the summary
+  // table + ⚠️ "ของไม่พอ" warning use, so capacity here matches the UI.
+  const ITEM_KEYS = ["cards", "illusion", "white", "black"];
+  const data = computeAuction(mode);
+  const cap = { main: {}, sub: {} };
+  let poolTotal = 0;
+  data.items.forEach(it => {
+    cap.main[it.key] = it.rate > 0 ? Math.floor(it.main.pool / it.rate) : 0;
+    cap.sub[it.key]  = it.rate > 0 ? Math.floor(it.sub.pool  / it.rate) : 0;
+    poolTotal += (it.main.pool || 0) + (it.sub.pool || 0);
+  });
+
+  // Don't reject the whole queue just because item counts weren't entered.
+  if (poolTotal <= 0) {
+    toast("กรอกจำนวนของก่อนจัดสรร (โควตายังเป็น 0 ทั้งหมด)", "error");
+    return;
+  }
+
   const pending = arGetRequests(date, mode)
     .filter(r => r.status === "pending")
     .sort((a, b) => {
-      const fa = a.computedField === "sub" ? 1 : 0;
-      const fb = b.computedField === "sub" ? 1 : 0;
-      if (fa !== fb) return fa - fb;
+      // Field priority (หลัก before รอง) is a GL-only concept — Overrun has no
+      // sub column (allocation forces field="main"), so its queue must sort by
+      // pure request time. Overrun members who happen to sit in parties 9–16
+      // carry computedField "sub"; without this guard they'd be shoved behind
+      // everyone regardless of when they asked → winners not ordered by seconds.
+      if (mode === "gl") {
+        const fa = a.computedField === "sub" ? 1 : 0;
+        const fb = b.computedField === "sub" ? 1 : 0;
+        if (fa !== fb) return fa - fb;
+      }
       return (a.requestedAt || 0) - (b.requestedAt || 0);
     });
-  // Await each approve serially so the auction_gl/overrun .set writes don't
-  // race against the listener echoes (which would otherwise re-seed state
-  // from a stale snapshot mid-loop and drop later approvals).
-  for (const r of pending) {
-    await arApproveRequest(date, mode, r.id);
+  if (!pending.length) { toast("ไม่มีคำขอที่รออนุมัติ"); return; }
+
+  if (!confirm(`จัดสรร ${pending.length} คำขอของ ${date} (${mode === "gl" ? "GL" : "Overrun"}) ตามจำนวนของ?\nคนละ 1 ชิ้น · คนที่ของไม่พอจะถูกปฏิเสธพร้อมเหตุผลอัตโนมัติ`)) return;
+
+  // Normalize assignment shape once.
+  if (!obj.assignments) obj.assignments = {};
+  ["main", "sub"].forEach(f => {
+    if (!obj.assignments[f]) obj.assignments[f] = { cards: [], illusion: [], white: [], black: [] };
+    ITEM_KEYS.forEach(k => { if (!Array.isArray(obj.assignments[f][k])) obj.assignments[f][k] = []; });
+  });
+
+  // Seed "used" from whoever already occupies each column so we never
+  // double-book a slot (re-run, or mixed manual-drag + auto flow).
+  const used = { main: {}, sub: {} };
+  ["main", "sub"].forEach(f => ITEM_KEYS.forEach(k => { used[f][k] = obj.assignments[f][k].length; }));
+
+  const approvals  = [];  // { req, field, item }
+  const rejections = [];  // { req, reason }
+
+  for (const req of pending) {
+    let field = arDetectField(req.memberId, mode) || req.computedField || "main";
+    if (mode === "overrun") field = "main";  // no sub column in Overrun
+
+    const wanted = (req.items || []).filter(k => ITEM_KEYS.includes(k));
+    // Already parked in one of their columns (manual drag)? Honor that seat —
+    // don't burn a second slot or reject someone who's literally already in.
+    // Otherwise take the first requested item that still has a free slot.
+    const already = wanted.find(k => obj.assignments[field][k].includes(req.memberId));
+    const pick = already || wanted.find(k => used[field][k] < cap[field][k]);
+
+    if (pick) {
+      const bucket = obj.assignments[field][pick];
+      if (!bucket.includes(req.memberId)) { bucket.push(req.memberId); used[field][pick]++; }
+      approvals.push({ req, field, item: pick });
+    } else {
+      const full = wanted.length
+        ? wanted.map(k => (AR_ITEM_META[k] ? AR_ITEM_META[k].label : k)).join(", ")
+        : "ของที่ขอ";
+      rejections.push({ req, reason: `ของไม่พอ: ${full} เต็มแล้ว — ไปขอชิ้นอื่นแทน` });
+    }
   }
-  toast(`✅ อนุมัติ ${pending.length} คน · ถ้าเกินจำนวนของ ไป trim ในหน้า Auction ${mode === "gl" ? "GL" : "Overrun"}`, "success");
+
+  // One auction-state write for the whole batch — no per-approve echo race.
+  try {
+    if (_fbDB) await _fbDB.ref(mode === "gl" ? "auction_gl" : "auction_overrun").set(obj);
+  } catch (e) {
+    toast(`เขียน auction state ไม่สำเร็จ: ${e.message}`, "error");
+    console.error("[auction-request] bulk write auction state failed", e);
+    return;
+  }
+
+  const decidedBy = (_fbUser && _fbUser.email) || "admin";
+  const now = Date.now();
+  const writes = [];
+  approvals.forEach(({ req, field, item }) => {
+    writes.push(_fbDB.ref(`auction_requests/${date}/${mode}/${req.id}`).update({
+      status: "approved", decidedAt: now, decidedBy,
+      computedField: field, grantedItem: item, rejectReason: null
+    }));
+  });
+  rejections.forEach(({ req, reason }) => {
+    writes.push(_fbDB.ref(`auction_requests/${date}/${mode}/${req.id}`).update({
+      status: "rejected", decidedAt: now, decidedBy, rejectReason: reason
+    }));
+  });
+  try {
+    await Promise.all(writes);
+  } catch (e) {
+    toast(`อัปเดตสถานะบางคำขอไม่สำเร็จ: ${e.message}`, "error");
+    console.error("[auction-request] bulk status update failed", e);
+    return;
+  }
+
+  toast(`✅ อนุมัติ ${approvals.length} คน · ✂️ ตัดของไม่พอ ${rejections.length} คน`, "success");
 }
 
 /** Rebuild the auction columns to EXACTLY match the current approved requests for
@@ -8447,7 +8551,12 @@ async function arResyncApprovedToAuction(date, mode) {
     if (!m) { missing++; return; }
     // Overrun has no sub column in the UI — force main (matches arApproveRequest).
     const field = (mode === "overrun") ? "main" : (arDetectField(m.id, mode) || req.computedField || "main");
-    (req.items || []).forEach(item => {
+    // Refill by the item the member was ACTUALLY granted, not everything they
+    // asked for — otherwise a capacity-aware bulk approve that handed out ONE
+    // item (grantedItem) would be undone here and re-overflow the other column.
+    // Legacy manual approvals have no grantedItem → fall back to all req.items.
+    const items = req.grantedItem ? [req.grantedItem] : (req.items || []);
+    items.forEach(item => {
       const bucket = obj.assignments[field][item];
       if (bucket && !bucket.includes(m.id)) { bucket.push(m.id); added++; }
     });
@@ -8723,6 +8832,8 @@ function arRenderRow(r, asAdmin, queueNo) {
     ? `<span class="ar-field-tag" style="background:#7c2d12;color:#fdba74">🌴 ลา</span>` : "";
   const modeTag = `<span style="font-size:10px;color:var(--muted)">${r.mode === "gl" ? "GL" : "OR"} · ${r.date}</span>`;
   const statusTag = `<span class="ar-status-tag ${r.status}">${r.status === "pending" ? "รออนุมัติ" : r.status === "approved" ? "อนุมัติ" : "ปฏิเสธ"}</span>`;
+  const grantedRow = (r.status === "approved" && r.grantedItem && AR_ITEM_META[r.grantedItem])
+    ? `<span class="ar-status-tag approved" title="ของที่ได้รับจัดสรร">🎁 ${AR_ITEM_META[r.grantedItem].label}</span>` : "";
   const noteRow = r.note ? `<div class="ar-note">"${escapeHtml(r.note)}"</div>` : "";
   const rejectRow = r.rejectReason ? `<div class="ar-note" style="color:#fca5a5">⚠ ${escapeHtml(r.rejectReason)}</div>` : "";
 
@@ -8751,6 +8862,7 @@ function arRenderRow(r, asAdmin, queueNo) {
     <span class="ar-items">${items}</span>
     ${modeTag}
     ${statusTag}
+    ${grantedRow}
     ${actions}
     ${noteRow}
     ${rejectRow}
@@ -8779,13 +8891,17 @@ function arBuildAdminQueue(date, eventMode) {
     // the admin can approve in arrival order (the หลัก/รอง tag stays on each
     // row). arGetRequests is the single sort authority (requestedAt asc) and
     // filter() preserves it — don't re-sort here, or queue-order changes made
-    // there would silently not apply. History keeps main-before-sub grouping.
+    // there would silently not apply. History keeps main-before-sub grouping (GL only).
     const sorted = asQueue
       ? reqs
       : reqs.slice().sort((a, b) => {
-          const fa = a.computedField === "sub" ? 1 : 0;
-          const fb = b.computedField === "sub" ? 1 : 0;
-          if (fa !== fb) return fa - fb;
+          // GL keeps หลัก-before-รอง grouping in history; Overrun has no sub
+          // field, so it sorts by pure request time (same reason as arBulkApprove).
+          if (mode === "gl") {
+            const fa = a.computedField === "sub" ? 1 : 0;
+            const fb = b.computedField === "sub" ? 1 : 0;
+            if (fa !== fb) return fa - fb;
+          }
           return (a.requestedAt || 0) - (b.requestedAt || 0);
         });
     return `<div class="ar-queue-group">
