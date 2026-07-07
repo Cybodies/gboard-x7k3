@@ -1430,13 +1430,13 @@ console.log("\n[auction-request queue]");
     ok((h.match(/ar-time/g) || []).length >= 5, "time shown on pending AND history rows");
   });
 
-  t("queue: approved history keeps main-before-sub grouping (unchanged)", () => {
+  t("queue: approved history sorts by pure request time (GL like Overrun, 2026-07-07)", () => {
     seedQueue();
     const h = app.call("arBuildAdminQueue", date, "gl");
     const approvedPart = h.split("อนุมัติแล้ว")[1] || "";
     const iMain = approvedPart.indexOf("WonGuy"), iSub = approvedPart.indexOf("OldSub");
     ok(iMain !== -1 && iSub !== -1, "both approved rows rendered");
-    ok(iMain < iSub, "main (t=250) still before sub (t=50) in history — old grouping intact");
+    ok(iSub < iMain, "sub (t=50) now before main (t=250) — ordered by request second, not main-before-sub");
     ok(!approvedPart.includes("ar-queue-no"), "no queue numbers on history rows");
   });
 

@@ -1480,6 +1480,33 @@
   .status-balanced { color: var(--success); }
   .status-none { color: var(--muted); font-weight: 400; }
 
+  /* GL / Overrun split Job Breakdown (2026-07-05) */
+  .summary-table.jb-split th.jb-grp {
+    text-align: center; font-size: 12px; letter-spacing: .5px;
+  }
+  .summary-table.jb-split th.jb-grp:nth-of-type(2) { color: #58a6ff; }  /* GL */
+  .summary-table.jb-split th.jb-grp:nth-of-type(3) { color: #f0a35e; }  /* Overrun */
+  .summary-table.jb-split .grp-start { border-left: 2px solid var(--border-2); }
+  .jb-event-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .jb-event-title {
+    font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .jb-event-title span { font-weight: 400; font-size: 11px; color: var(--muted); }
+  .jb-title-gl { color: #58a6ff; }
+  .jb-title-ov { color: #f0a35e; }
+  .jb-event-block .pie { max-width: 190px; }
+  .ai-comment[data-event="gl"] { border-left-color: #58a6ff; }
+  .ai-comment[data-event="gl"] .ai-title { color: #58a6ff; }
+  .ai-comment[data-event="overrun"] { border-left-color: #f0a35e; }
+  .ai-comment[data-event="overrun"] .ai-title { color: #f0a35e; }
+
   /* ===== GL Summary Dashboard ===== */
   .gl-dashboard { display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; }
   .gl-hero {
@@ -2946,7 +2973,9 @@ let state = {
   // zones { x, y, r } in percent of the map wrap (r = % of width). Synced via the
   // `range_circles` Firebase node; admin drags to move / resize. See initRangeCircles.
   rangeCircles: [],
-  jobTargets: {},
+  // Per-event job targets (2026-07-05). Split GL vs Overrun — see
+  // normalizeJobTargets for the legacy flat→{gl,overrun} migration.
+  jobTargets: { gl: {}, overrun: {} },
   auctionGL: { cards: 0, illusion: 0, white: 0, black: 0, splitMainPercent: 70,
     assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } },
   auctionOverrun: { cards: 0, illusion: 0, white: 0, black: 0,
@@ -5153,6 +5182,72 @@ function getSummaryJobs(counts, targets) {
   return [...set].sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
 }
 
+/* ===== GL / Overrun split for the Job Breakdown (2026-07-05) =====
+ * "มี" is counted per-event from who is assigned to that event's parties
+ * (League vs Overrun), honouring jobForMode so a member's Overrun job
+ * (jobOverrun) is used on the Overrun side. NOT the whole roster. */
+function getEventJobCounts(event) {
+  const parties = event === "overrun" ? state.partiesOverrun : state.partiesLeague;
+  const ctx = event === "overrun" ? "overrun" : "league";
+  const counts = {};
+  const seen = new Set();
+  (parties || []).forEach(p => {
+    if (!p || !Array.isArray(p.slots)) return;
+    p.slots.forEach(memId => {
+      if (!memId || seen.has(memId)) return;   // one member counts once per event
+      seen.add(memId);
+      const m = findMember(memId);
+      if (!m) return;
+      const j = jobForMode(m, ctx);
+      if (!j) return;
+      counts[j] = (counts[j] || 0) + 1;
+    });
+  });
+  // Merge paired jobs (Bard + Dancer) — same rule as getMergedJobCounts.
+  for (const [combined, parts] of Object.entries(JOB_MERGES)) {
+    let total = 0;
+    for (const part of parts) if (counts[part]) { total += counts[part]; delete counts[part]; }
+    if (total > 0) counts[combined] = total;
+  }
+  return counts;
+}
+
+// Union of jobs across BOTH events (present or targeted), sorted by combined
+// head-count — one shared row/colour ordering for the split table + both pies.
+function getBreakdownJobs(glCounts, ovCounts, glTargets, ovTargets) {
+  const set = new Set();
+  [glCounts, ovCounts].forEach(c => Object.keys(c || {}).forEach(j => set.add(j)));
+  [glTargets, ovTargets].forEach(t => Object.keys(t || {}).forEach(j => { if ((t[j] || 0) > 0) set.add(j); }));
+  return [...set].sort((a, b) =>
+    ((glCounts[b]||0)+(ovCounts[b]||0)) - ((glCounts[a]||0)+(ovCounts[a]||0)));
+}
+
+// Shape guard + legacy migration. Old saves stored a FLAT { job:n } (one
+// guild-wide target); new shape is { gl:{job:n}, overrun:{job:n} }. A flat map
+// is copied into BOTH events so no target is lost when the split ships.
+function _sanitizeTargetMap(o) {
+  const out = {};
+  if (o && typeof o === "object" && !Array.isArray(o)) {
+    for (const k of Object.keys(o)) {
+      const n = parseInt(o[k], 10);
+      if (!isNaN(n) && n >= 0) out[k] = n;
+    }
+  }
+  return out;
+}
+function normalizeJobTargets(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return { gl: {}, overrun: {} };
+  const hasGl = v.gl && typeof v.gl === "object" && !Array.isArray(v.gl);
+  const hasOv = v.overrun && typeof v.overrun === "object" && !Array.isArray(v.overrun);
+  if (hasGl || hasOv) return { gl: _sanitizeTargetMap(v.gl), overrun: _sanitizeTargetMap(v.overrun) };
+  const flat = _sanitizeTargetMap(v);   // legacy flat → seed both events
+  return { gl: { ...flat }, overrun: { ...flat } };
+}
+function mergeJobTargets(cur, incoming) {
+  const a = normalizeJobTargets(cur), b = normalizeJobTargets(incoming);
+  return { gl: { ...a.gl, ...b.gl }, overrun: { ...a.overrun, ...b.overrun } };
+}
+
 const JOB_PALETTE = [
   "#ef4444","#f97316","#f59e0b","#eab308",
   "#84cc16","#22c55e","#10b981","#14b8a6",
@@ -5165,9 +5260,12 @@ function jobColorByIndex(i) { return JOB_PALETTE[i % JOB_PALETTE.length]; }
 function buildPieSvg(jobs, counts, total) {
   if (!total || !jobs.length) return "";
   const cx = 100, cy = 100, r = 90;
-  // Single full circle if only 1 job
-  if (jobs.length === 1) {
-    return `<svg viewBox="0 0 200 200" class="pie"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${jobColorByIndex(0)}" stroke="#1c2128" stroke-width="1.5"/></svg>`;
+  // Full circle when exactly ONE job has a non-zero slice — a lone 360° arc
+  // renders as nothing, and this also covers a single-job list. Colour by the
+  // job's index in `jobs` so it matches the table row + legend.
+  const nz = jobs.map((j, i) => ({ i, c: counts[j] || 0 })).filter(o => o.c > 0);
+  if (nz.length === 1) {
+    return `<svg viewBox="0 0 200 200" class="pie"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${jobColorByIndex(nz[0].i)}" stroke="#1c2128" stroke-width="1.5"/></svg>`;
   }
   let angle = -90;
   let paths = "";
@@ -5191,9 +5289,9 @@ function buildPieSvg(jobs, counts, total) {
 }
 
 /** AI-style rule-based commentary on guild composition */
-function buildAiComment(jobs, counts, targets, total) {
+function buildAiComment(jobs, counts, targets, total, emptyMsg) {
   if (!total || !jobs.length) {
-    return `<div class="ai-line">⚠️ ยังไม่มีสมาชิก — กด Refresh จาก Sheet เพื่อให้วิเคราะห์ได้</div>`;
+    return `<div class="ai-line">${emptyMsg || "⚠️ ยังไม่มีสมาชิก — กด Refresh จาก Sheet เพื่อให้วิเคราะห์ได้"}</div>`;
   }
   // EXACT comparison — สมดุล means count === target, nothing else. Any
   // mismatch is reported immediately with its exact size (no ±1 grace).
@@ -5360,7 +5458,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.05.1";
+const APP_VERSION = "2026.07.07.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5929,6 +6027,12 @@ let _partiesHydrated = { league: false, overrun: false };
 // arrays (not {}), so a pre-hydration fbPushAll would write empty assignments
 // over real approved-bid columns — the same mobile wipe, hitting the auction.
 let _auctionHydrated = { gl: false, overrun: false };
+// Same hydration + in-flight guards for job_targets (GL/Overrun เป้าอาชีพ).
+// Without them a fresh device's empty {gl:{},overrun:{}} would .set() over the
+// guild's real targets (the mobile-wipe class), and an admin's just-typed value
+// could be clobbered by an echo landing inside the 300ms debounce window.
+let _jobTargetsHydrated = false;
+let _localJobTargetsGuardUntil = 0;
 
 let rosterCache = [];          // sorted by name asc
 
@@ -6227,11 +6331,21 @@ function fbSubscribeAll() {
 
   // job_targets
   _fbDB.ref("job_targets").on("value", snap => {
-    const v = snap.val() || {};
+    const v = snap.val();
+    _jobTargetsHydrated = true;  // heard from Firebase → writes to this node now allowed
+    if (v == null) return;       // no data yet — don't wipe local targets
+    // Suppress the echo of our own just-typed edit (or a collision landing
+    // inside the debounce window) so an in-flight target isn't clobbered.
+    if (Date.now() < _localJobTargetsGuardUntil) return;
     _fbApplyingRemote = true;
-    state.jobTargets = v;
+    state.jobTargets = normalizeJobTargets(v);
     _fbApplyingRemote = false;
-    if (typeof render === "function" && state.mode === "summary") render();
+    // Breakdown now lives on the Roster page (summary tab was merged in). Skip
+    // the rebuild while an admin is typing in a target input — a full render()
+    // would steal focus.
+    const editing = document.activeElement && document.activeElement.closest
+      && document.activeElement.closest(".summary-table.jb-split");
+    if (typeof render === "function" && !editing && (state.mode === "roster" || state.mode === "summary")) render();
   });
 
   // markers (League mode — party positions on map + movement arrows)
@@ -6539,7 +6653,7 @@ function fbPushAll() {
     // so an un-hydrated push would wipe approved-bid columns (the overrun bug).
     if (_auctionHydrated.gl)      _fbDB.ref("auction_gl").set(state.auctionGL);
     if (_auctionHydrated.overrun) _fbDB.ref("auction_overrun").set(state.auctionOverrun);
-    _fbDB.ref("job_targets").set(state.jobTargets || {});
+    if (_jobTargetsHydrated) _fbDB.ref("job_targets").set(normalizeJobTargets(state.jobTargets));
     _fbDB.ref("markers").set(state.markers || {});
     _fbDB.ref("markers_bottom").set(state.markersBottom || {});
     _fbDB.ref("overrun_markers").set(state.overrunMarkers || {});
@@ -7300,45 +7414,70 @@ function rosterJobCell(m, field, label, admin, mine) {
  * editable target (admin only), status, pie chart, and AI comment.
  * Embedded inside the Roster page so the two pages are unified. */
 function buildJobBreakdownSection() {
-  const counts = (typeof getMergedJobCounts === "function") ? getMergedJobCounts() : {};
-  if (!state.jobTargets) state.jobTargets = {};
-  const targets = state.jobTargets;
-  const jobs = getSummaryJobs(counts, targets);
-  const total = state.members.length;
+  state.jobTargets = normalizeJobTargets(state.jobTargets);
+  const glT = state.jobTargets.gl, ovT = state.jobTargets.overrun;
+  const glCounts = getEventJobCounts("league");
+  const ovCounts = getEventJobCounts("overrun");
+  const jobs = getBreakdownJobs(glCounts, ovCounts, glT, ovT);
   if (!jobs.length) return "";
   const admin = isAdmin();
 
+  const glTotal = Object.values(glCounts).reduce((a, b) => a + b, 0);
+  const ovTotal = Object.values(ovCounts).reduce((a, b) => a + b, 0);
+
+  const targetCell = (event, safeJob, target) => admin
+    ? `<input type="number" min="0" data-event="${event}" data-job="${safeJob}" value="${target}" oninput="updateJobTarget(this)" />`
+    : (target || '<span style="color:var(--muted)">—</span>');
+
   const rows = jobs.map((job, i) => {
-    const count = counts[job] || 0;
-    const target = targets[job] || 0;
-    const { status, cls } = classifyJobStatus(count, target);
+    const gc = glCounts[job] || 0, oc = ovCounts[job] || 0;
+    const gt = glT[job] || 0, ot = ovT[job] || 0;
+    const gs = classifyJobStatus(gc, gt), os = classifyJobStatus(oc, ot);
     const safeJob = escapeHtml(job);
     const c = jobColorByIndex(i);
     return `
       <tr>
         <td class="job-name"><span style="display:inline-block;width:8px;height:8px;background:${c};border-radius:2px;margin-right:6px;vertical-align:middle"></span>${safeJob}</td>
-        <td class="count">${count}</td>
-        <td class="target">${admin
-          ? `<input type="number" min="0" data-job="${safeJob}" value="${target}" oninput="updateJobTarget(this)" />`
-          : (target || '<span style="color:var(--muted)">—</span>')}</td>
-        <td class="status-cell ${cls}">${status}</td>
+        <td class="count grp-start">${gc}</td>
+        <td class="target">${targetCell("gl", safeJob, gt)}</td>
+        <td class="status-cell js-status-gl ${gs.cls}">${gs.status}</td>
+        <td class="count grp-start">${oc}</td>
+        <td class="target">${targetCell("overrun", safeJob, ot)}</td>
+        <td class="status-cell js-status-ov ${os.cls}">${os.status}</td>
       </tr>`;
   }).join("");
-  const pie = buildPieSvg(jobs, counts, total);
+
+  const glTargetSum = Object.values(glT).reduce((a, b) => a + (b || 0), 0);
+  const ovTargetSum = Object.values(ovT).reduce((a, b) => a + (b || 0), 0);
+
+  // Two pies share ONE colour mapping (job → index in `jobs`) with the rows.
+  const glPie = buildPieSvg(jobs, glCounts, glTotal);
+  const ovPie = buildPieSvg(jobs, ovCounts, ovTotal);
   const legend = jobs.map((job, i) =>
-    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${counts[job] || 0})</span>`
+    `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${glCounts[job] || 0}/${ovCounts[job] || 0})</span>`
   ).join("");
-  const ai = buildAiComment(jobs, counts, targets, total);
+
+  const glAi = buildAiComment(getSummaryJobs(glCounts, glT), glCounts, glT, glTotal,
+    "⚠️ ยังไม่มีคนลง GL — จัดปาร์ตี้ League ก่อนถึงจะวิเคราะห์ได้");
+  const ovAi = buildAiComment(getSummaryJobs(ovCounts, ovT), ovCounts, ovT, ovTotal,
+    "⚠️ ยังไม่มีคนลง Overrun — จัดปาร์ตี้ Overrun ก่อนถึงจะวิเคราะห์ได้");
 
   return `
     <div class="auction-section">
       <h3>📊 Job Breakdown</h3>
       <div class="summary-grid">
-        <table class="summary-table">
+        <table class="summary-table jb-split">
           <thead>
             <tr>
-              <th>อาชีพ</th>
-              <th style="text-align:center">มี</th>
+              <th rowspan="2">อาชีพ</th>
+              <th colspan="3" class="jb-grp grp-start">🛡️ GL</th>
+              <th colspan="3" class="jb-grp grp-start">⚔️ Overrun</th>
+            </tr>
+            <tr>
+              <th style="text-align:center" class="grp-start">มี</th>
+              <th style="text-align:center">เป้า</th>
+              <th style="text-align:center">สถานะ</th>
+              <th style="text-align:center" class="grp-start">มี</th>
               <th style="text-align:center">เป้า</th>
               <th style="text-align:center">สถานะ</th>
             </tr>
@@ -7347,19 +7486,33 @@ function buildJobBreakdownSection() {
           <tfoot>
             <tr>
               <td class="label">${jobs.length} อาชีพ</td>
-              <td class="count">${total}</td>
-              <td class="target" style="text-align:center">${jobs.reduce((s,j) => s + (targets[j] || 0), 0)}</td>
+              <td class="count grp-start">${glTotal}</td>
+              <td class="target js-tfoot-target-gl" style="text-align:center">${glTargetSum}</td>
+              <td class="status-cell">—</td>
+              <td class="count grp-start">${ovTotal}</td>
+              <td class="target js-tfoot-target-ov" style="text-align:center">${ovTargetSum}</td>
               <td class="status-cell">—</td>
             </tr>
           </tfoot>
         </table>
         <div class="summary-side">
-          ${pie}
-          ${legend ? `<div class="pie-legend">${legend}</div>` : ''}
-          <div class="ai-comment">
-            <div class="ai-title">💡 AI Comment</div>
-            ${ai}
+          <div class="jb-event-block">
+            <div class="jb-event-title jb-title-gl">🛡️ GL <span>${glTotal} คน</span></div>
+            ${glPie}
+            <div class="ai-comment" data-event="gl">
+              <div class="ai-title">💡 AI Comment · GL</div>
+              ${glAi}
+            </div>
           </div>
+          <div class="jb-event-block">
+            <div class="jb-event-title jb-title-ov">⚔️ Overrun <span>${ovTotal} คน</span></div>
+            ${ovPie}
+            <div class="ai-comment" data-event="overrun">
+              <div class="ai-title">💡 AI Comment · Overrun</div>
+              ${ovAi}
+            </div>
+          </div>
+          ${legend ? `<div class="pie-legend">${legend}</div>` : ''}
         </div>
       </div>
     </div>`;
@@ -8434,19 +8587,13 @@ async function arBulkApprove(date, mode) {
 
   const pending = arGetRequests(date, mode)
     .filter(r => r.status === "pending")
-    .sort((a, b) => {
-      // Field priority (หลัก before รอง) is a GL-only concept — Overrun has no
-      // sub column (allocation forces field="main"), so its queue must sort by
-      // pure request time. Overrun members who happen to sit in parties 9–16
-      // carry computedField "sub"; without this guard they'd be shoved behind
-      // everyone regardless of when they asked → winners not ordered by seconds.
-      if (mode === "gl") {
-        const fa = a.computedField === "sub" ? 1 : 0;
-        const fb = b.computedField === "sub" ? 1 : 0;
-        if (fa !== fb) return fa - fb;
-      }
-      return (a.requestedAt || 0) - (b.requestedAt || 0);
-    });
+    // Pure first-come-first-served by request time for BOTH events (2026-07-07).
+    // GL's main pool and sub pool are INDEPENDENT — each member only ever draws
+    // from their own field's pool — so field order never changes who wins, only
+    // the order winners are listed. Sorting by pure requestedAt keeps GL winners
+    // ordered by the second they asked, exactly like Overrun (was gated behind
+    // mode==="gl", which shoved early sub-field askers behind later main ones).
+    .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
   if (!pending.length) { toast("ไม่มีคำขอที่รออนุมัติ"); return; }
 
   if (!confirm(`จัดสรร ${pending.length} คำขอของ ${date} (${mode === "gl" ? "GL" : "Overrun"}) ตามจำนวนของ?\nคนละ 1 ชิ้น · คนที่ของไม่พอจะถูกปฏิเสธพร้อมเหตุผลอัตโนมัติ`)) return;
@@ -8894,16 +9041,11 @@ function arBuildAdminQueue(date, eventMode) {
     // there would silently not apply. History keeps main-before-sub grouping (GL only).
     const sorted = asQueue
       ? reqs
-      : reqs.slice().sort((a, b) => {
-          // GL keeps หลัก-before-รอง grouping in history; Overrun has no sub
-          // field, so it sorts by pure request time (same reason as arBulkApprove).
-          if (mode === "gl") {
-            const fa = a.computedField === "sub" ? 1 : 0;
-            const fb = b.computedField === "sub" ? 1 : 0;
-            if (fa !== fb) return fa - fb;
-          }
-          return (a.requestedAt || 0) - (b.requestedAt || 0);
-        });
+      // History (อนุมัติแล้ว / ปฏิเสธ) sorts by pure request time for BOTH events
+      // so winners read in the order people asked. GL used to group หลัก-before-
+      // รอง here, which pushed early sub-field winners below later main-field ones
+      // (2026-07-07: now matches Overrun — the หลัก/รอง tag stays on each row).
+      : reqs.slice().sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
     return `<div class="ar-queue-group">
       <h4>${title} (${reqs.length})</h4>
       ${sorted.map((r, i) => arRenderRow({ ...r, date, mode }, true, asQueue ? i + 1 : 0)).join("")}
@@ -9306,28 +9448,36 @@ function leaveRemove(memId, date) {
 function updateJobTarget(input) {
   const job = input.dataset.job;
   if (!job) return;
-  if (!state.jobTargets) state.jobTargets = {};
+  const event = input.dataset.event === "overrun" ? "overrun" : "gl";
+  state.jobTargets = normalizeJobTargets(state.jobTargets);
   let n = parseInt(input.value, 10);
   if (isNaN(n) || n < 0) n = 0;
-  state.jobTargets[job] = n;
+  state.jobTargets[event][job] = n;
+  _localJobTargetsGuardUntil = Date.now() + 2000;  // protect this edit from echo clobber
   save();
-  const counts = getMergedJobCounts();
+
+  // Surgical per-event updates only (avoid a full re-render that steals focus
+  // while typing) — the other event's cells are untouched.
+  const counts = getEventJobCounts(event === "overrun" ? "overrun" : "league");
+  const targets = state.jobTargets[event];
+  const statusCls = event === "overrun" ? "js-status-ov" : "js-status-gl";
   const { status, cls } = classifyJobStatus(counts[job] || 0, n);
   const tr = input.closest("tr");
   if (tr) {
-    const cell = tr.querySelector(".status-cell");
-    if (cell) { cell.textContent = status; cell.className = "status-cell " + cls; }
+    const cell = tr.querySelector("." + statusCls);
+    if (cell) { cell.textContent = status; cell.className = "status-cell " + statusCls + " " + cls; }
   }
-  const tfootTargetCell = document.querySelector(".summary-table tfoot td.target");
-  if (tfootTargetCell) {
-    const jobsList = getSummaryJobs(counts, state.jobTargets);
-    const totalTarget = jobsList.reduce((s, j) => s + (state.jobTargets[j] || 0), 0);
-    tfootTargetCell.textContent = totalTarget;
-  }
-  const aiBox = document.querySelector(".ai-comment");
+  const footCell = document.querySelector(event === "overrun" ? ".js-tfoot-target-ov" : ".js-tfoot-target-gl");
+  if (footCell) footCell.textContent = Object.values(targets).reduce((a, b) => a + (b || 0), 0);
+
+  const aiBox = document.querySelector('.ai-comment[data-event="' + event + '"]');
   if (aiBox) {
-    const jobs = getSummaryJobs(counts, state.jobTargets);
-    aiBox.innerHTML = `<div class="ai-title">💡 AI Comment</div>${buildAiComment(jobs, counts, state.jobTargets, state.members.length)}`;
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const label = event === "overrun" ? "Overrun" : "GL";
+    const emptyMsg = event === "overrun"
+      ? "⚠️ ยังไม่มีคนลง Overrun — จัดปาร์ตี้ Overrun ก่อนถึงจะวิเคราะห์ได้"
+      : "⚠️ ยังไม่มีคนลง GL — จัดปาร์ตี้ League ก่อนถึงจะวิเคราะห์ได้";
+    aiBox.innerHTML = `<div class="ai-title">💡 AI Comment · ${label}</div>${buildAiComment(getSummaryJobs(counts, targets), counts, targets, total, emptyMsg)}`;
   }
 }
 
@@ -10114,7 +10264,7 @@ function buildTeamData() {
     mode: state.mode,
     league: ser(state.partiesLeague || makeEmptyParties()),
     overrun: ser(state.partiesOverrun || makeEmptyParties()),
-    jobTargets: state.jobTargets || {}
+    jobTargets: normalizeJobTargets(state.jobTargets)
   };
 }
 
@@ -10150,7 +10300,7 @@ function applySavedTeam(data) {
   if (Array.isArray(data.overrun)) apply(state.partiesOverrun, data.overrun);
   // Legacy: ignore data.dimension / data.dimensionNames from older saves
   if (data.jobTargets && typeof data.jobTargets === "object") {
-    state.jobTargets = { ...state.jobTargets, ...data.jobTargets };
+    state.jobTargets = mergeJobTargets(state.jobTargets, data.jobTargets);
   }
   state.parties = state.mode === "league" ? state.partiesLeague
                 : state.mode === "overrun" ? state.partiesOverrun
@@ -10197,12 +10347,15 @@ delete state.partiesDimension;
 delete state.dimensionNames;
 // Legacy modes redirect to league
 if (state.mode === "dimension" || state.mode === "glsummary") state.mode = "league";
+// Summary tab was merged into Roster — an old saved mode must not reach the
+// now-unused buildSummaryHtml (which predates the GL/Overrun target split).
+if (state.mode === "summary") state.mode = "roster";
 if (state.mode === "summary" || state.mode === "auction-gl" || state.mode === "auction-overrun" || state.mode === "roster" || state.mode === "auction-request" || state.mode === "users" || state.mode === "wheel") {
   state.parties = state.partiesLeague;
 } else {
   state.parties = state.mode === "overrun" ? state.partiesOverrun : state.partiesLeague;
 }
-if (!state.jobTargets || typeof state.jobTargets !== "object") state.jobTargets = {};
+state.jobTargets = normalizeJobTargets(state.jobTargets);
 if (!state.wheelHistory || typeof state.wheelHistory !== "object" || Array.isArray(state.wheelHistory)) state.wheelHistory = {};
 // Normalize one auction object: ensure shape + migrate legacy flat assignments
 // (cards/white/black at top level → main bucket, fresh sub bucket). Also
