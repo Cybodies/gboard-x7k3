@@ -72,10 +72,6 @@ t("isEventDay maps weekdays: Tue/Thu=GL, Sun=Overrun, others=null", () => {
   eq(app.call("isEventDay", "2026-06-07"), "Overrun", "Sun");
   eq(app.call("isEventDay", "2026-06-03"), null, "Wed");
 });
-t("arGetDateRange returns only today (no advance window)", () => {
-  app.setToday("2026-06-02");
-  eq(app.call("arGetDateRange"), ["2026-06-02"]);
-});
 t("gate ALLOWS GL request on a GL day (not on leave)", () => {
   reset(app, mkMembers(["A"]));
   app.setToday("2026-06-02"); // Tue = GL
@@ -466,36 +462,68 @@ t("GL view renders the editable split control + dynamic field labels", () => {
 });
 
 console.log("\n[admin allocate gating — buttons follow the day's event]");
-// The admin "จัดสรรอัตโนมัติ" (arBulkApprove) buttons must match the day's event:
-// GL day → only the gl button; Overrun day → only overrun; non-event day → neither.
+// The ขอประมูล admin queue now lives INSIDE buildAuctionView(kind). The 🤖
+// "จัดสรรอัตโนมัติ" (arBulkApprove) button must track the DAY, not just the page.
+// A page only ever emits its OWN mode's onclick, so "no overrun button on the GL
+// page" would be vacuously true — the REAL negatives below render a page on the
+// OTHER event's day (or a non-event day) and demand the page's own button is gone.
 // Match by ASCII onclick (Thai-proof). "ล้างวันที่ผ่านมา" (arAutoClearPast) always stays.
-function adminQueueHtml(isoDate) {
+function auctionPageHtml(isoDate, kind) {
   app.setAdmin(true);
   app.setToday(isoDate);
-  return app.call("buildAuctionRequestHtml");
+  return app.call("buildAuctionView", kind);
 }
 const glBtn = /onclick="arBulkApprove\('[^']*','gl'\)"/;
 const orBtn = /onclick="arBulkApprove\('[^']*','overrun'\)"/;
-t("GL day (Tue): only the GL allocate button renders", () => {
+t("GL day (Tue): GL page has its allocate button; Overrun page does NOT have its own", () => {
   reset(app, []);
-  const h = adminQueueHtml("2026-06-02"); // Tuesday
-  ok(glBtn.test(h), "gl allocate button present");
-  ok(!orBtn.test(h), "overrun allocate button absent");
-  ok(h.includes("arAutoClearPast()"), "clear-old button stays");
+  ok(glBtn.test(auctionPageHtml("2026-06-02", "gl")), "gl allocate button on GL page on a GL day");
+  const or = auctionPageHtml("2026-06-02", "overrun"); // cross-day negative
+  ok(!orBtn.test(or), "overrun page on a GL day must NOT offer its own allocate button");
+  ok(or.includes("arAutoClearPast()"), "clear-old button stays");
 });
-t("Overrun day (Sun): only the Overrun allocate button renders", () => {
+t("Overrun day (Sun): Overrun page has its button; GL page does NOT have its own", () => {
   reset(app, []);
-  const h = adminQueueHtml("2026-06-07"); // Sunday
-  ok(orBtn.test(h), "overrun allocate button present");
-  ok(!glBtn.test(h), "gl allocate button absent");
-  ok(h.includes("arAutoClearPast()"), "clear-old button stays");
+  ok(orBtn.test(auctionPageHtml("2026-06-07", "overrun")), "overrun allocate button on an Overrun day");
+  const gl = auctionPageHtml("2026-06-07", "gl"); // cross-day negative
+  ok(!glBtn.test(gl), "GL page on an Overrun day must NOT offer its own allocate button");
+  ok(gl.includes("arAutoClearPast()"), "clear-old button stays");
 });
-t("Non-event day (Wed): neither allocate button; clear-old stays", () => {
+t("Non-event day (Wed): NEITHER page offers its own allocate button", () => {
   reset(app, []);
-  const h = adminQueueHtml("2026-06-03"); // Wednesday
-  ok(!glBtn.test(h), "no gl allocate button");
-  ok(!orBtn.test(h), "no overrun allocate button");
-  ok(h.includes("arAutoClearPast()"), "clear-old button still present");
+  ok(!glBtn.test(auctionPageHtml("2026-06-03", "gl")), "no gl allocate button on Wed");
+  ok(!orBtn.test(auctionPageHtml("2026-06-03", "overrun")), "no overrun allocate button on Wed");
+});
+
+console.log("\n[auction_requests ingest sanitization — guest-plantable bad items]");
+// Firebase $reqId rules let any authed user (guests included) create a request
+// and only validate memberId+status, not items' type. normalizeAuctionRequests
+// coerces bad items to [] at ingest so the quota panel / admin queue can't be
+// crashed for every viewer by a crafted non-array. Well-formed requests survive.
+t("normalizeAuctionRequests coerces non-array items to [] and preserves valid ones", () => {
+  const poison = { "2026-07-09": { gl: {
+    r1: { memberId: "m1", status: "pending", items: "boom" },
+    r2: { memberId: "m2", status: "pending", items: { a: 1 } },
+    r3: { memberId: "m3", status: "pending", items: 5 },
+    r4: { memberId: "m4", status: "pending", items: ["cards"] }
+  } } };
+  const out = app.call("normalizeAuctionRequests", poison);
+  const g = out["2026-07-09"].gl;
+  ok(Array.isArray(g.r1.items) && g.r1.items.length === 0, "string items -> []");
+  ok(Array.isArray(g.r2.items) && g.r2.items.length === 0, "object items -> []");
+  ok(Array.isArray(g.r3.items) && g.r3.items.length === 0, "number items -> []");
+  ok(g.r4.items.length === 1 && g.r4.items[0] === "cards", "valid array items preserved");
+});
+t("arGetQuota + arBuildAdminQueue survive sanitized poison without throwing", () => {
+  reset(app, [{ id: "m1", name: "A", jobLeague: "Knight" }]);
+  app.setAdmin(true);
+  app.setToday("2026-06-02"); // GL day
+  app.state.auctionRequests = app.call("normalizeAuctionRequests", { "2026-06-02": { gl: {
+    bad: { memberId: "m1", status: "pending", items: "boom" }
+  } } });
+  // Must not throw — pre-fix this rendered (r.items||[]).forEach over "boom".
+  const html = app.call("buildAuctionView", "gl");
+  ok(typeof html === "string" && html.length > 0, "GL page renders with a poisoned request present");
 });
 
 console.log("\n[reject history — same-day, with re-approve]");
@@ -1548,6 +1576,140 @@ console.log("\n[auction allocate — จัดสรร by capacity, 1 item/pers
     });
     fire("overrun");
     eq(app.state.auctionOverrun.assignments.main.cards, [], "empty-pool guard: nobody allocated");
+  });
+})();
+
+// ------------------------------------------------ arGetQuota (ของคงเหลือ helper)
+// Pure per-item/per-field quota view shared by the ของคงเหลือ panel, the modal
+// "เหลือ X สิทธิ์" line, and arBulkApprove's cap. Hand-build a computeAuction-shaped
+// `data` + request list so the test exercises arGetQuota alone (no computeAuction
+// coupling). Key invariant: pending is DISPLAY-ONLY — it never shrinks remaining.
+console.log("\n[arGetQuota — quota/occupied/pending/remaining (pending is display-only)]");
+(() => {
+  const mkData = (kind, items, assigns) => ({ kind, assignments: assigns, items });
+  const item = (key, rate, mainPool, subPool) => ({ key, rate, main: { pool: mainPool }, sub: { pool: subPool } });
+
+  t("normal: quota=floor(pool/rate), occupied=assignments.length, remaining=quota-occupied", () => {
+    const data = mkData("gl",
+      [item("cards", 1, 7, 3)],
+      { main: { cards: ["m1", "m2"] }, sub: { cards: [] } });
+    const q = app.call("arGetQuota", data, []);
+    eq(q.main.cards.quota, 7, "main quota floor(7/1)");
+    eq(q.main.cards.occupied, 2, "two dragged in");
+    eq(q.main.cards.remaining, 5, "7-2");
+    eq(q.sub.cards.quota, 3, "sub quota floor(3/1)");
+    eq(q.sub.cards.remaining, 3, "sub 3-0");
+  });
+
+  t("full: occupied >= quota → remaining clamps to 0 (never negative)", () => {
+    const data = mkData("overrun",
+      [item("cards", 1, 2, 0)],
+      { main: { cards: ["m1", "m2", "m3"] }, sub: { cards: [] } });
+    const q = app.call("arGetQuota", data, []);
+    eq(q.main.cards.quota, 2, "quota 2");
+    eq(q.main.cards.occupied, 3, "occupied 3");
+    eq(q.main.cards.remaining, 0, "clamped to 0, not -1");
+  });
+
+  t("rate 0 → quota 0 (divide-by-zero guard)", () => {
+    const data = mkData("overrun",
+      [item("white", 0, 50, 0)],
+      { main: { white: [] }, sub: { white: [] } });
+    const q = app.call("arGetQuota", data, []);
+    eq(q.main.white.quota, 0, "rate 0 → quota 0 even with pool 50");
+  });
+
+  t("pending is counted but NEVER shrinks remaining", () => {
+    const data = mkData("overrun",
+      [item("cards", 1, 2, 0)],
+      { main: { cards: ["m1"] }, sub: { cards: [] } });
+    const reqs = [
+      { memberId: "z1", status: "pending",  computedField: "main", items: ["cards"] },
+      { memberId: "z2", status: "pending",  computedField: "main", items: ["cards"] },
+      { memberId: "z3", status: "approved", computedField: "main", items: ["cards"] }, // not pending → ignored
+    ];
+    const q = app.call("arGetQuota", data, reqs);
+    eq(q.main.cards.pending, 2, "two pending counted (approved not counted)");
+    eq(q.main.cards.remaining, 1, "remaining still quota(2)-occupied(1)=1 — pending ignored");
+  });
+
+  t("Overrun routes everything to main (no sub pool)", () => {
+    const data = mkData("overrun",
+      [item("black", 5, 10, 0)],
+      { main: { black: [] }, sub: { black: [] } });
+    const reqs = [{ memberId: "z1", status: "pending", computedField: "sub", items: ["black"] }];
+    const q = app.call("arGetQuota", data, reqs);
+    eq(q.main.black.quota, 2, "main quota floor(10/5)");
+    eq(q.main.black.pending, 1, "pending forced to main for overrun (computedField sub ignored)");
+    eq(q.sub.black.quota, 0, "sub pool 0 → quota 0");
+    eq(q.sub.black.pending, 0, "nothing routed to sub in overrun");
+  });
+
+  t("pending skips members already parked in that column (matches allocator's already-parked rule)", () => {
+    const data = mkData("overrun",
+      [item("cards", 1, 3, 0)],
+      { main: { cards: ["p1"] }, sub: { cards: [] } });
+    const reqs = [
+      { memberId: "p1", status: "pending", computedField: "main", items: ["cards"] }, // parked → keeps seat, no queue slot
+      { memberId: "p2", status: "pending", computedField: "main", items: ["cards"] },
+    ];
+    const q = app.call("arGetQuota", data, reqs);
+    eq(q.main.cards.pending, 1, "parked p1 not counted as queue; only p2");
+    eq(q.main.cards.occupied, 1, "p1 still counts as occupied");
+  });
+
+  t("pending routes by LIVE arDetectField: party 1 → main, party 10 → sub (stale computedField loses)", () => {
+    app.setAdmin(true); app.setToday("2026-06-02");
+    reset(app, mkMembers(["MainGuy", "SubGuy"]));
+    const parties = app.call("makeEmptyParties");
+    parties[0].slots[0] = "MainGuy";   // ตี้ 1 (index 0-7 = main field)
+    parties[9].slots[0] = "SubGuy";    // ตี้ 10 (index 8-15 = sub field)
+    app.state.partiesLeague = parties;
+    app.state.auctionGL.cards = 10;    // both fields get a pool (70/30 split)
+    const data = app.call("computeAuction", "gl");
+    const reqs = [
+      // computedField deliberately WRONG both ways — live party detect must win
+      { memberId: "MainGuy", status: "pending", computedField: "sub",  items: ["cards"] },
+      { memberId: "SubGuy",  status: "pending", computedField: "main", items: ["cards"] },
+    ];
+    const q = app.call("arGetQuota", data, reqs);
+    eq(q.main.cards.pending, 1, "party-1 member routed to main");
+    eq(q.sub.cards.pending, 1, "party-10 member routed to sub");
+  });
+})();
+
+// -------------------------------------------- merged-page plumbing (admin gates + redirect)
+console.log("\n[auction column mutators — admin-gated + legacy redirect]");
+(() => {
+  t("all 5 auction column mutators are admin-gated near the top (static)", () => {
+    const src = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+    for (const fn of ["assignAuctionMember", "unassignAuctionMember", "clearAuctionColumn",
+                      "autoFillAuctionColumn", "dropAuctionColumn"]) {
+      const m = src.match(new RegExp("function " + fn + "\\([^)]*\\) \\{[\\s\\S]{0,400}"));
+      ok(m && /if \(!isAdmin\(\)\) return;/.test(m[0]), fn + " has isAdmin gate near top");
+    }
+  });
+  t("guest assign/unassign are no-ops; admin path still mutates", () => {
+    reset(app, mkMembers(["m1"]));
+    app.setAdmin(false);
+    app.call("assignAuctionMember", "gl", "main", "cards", "m1");
+    eq(app.state.auctionGL.assignments.main.cards, [], "guest assign is a no-op");
+    app.setAdmin(true);
+    app.call("assignAuctionMember", "gl", "main", "cards", "m1");
+    eq(app.state.auctionGL.assignments.main.cards, ["m1"], "admin assign works");
+    app.setAdmin(false);
+    app.call("unassignAuctionMember", "gl", "main", "cards", "m1");
+    eq(app.state.auctionGL.assignments.main.cards, ["m1"], "guest unassign is a no-op");
+    app.setAdmin(true);
+    app.call("unassignAuctionMember", "gl", "main", "cards", "m1");
+    eq(app.state.auctionGL.assignments.main.cards, [], "admin unassign works");
+  });
+  t("legacy saved mode 'auction-request' redirects, falling back to auction-gl (static)", () => {
+    const src = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+    const m = src.match(/if \(state\.mode === "auction-request"\) state\.mode = ([^;\n]+);/);
+    ok(m, "redirect line present in the boot normalize block");
+    ok(m[1].includes('"auction-overrun"'), "routes to auction-overrun on an Overrun day");
+    ok(/"auction-gl"\s*$/.test(m[1]), "ternary falls back to auction-gl");
   });
 })();
 

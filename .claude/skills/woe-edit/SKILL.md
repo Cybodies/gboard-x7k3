@@ -114,8 +114,9 @@ gives wrong results outside Asia/Bangkok.
 - The rate feeds **auction-page chain numbering** (`buildAuctionCol`). If you
   touch rates or the chain, the regression tests in `test/run.js` must stay
   green — see `knowledge.md` "Auction (GL / Overrun)".
-- **Auction Request** opens only on the current event day for that day's event
-  (`arRequestBlockReason` / `isEventDay`); `arGetDateRange()` returns `[today]`.
+- **ขอประมูล** opens only on the current event day for that day's event
+  (`arRequestBlockReason` / `isEventDay`) and is for **today only**. Its UI is
+  embedded in `buildAuctionView(kind)` — the standalone tab was removed (2026.07.09.1).
 
 ## Don't
 

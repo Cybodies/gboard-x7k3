@@ -18,8 +18,10 @@ state shape, sync flow, and the trickier corners of the single-file app.
 > of writing: `let state` ~2687, `AUCTION_DEFAULT_RATES` ~4564,
 > `AUCTION_ITEMS_PER_PAGE` ~4576, `isAdmin()` ~4742, `getAuctionRates` ~6265,
 > `computeAuction` ~6275, `setAuctionRate` ~6470, `buildAuctionView` ~6544,
-> `buildAuctionCol` (chain) ~6645, `arGetDateRange` ~6900,
-> `buildAuctionRequestHtml` ~7129, `arRequestBlockReason` ~7165,
+> `buildAuctionCol` (chain) ~6645, `eventModeFor` ~3041, `arGetQuota` ~8539,
+> `arRequestBlockReason` ~8976, `arBuildQuotaPanel` ~9101,
+> `arBuildAdminQueue(date, mode, isTodaysKind)` ~9140, `arBuildModal` ~9210.
+> (ขอประมูล UI is embedded in `buildAuctionView`; the standalone tab was removed.)
 > `render()` ~8108, `normalizeAuctionState` ~8228, boot block ~8207.
 
 Use this lookup before grep:
@@ -65,7 +67,8 @@ Use this lookup before grep:
   sheetUrl: string,                  // legacy DEFAULT_SHEET, kept for back-compat
   members: [{ id, name, job, cp, discord }],
   mode: "league"|"overrun"|"summary"|"auction-gl"|"auction-overrun"
-        |"roster"|"leave"|"auction-request"|"users"|"wheel",
+        |"roster"|"leave"|"users"|"wheel",   // "auction-request" removed —
+                                             // ขอประมูล UI now lives in the Auction pages
   parties: Party[],                  // mirrors partiesLeague or partiesOverrun
   partiesLeague: Party[16],          // each = { id, name, slots: [memberId|null × 5] }
   partiesOverrun: Party[16],         // 5 color groups over the 16 shared ids —
@@ -274,8 +277,9 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
   truth used by both `arOpenRequestModal` and `arCreateRequest`. Allows a
   request only when: date == today (BKK), `isEventDay(today)` is truthy, the
   request `mode` matches that day's event (GL ↔ อังคาร/พฤหัส, Overrun ↔
-  อาทิตย์), and the member isn't on leave. `arGetDateRange()` returns only
-  `[today]` (no advance window).
+  อาทิตย์), and the member isn't on leave. Requests are for **today only** (no
+  advance window). The ขอประมูล UI is embedded in `buildAuctionView(kind)` — the
+  standalone tab was removed (2026.07.09.1).
 - **Request queue order (2026-06-12):** every row shows 🕐 `requestedAt`
   (`arFormatTime`, BKK, HH:MM:SS; legacy = "—"). The PENDING group renders
   in pure first-come order with a visible `#N` queue badge

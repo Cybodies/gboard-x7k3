@@ -145,9 +145,6 @@
   .mode-toggle.leave-active .seg-indicator {
     background: linear-gradient(90deg, #f97316, #facc15);
   }
-  .mode-toggle.auction-request-active .seg-indicator {
-    background: linear-gradient(90deg, #8b5cf6, #ec4899);
-  }
   .mode-toggle.users-active .seg-indicator {
     background: linear-gradient(90deg, #2563eb, #60a5fa);
   }
@@ -324,11 +321,6 @@
   body[data-mode="leave"] .layout           { grid-template-columns: 1fr !important; }
   body[data-mode="leave"] .hamburger-btn    { display: none; }
   body[data-mode="leave"] .sidebar-backdrop { display: none !important; }
-
-  body[data-mode="auction-request"] .sidebar          { display: none; }
-  body[data-mode="auction-request"] .layout           { grid-template-columns: 1fr !important; }
-  body[data-mode="auction-request"] .hamburger-btn    { display: none; }
-  body[data-mode="auction-request"] .sidebar-backdrop { display: none !important; }
 
   body[data-mode="users"] .sidebar          { display: none; }
   body[data-mode="users"] .layout           { grid-template-columns: 1fr !important; }
@@ -531,19 +523,7 @@
     .wheel-members { max-height: 240px; }
   }
 
-  /* ===== Auction Request page ===== */
-  .ar-view { display: flex; flex-direction: column; gap: 14px; }
-  .ar-hero {
-    background: linear-gradient(135deg, #1e1b4b 0%, #3b0764 100%);
-    border: 1px solid #4c1d95;
-    border-left: 4px solid #a855f7;
-    border-radius: 10px;
-    padding: 14px 18px;
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-  }
-  .ar-hero h2 { margin: 0; color: #c4b5fd; font-size: 18px; }
-  .ar-hero .ar-meta { color: var(--muted); font-size: 13px; }
-  .ar-hero .ar-meta b { color: #f9a8d4; }
+  /* ===== ขอประมูล UI (claim + request + queue — embedded in the Auction pages) ===== */
   .ar-section {
     background: var(--panel); border: 1px solid var(--border);
     border-radius: 10px; padding: 14px;
@@ -572,24 +552,6 @@
     background: #1e1b4b; border: 1px solid #6d28d9; color: #c4b5fd;
     padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 13px;
   }
-  .ar-day-tabs {
-    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
-  }
-  .ar-day-tab {
-    background: var(--bg-2); color: var(--muted);
-    border: 1px solid var(--border); border-radius: 6px;
-    padding: 6px 12px; cursor: pointer; font-size: 12px;
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    min-width: 80px;
-  }
-  .ar-day-tab.active { background: #6d28d9; color: white; border-color: #a855f7; }
-  .ar-day-tab .ar-day-num { font-size: 14px; font-weight: 700; }
-  .ar-day-tab .ar-day-mode { font-size: 10px; }
-  .ar-day-tab.has-gl { border-left: 3px solid #fbbf24; }
-  .ar-day-tab.has-overrun { border-right: 3px solid #f97316; }
-  .ar-day-tab.has-both { border-left: 3px solid #fbbf24; border-right: 3px solid #f97316; }
-  .ar-day-tab.closed { opacity: 0.5; cursor: not-allowed; }
-
   .ar-request-btn {
     background: linear-gradient(135deg, #a855f7, #ec4899);
     color: white; border: none; border-radius: 8px;
@@ -651,13 +613,6 @@
     text-align: center; color: var(--muted); padding: 20px;
     font-size: 13px;
   }
-  .ar-queue-group {
-    margin-bottom: 14px;
-  }
-  .ar-queue-group h4 {
-    margin: 0 0 6px 0; font-size: 12px; color: #a855f7; text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
   .ar-bulk-bar {
     display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
   }
@@ -667,6 +622,60 @@
   }
   .ar-bulk-bar button.primary { background: #6d28d9; border-color: #a855f7; color: white; font-weight: 700; }
   .ar-bulk-bar button.danger { background: #450a0a; border-color: #b91c1c; color: #fca5a5; }
+
+  /* ของคงเหลือวันนี้ panel */
+  .ar-quota-empty {
+    text-align: center; color: var(--muted); padding: 16px; font-size: 13px;
+    background: rgba(148,163,184,0.08); border: 1px dashed var(--border); border-radius: 6px;
+  }
+  .ar-quota-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ar-quota-table th, .ar-quota-table td {
+    padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: center;
+  }
+  .ar-quota-table th { color: var(--muted); font-size: 11px; font-weight: 600; }
+  .ar-quota-table td.num { font-variant-numeric: tabular-nums; }
+  .ar-quota-item { text-align: left !important; font-weight: 700; }
+  .ar-quota-field { color: #6ee7b7; font-size: 12px; }
+  .ar-quota-field.sub { color: #fdba74; }
+  .ar-quota-remain { font-weight: 800; }
+  .ar-quota-remain.over { color: var(--success); }
+  .ar-quota-remain.zero { color: var(--danger); }
+  .ar-quota-note { color: var(--muted); font-size: 10px; margin-top: 8px; line-height: 1.5; }
+
+  /* Modal per-item quota hint (เหลือ X สิทธิ์ + full/queue warnings).
+     Row layout (column/stretch) lives in the base .ar-modal .ar-item-row rule
+     below — a same-specificity override up here would lose the cascade. */
+  .ar-modal .ar-item-main { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .ar-item-remain { font-size: 11px; font-weight: 700; color: var(--success); white-space: nowrap; }
+  .ar-item-remain.zero { color: var(--danger); }
+  .ar-item-warn {
+    width: 100%; font-size: 11px; margin-top: 2px; padding: 4px 8px;
+    border-radius: 4px; line-height: 1.4;
+  }
+  .ar-item-warn.red { background: rgba(248,113,113,0.12); color: #fca5a5; border: 1px solid #ef4444; }
+  .ar-item-warn.yellow { background: rgba(251,191,36,0.12); color: #fcd34d; border: 1px solid #f59e0b; }
+
+  /* Merged Auction page: day-status banner + queue box + lock notes */
+  .auction-daystatus {
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .auction-daystatus.open   { background: rgba(34,197,94,0.12);  border: 1px solid #16a34a; color: #86efac; }
+  .auction-daystatus.other  { background: rgba(59,130,246,0.12); border: 1px solid #2563eb; color: #93c5fd; }
+  .auction-daystatus.closed { background: rgba(148,163,184,0.1); border: 1px solid #475569; color: #94a3b8; }
+  .auction-daystatus .auction-daystatus-go {
+    margin-left: auto; background: #2563eb; color: white; border: none;
+    border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+  .auction-daystatus-hours { font-size: 11px; font-weight: 400; color: var(--muted); }
+  .ar-queue-box { max-height: 40vh; overflow-y: auto; }
+  .ar-my-list-head { font-size: 12px; color: var(--muted); margin: 10px 0 6px; font-weight: 700; }
+  .ar-lock-note {
+    text-align: center; font-size: 13px; padding: 10px 12px; border-radius: 6px; margin-top: 8px;
+  }
+  .ar-lock-note span { font-size: 11px; }
+  .ar-lock-note.noevent { color: #94a3b8; background: rgba(148,163,184,0.08); border: 1px solid #475569; }
+  .ar-lock-note.leave   { color: #fb923c; background: rgba(249,115,22,0.1); border: 1px solid #f97316; }
 
   /* Modal */
   .ar-modal-backdrop {
@@ -682,7 +691,8 @@
   }
   .ar-modal h3 { margin: 0 0 12px 0; color: #c4b5fd; font-size: 16px; }
   .ar-modal .ar-item-row {
-    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    /* column so the ar-item-main line + full-width warn stack (quota hints) */
+    display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 10px;
     background: var(--bg-2); border: 1px solid var(--border);
     border-radius: 6px; margin-bottom: 6px; cursor: pointer;
   }
@@ -713,7 +723,6 @@
 
   @media (max-width: 700px) {
     .ar-claim select, .ar-claim input { min-width: 0; flex: 1; }
-    .ar-day-tab { min-width: 64px; padding: 5px 8px; }
     .ar-req-row { font-size: 12px; }
     .ar-req-row .ar-name { min-width: 0; flex: 1; }
   }
@@ -2804,7 +2813,6 @@
     <button class="seg" data-mode="roster" onclick="switchMode('roster')">📋 Roster</button>
     <button class="seg" data-mode="auction-gl" onclick="switchMode('auction-gl')">🎴 Auction GL</button>
     <button class="seg" data-mode="auction-overrun" onclick="switchMode('auction-overrun')">🎴 Auction Overrun</button>
-    <button class="seg" data-mode="auction-request" onclick="switchMode('auction-request')">🙋 ขอประมูล</button>
     <button class="seg" data-mode="leave" onclick="switchMode('leave')">🌴 ลา</button>
     <button class="seg" data-mode="feather" onclick="switchMode('feather')">🪶 คำนวนขนนก</button>
     <button class="seg seg-admin" data-mode="wheel" onclick="switchMode('wheel')">🎡 สุ่มรางวัล</button>
@@ -2817,7 +2825,6 @@
     <option value="roster">📋 Roster</option>
     <option value="auction-gl">🎴 Auction GL</option>
     <option value="auction-overrun">🎴 Auction Overrun</option>
-    <option value="auction-request">🙋 ขอประมูล</option>
     <option value="leave">🌴 ลา</option>
     <option value="feather">🪶 คำนวนขนนก</option>
     <option value="wheel" class="user-option-admin">🎡 สุ่มรางวัล</option>
@@ -3030,6 +3037,11 @@ function isEventDay(isoStr) {
   if (d === 0) return "Overrun";
   return null;
 }
+/** isEventDay mapped to the auction mode key: "gl" | "overrun" | null. */
+function eventModeFor(isoStr) {
+  const ev = isEventDay(isoStr);
+  return ev === "GL" ? "gl" : ev === "Overrun" ? "overrun" : null;
+}
 function fmtThaiDate(isoStr) {
   const [y, m, d] = isoStr.split("-").map(Number);
   const TH_MONTHS = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
@@ -3090,6 +3102,8 @@ function switchMode(newMode) {
   else if (state.mode === "overrun") state.partiesOverrun = state.parties;
 
   state.mode = newMode;
+  // Leaving a page closes any open ขอประมูล modal (it's emitted per Auction kind).
+  _arModalState = null;
 
   // The job filter is page-aware now (matches jobForMode); a selection made on
   // one page would silently hide everyone on the other, so clear it on switch.
@@ -3129,7 +3143,6 @@ function updateModeToggleUI() {
   t.classList.toggle("summary-active", state.mode === "summary");
   t.classList.toggle("auction-gl-active", state.mode === "auction-gl");
   t.classList.toggle("auction-overrun-active", state.mode === "auction-overrun");
-  t.classList.toggle("auction-request-active", state.mode === "auction-request");
   t.classList.toggle("leave-active", state.mode === "leave");
   t.classList.toggle("users-active", state.mode === "users");
   t.classList.toggle("wheel-active", state.mode === "wheel");
@@ -3237,13 +3250,56 @@ function setDragging(on) {
 // safeRender: queues the render until the current drag finishes. Used by
 // realtime Firebase listeners so a remote write mid-drag doesn't yank the
 // drop target out from under the user.
+let _pendingRenderAfterEdit = false;
 function safeRender() {
   if (_isDragging) { _pendingRenderAfterDrag = true; return; }
   // Hold remote re-renders while a roster self-edit draft is open — an
   // innerHTML rebuild would wipe the guest's unsaved typing. Save / claim
   // change / tab switch all call render() directly, which still rebuilds.
   if (_rosterMineDirty && state.mode === "roster") return;
+  // Single choke point for the Auction pages' editing guard: while focus sits in
+  // an editable control on auction-gl/overrun, queue instead of rendering (same
+  // pattern as _isDragging above). The focusout catch-up below flushes the queue.
+  if ((state.mode === "auction-gl" || state.mode === "auction-overrun") && _auctionEditingGuard()) {
+    _pendingRenderAfterEdit = true;
+    return;
+  }
   if (typeof render === "function") render();
+}
+/** True when focus sits in an editable control a full re-render would rip away
+ *  mid-type. Structural rule (not a selector list, so future inputs are covered
+ *  automatically): any input/textarea/select inside the Auction page
+ *  (.auction-view — item counts, rates, split %, search, #arClaimSelect) or the
+ *  ขอประมูล modal (.ar-modal). */
+function _auctionEditingGuard() {
+  const ae = document.activeElement;
+  if (!ae || !ae.tagName) return false;
+  const tag = String(ae.tagName).toUpperCase();
+  if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") return false;
+  return !!(ae.closest && (ae.closest(".auction-view") || ae.closest(".ar-modal")));
+}
+// Catch-up: a snapshot that arrived while the user was typing set
+// _pendingRenderAfterEdit instead of rendering. When focus leaves the guarded
+// control, flush that queued render so the page can't stay stale forever.
+// setTimeout(0) lets the NEXT focus target land first — tabbing between two
+// guarded inputs must not flush mid-edit.
+document.addEventListener("focusout", () => {
+  if (!_pendingRenderAfterEdit) return;
+  setTimeout(() => {
+    if (_pendingRenderAfterEdit && !_auctionEditingGuard()) {
+      _pendingRenderAfterEdit = false;
+      safeRender();
+    }
+  }, 0);
+}, true);
+// Debounced render for the auction listeners' echoes: a bulk approve fires 30+
+// snapshots back-to-back (1 auction-state set + N request updates) — collapse
+// them into 1-2 renders instead of one per snapshot. Drag/edit safety still
+// comes from safeRender itself (the choke points above).
+let _auctionEchoTimer = null;
+function _auctionEchoRender() {
+  clearTimeout(_auctionEchoTimer);
+  _auctionEchoTimer = setTimeout(safeRender, 120);
 }
 // Bind at document level so we catch ALL drags (including HTML5 default dragend
 // when user drops outside any registered target).
@@ -5458,7 +5514,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.07.1";
+const APP_VERSION = "2026.07.09.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -5860,7 +5916,7 @@ function openSyncSettings() {
       <div style="font-size:13px;line-height:1.7;margin-bottom:10px">
         • ดูข้อมูลได้ทุกหน้า<br>
         • กรอก CP ของตัวเองได้ใน <b>📋 Roster</b><br>
-        • ขอประมูลได้ในแท็บ <b>🙋 ขอประมูล</b>
+        • ขอประมูลได้ในหน้า <b>🎴 Auction GL</b> / <b>🎴 Auction Overrun</b> (วันกิจนั้น ๆ)
       </div>
 
       <button onclick="signInWithGoogle().then(ok=>{if(ok)document.getElementById('syncDialog').close()})"
@@ -6113,6 +6169,29 @@ function fbToFixedArray(v, len, fillValue) {
   return out;
 }
 
+/** Coerce untrusted /auction_requests data into a safe shape before it enters
+ *  state. The Firebase rule for $reqId lets ANY authed user (guests are anon-
+ *  authed) create a request node and only validates memberId+status — NOT the
+ *  type of `items`. Without this, a crafted request whose `items` is a non-array
+ *  crashes the quota panel + admin queue (.forEach/.map over items) that now
+ *  render for every viewer on the Auction pages — blanking the page for everyone,
+ *  and the in-app "ล้างคำขอ" button sits on that same crashed page. We normalize
+ *  at ingest (one choke point) so every downstream reader is safe. Only bad items
+ *  are touched; well-formed requests pass through unchanged. */
+function normalizeAuctionRequests(v) {
+  if (!v || typeof v !== "object") return {};
+  Object.values(v).forEach(byMode => {
+    if (!byMode || typeof byMode !== "object") return;
+    Object.values(byMode).forEach(byId => {
+      if (!byId || typeof byId !== "object") return;
+      Object.values(byId).forEach(req => {
+        if (req && typeof req === "object" && !Array.isArray(req.items)) req.items = [];
+      });
+    });
+  });
+  return v;
+}
+
 /* ---------- Firebase subscriptions: realtime listeners on every path ----- */
 function fbSubscribeAll() {
   if (!_fbDB || _fbSubscribed) return;
@@ -6315,7 +6394,8 @@ function fbSubscribeAll() {
     _fbApplyingRemote = true;
     state.auctionGL = normalizeAuctionState(v, "gl");
     _fbApplyingRemote = false;
-    if (typeof render === "function" && state.mode === "auction-gl") render();
+    // Debounced; drag/edit safety lives inside safeRender (single choke point).
+    if (state.mode === "auction-gl") _auctionEchoRender();
   });
 
   // auction_overrun
@@ -6326,7 +6406,7 @@ function fbSubscribeAll() {
     _fbApplyingRemote = true;
     state.auctionOverrun = normalizeAuctionState(v, "overrun");
     _fbApplyingRemote = false;
-    if (typeof render === "function" && state.mode === "auction-overrun") render();
+    if (state.mode === "auction-overrun") _auctionEchoRender();
   });
 
   // job_targets
@@ -6426,9 +6506,10 @@ function fbSubscribeAll() {
     // own admin status flipped OR we're on a page that actually displays
     // the admin list. Other pages don't depend on /admins content.
     const nowAdmin = isAdmin();
-    const onAdminAwarePage = state.mode === "users" || state.mode === "auction-request" || state.mode === "wheel";
+    const onAdminAwarePage = state.mode === "users" || state.mode === "auction-gl" || state.mode === "auction-overrun" || state.mode === "wheel";
     if (wasAdmin !== nowAdmin || onAdminAwarePage) {
-      if (typeof render === "function") render();
+      // safeRender: the auction pages are drag boards + have guarded inputs now.
+      if (typeof safeRender === "function") safeRender();
     }
   });
 
@@ -6480,11 +6561,12 @@ function fbSubscribeAll() {
   // in Firebase so multiple guests see updates instantly; we keep a local
   // mirror in state.auctionRequests for render.
   _fbDB.ref("auction_requests").on("value", snap => {
-    const v = snap.val() || {};
+    const v = normalizeAuctionRequests(snap.val() || {});
     _fbApplyingRemote = true;
     state.auctionRequests = v;
     _fbApplyingRemote = false;
-    if (typeof render === "function" && state.mode === "auction-request") render();
+    // The queue/quota now live inside BOTH Auction pages.
+    if (state.mode === "auction-gl" || state.mode === "auction-overrun") _auctionEchoRender();
   });
 
   // system: reset bookkeeping. Read-only for most of the app, written only by
@@ -6964,8 +7046,8 @@ function rosterAdd() {
 
 /* ----- Roster self-edit (claim) -----
  * A guest "claims" their own row via the same localStorage claim as the
- * Auction Request page (claimGetMemberId / claimSetMember — ar* aliases keep
- * the auction wiring unchanged) and may then edit ALL fields of THAT row
+ * ขอประมูล UI on the Auction pages (claimGetMemberId / claimSetMember — ar*
+ * aliases keep the auction wiring unchanged) and may then edit ALL fields of THAT row
  * only; admin edits any row. This gate is UX, not a security boundary —
  * Database Rules already allow any authed user to .update() an existing
  * /members/$mid (create/delete stay admin). Every edit stamps updatedBy
@@ -7519,8 +7601,8 @@ function buildJobBreakdownSection() {
 }
 
 /* Claim chip / chooser for guests on the Roster toolbar. Reuses the same
- * localStorage claim as the Auction Request page (claimSetMember calls
- * render()), so claiming on either page claims on both — one identity. */
+ * localStorage claim as the ขอประมูล UI on the Auction pages (claimSetMember
+ * calls render()), so claiming on either page claims on both — one identity. */
 function buildRosterClaimHtml() {
   const me = rosterClaimedMember();
   if (me) {
@@ -7769,6 +7851,7 @@ function computeAuction(kind) {
 // .assigned styling + "ซ่อนคนที่จัดตี้แล้ว" filter update with each drag/drop.
 // `field` = "main" (70% pool) or "sub" (30% pool).
 function assignAuctionMember(kind, field, item, memberId) {
+  if (!isAdmin()) return;   // guests can view the columns but not edit them
   const a = getAuctionAssignments(kind);
   const bucket = a[field] && a[field][item];
   if (!bucket || bucket.includes(memberId)) return;
@@ -7776,12 +7859,14 @@ function assignAuctionMember(kind, field, item, memberId) {
   save(); render();
 }
 function unassignAuctionMember(kind, field, item, memberId) {
+  if (!isAdmin()) return;
   const a = getAuctionAssignments(kind);
   if (!a[field] || !a[field][item]) return;
   a[field][item] = a[field][item].filter(id => id !== memberId);
   save(); render();
 }
 function clearAuctionColumn(kind, field, item) {
+  if (!isAdmin()) return;
   const a = getAuctionAssignments(kind);
   const bucket = a[field] && a[field][item];
   if (!bucket || !bucket.length) return;
@@ -7790,6 +7875,7 @@ function clearAuctionColumn(kind, field, item) {
   save(); render();
 }
 function autoFillAuctionColumn(kind, field, item) {
+  if (!isAdmin()) return;
   const eligibleMembers = getAuctionMembers(kind);
   const a = getAuctionAssignments(kind);
   if (!a[field]) return;
@@ -7797,8 +7883,11 @@ function autoFillAuctionColumn(kind, field, item) {
   save(); render();
 }
 function dropAuctionColumn(e, kind, field, item) {
+  // Always consume the drop + clear the highlight — even for guests — so the
+  // browser doesn't run its default drop handling; only the WRITE is gated.
   e.preventDefault();
   e.currentTarget.classList.remove("drag-over");
+  if (!isAdmin()) return;
   if (drag.type === "member") {
     assignAuctionMember(kind, field, item, drag.payload.memberId);
   }
@@ -8226,6 +8315,83 @@ function buildAuctionView(kind) {
     pageMapStrip = `<div class="auction-pagemap-strip"><div class="apm-head">${head}</div><div class="apm-chips">${typeChips}</div></div>`;
   }
 
+  // ---- Merged ขอประมูล UI (claim + ของคงเหลือ + request + admin queue) ----
+  // The standalone "ขอประมูล" tab was folded into this page. Everything keys off
+  // TODAY only — you can ask only on the current event day for THIS page's kind.
+  const today          = todayBkkISO();
+  const eventModeToday = eventModeFor(today);                      // "gl"|"overrun"|null
+  const isTodaysKind   = (eventModeToday === kind);                // is today THIS page's event?
+  const kindLabel      = isGL ? "GL" : "Overrun";
+  const admin          = isAdmin();
+  const claimedId      = arGetClaimedMemberId();
+  const claimed        = claimedId ? findMember(claimedId) : null;
+
+  // Day-status banner under the hero (schedule line lives here so guests still
+  // see the auction hours that used to sit in the old tab's hero).
+  const hoursLine = `<span class="auction-daystatus-hours">ประมูล 21:00–22:00 ของวันกิจกรรม · เคลียร์ 00:00</span>`;
+  let dayStatus;
+  if (isTodaysKind) {
+    dayStatus = `<div class="auction-daystatus open">🟢 วันกิจ ${kindLabel} — เปิดรับคำขอประมูล ${hoursLine}</div>`;
+  } else if (eventModeToday) {
+    const otherLabel = eventModeToday === "gl" ? "GL" : "Overrun";
+    dayStatus = `<div class="auction-daystatus other">
+      <span>📅 วันนี้เป็นวันกิจ ${otherLabel} — หน้า ${kindLabel} ยังไม่เปิดรับคำขอ ${hoursLine}</span>
+      <button class="auction-daystatus-go" onclick="switchMode('auction-${eventModeToday}')">ไปหน้า ${otherLabel} →</button>
+    </div>`;
+  } else {
+    dayStatus = `<div class="auction-daystatus closed">🔒 ไม่มีกิจวันนี้ — ขอประมูลได้เฉพาะวันกิจ (อังคาร/พฤหัส = GL · อาทิตย์ = Overrun) ${hoursLine}</div>`;
+  }
+
+  // Claim (บอกชื่อตัวเอง) — same localStorage claim as Roster (id arClaimSelect)
+  const claimSection = claimed ? `
+    <div class="ar-section">
+      <div class="ar-claim">
+        <span class="ar-claimed">👤 ${escapeHtml(claimed.name)} (${escapeHtml(claimed.job || "?")})</span>
+        <button class="ghost" onclick="arSetClaimedMember('')">เปลี่ยน / ออก</button>
+      </div>
+    </div>` : `
+    <div class="ar-section">
+      <h3>👤 บอกชื่อตัวเองก่อนขอประมูล</h3>
+      <div class="ar-claim">
+        <label>เลือกชื่อ:</label>
+        <select id="arClaimSelect">
+          <option value="">— เลือกชื่อ —</option>
+          ${claimOptionsHtml((state.members || []).slice().sort((a, b) => (a.name || "").localeCompare(b.name || "", "th")))}
+        </select>
+        <button onclick="arSetClaimedMember(document.getElementById('arClaimSelect').value)">ยืนยัน</button>
+      </div>
+    </div>`;
+
+  // ของคงเหลือวันนี้ (Stage 1 helper — reuses this render's `data`, no re-compute)
+  const quotaPanel = arBuildQuotaPanel(kind, data);
+
+  // Request section — button (event-day + leave gated) + my requests (this mode)
+  const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= today && r.mode === kind) : [];
+  const onLeave    = claimedId && arHasLeaveOnDate(claimedId, today);
+  const lockReason = !isTodaysKind ? "noevent" : onLeave ? "leave" : null;
+  const requestBtnBar = claimedId ? `
+    <div class="ar-bulk-bar">
+      ${isTodaysKind ? `<button class="ar-request-btn" ${onLeave ? "disabled" : ""}
+        title="${onLeave ? escapeHtml("คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล") : ""}"
+        onclick="arOpenRequestModal('${today}','${kind}')">🙋 ขอประมูล ${kindLabel} วันนี้ (${formatDayShortBkk(today)})</button>` : ""}
+    </div>
+    ${lockReason === "noevent"
+      ? `<div class="ar-lock-note noevent">🔒 หน้านี้ยังไม่เปิดรับคำขอวันนี้<br><span>ขอ ${kindLabel} ได้เฉพาะวันกิจ ${kindLabel} (${isGL ? "อังคาร/พฤหัส" : "อาทิตย์"}) · ขอล่วงหน้าไม่ได้</span></div>`
+      : lockReason === "leave"
+        ? `<div class="ar-lock-note leave">🌴 คุณลงลาวันที่ ${today} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูลวันนี้<br><span>ถ้าเข้าได้ ให้ยกเลิกลาก่อนในแท็บ "🌴 ลา"</span></div>`
+        : ""}` : `<div class="ar-queue-empty">เลือกชื่อตัวเองด้านบนก่อน แล้วปุ่ม "ขอประมูล" จะปรากฏ</div>`;
+  const requestSection = `
+    <div class="ar-section">
+      <h3>🙋 ขอประมูล ${kindLabel} วันนี้</h3>
+      ${requestBtnBar}
+      ${claimedId ? (myRequests.length
+        ? `<div class="ar-my-list-head">📋 คำขอของฉัน (${myRequests.length})</div><div class="ar-my-list">${myRequests.map(r => arRenderRow(r, false)).join("")}</div>`
+        : `<div class="ar-queue-empty">ยังไม่มีคำขอ ${kindLabel} — กดปุ่ม "ขอประมูล" ด้านบน</div>`) : ""}
+    </div>`;
+
+  // Admin queue for THIS mode only (per-mode refactor of arBuildAdminQueue)
+  const adminQueue = admin ? arBuildAdminQueue(today, kind, isTodaysKind) : "";
+
   return `
     <div class="auction-view">
       <div class="auction-hero ${isGL ? "" : "overrun"}">
@@ -8236,6 +8402,15 @@ function buildAuctionView(kind) {
           <span class="rate-pill">อัตรา: <b>${rateLabel}</b></span>
         </div>
       </div>
+      ${dayStatus}
+
+      ${claimSection}
+
+      ${quotaPanel}
+
+      ${requestSection}
+
+      ${adminQueue}
 
       <div class="auction-section">
         <h3>📦 จำนวนของ (กรอกยอดจริงที่จะแจก)</h3>
@@ -8270,6 +8445,8 @@ function buildAuctionView(kind) {
       ${memberSection}
 
       ${subSection}
+
+      ${(_arModalState && _arModalState.mode === kind) ? arBuildModal(data) : ""}
     </div>`;
 }
 
@@ -8277,13 +8454,16 @@ function buildAuctionGlHtml()      { return buildAuctionView("gl"); }
 function buildAuctionOverrunHtml() { return buildAuctionView("overrun"); }
 
 /* =====================================================================
- * Auction Request page (ขอประมูล)
+ * ขอประมูล (Auction Request) — UI now EMBEDDED in the Auction GL / Overrun pages
  * =====================================================================
- * Guest claims their identity, picks date + items, submits a request.
- * Admin sees a queue grouped by item × main/sub, approves/rejects.
- * Auto-routes (main vs sub) by checking which party the member is in.
- * Auto-cuts when an item's capacity is reached.
- * Auto-clears on the day after activity ends.
+ * The standalone "ขอประมูล" tab was removed; buildAuctionView(kind) renders the
+ * claim + ของคงเหลือ + request modal + admin queue inline. The FCFS mutation
+ * functions (create/approve/reject/withdraw/bulk/resync/clear) are unchanged;
+ * the admin queue builder was refactored to per-mode (one kind per page), and
+ * arGetQuota/arBuildQuotaPanel are new display helpers on top of the same math.
+ * Guest claims their identity, picks an item, submits a request.
+ * Admin sees a per-mode queue, approves/rejects; auto-routes main/sub by party;
+ * auto-cuts when an item's capacity is reached; auto-clears the day after.
  *
  * Data shape (Firebase):
  *   /auction_requests/{date}/{mode}/{requestId} = {
@@ -8300,12 +8480,11 @@ const AR_ITEM_META = {
   black:    { label: "🪶 ขนดำ",          rateKey: "black",    unit: "ขน"   }
 };
 
-// View state for the request page (not persisted; rebuilt on render)
-let _arSelectedDate = null;
+// Modal state for the ขอประมูล flow (not persisted; rebuilt on render)
 let _arModalState   = null;  // { date, mode, items: Set, note } when modal open
 
 /* Canonical claim helpers — the claim is a cross-page member identity used
- * by BOTH the Auction Request page and the Roster self-edit feature. The
+ * by BOTH the ขอประมูล UI and the Roster self-edit feature. The
  * ar* names are kept as aliases so the existing auction wiring (inline
  * onclick strings included) keeps working. */
 function claimGetMemberId() {
@@ -8339,14 +8518,7 @@ function arHasLeaveOnDate(memberId, date) {
   return !!(bucket && bucket[date]);
 }
 
-function arGetDateRange() {
-  // Auction requests are accepted for the CURRENT event day only — never in
-  // advance. So the range is just today (BKK). Non-event days (and any future
-  // date) render a locked page; see buildAuctionRequestHtml / isEventDay.
-  return [todayBkkISO()];
-}
-
-// Auction Request opens ONLY on the current event day (อังคาร/พฤหัส = GL,
+// ขอประมูล opens ONLY on the current event day (อังคาร/พฤหัส = GL,
 // อาทิตย์ = Overrun via isEventDay), and only for that day's event — no
 // requesting a future event in advance. Non-event days are locked. Daily
 // reset wipes the auction pages at 00:00 BKK so each event day starts fresh.
@@ -8369,6 +8541,53 @@ function arGetRequests(date, mode) {
   const all = (state.auctionRequests && state.auctionRequests[date]) || {};
   const list = (all[mode]) || {};
   return Object.values(list).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
+}
+
+/** PURE per-item/per-field quota view for the "ของคงเหลือ" panel, the modal
+ *  "เหลือ X สิทธิ์" line, AND the arBulkApprove capacity cap — one source so the
+ *  UI and the auto-allocator can never disagree.
+ *
+ *  @param auctionData  an ALREADY-computed computeAuction(kind) result (do NOT
+ *                      call computeAuction in here — it has a save() side-effect;
+ *                      the caller owns the single call per render).
+ *  @param requests     today's requests for that mode (arGetRequests). Only the
+ *                      pending ones are counted, and ONLY for display.
+ *  @returns { main:{cards:{quota,occupied,pending,remaining},...}, sub:{...} }
+ *    quota     = rate>0 ? floor(pool/rate) : 0
+ *    occupied  = assignments[field][item].length (approved / dragged-in)
+ *    pending   = # pending requests routed to that field whose items include it
+ *                — DISPLAY ONLY, never subtracted from remaining or any decision
+ *    remaining = max(0, quota - occupied)
+ */
+function arGetQuota(auctionData, requests) {
+  const ITEM_KEYS = ["cards", "illusion", "white", "black"];
+  const mode = auctionData.kind;
+  const assigns = auctionData.assignments || { main: {}, sub: {} };
+  const out = { main: {}, sub: {} };
+  auctionData.items.forEach(it => {
+    ["main", "sub"].forEach(field => {
+      const pool = (it[field] && it[field].pool) || 0;
+      const quota = it.rate > 0 ? Math.floor(pool / it.rate) : 0;
+      const occupied = ((assigns[field] && assigns[field][it.key]) || []).length;
+      out[field][it.key] = { quota, occupied, pending: 0, remaining: Math.max(0, quota - occupied) };
+    });
+  });
+  (requests || []).forEach(r => {
+    if (r.status !== "pending") return;
+    // Route the pending request to a field the same way arBulkApprove does, so
+    // the "คิวรอ" tally lines up with where the allocator will actually try to seat it.
+    let field = arDetectField(r.memberId, mode) || r.computedField || "main";
+    if (mode === "overrun") field = "main";   // Overrun has no sub pool
+    (r.items || []).forEach(k => {
+      if (!ITEM_KEYS.includes(k) || !out[field] || !out[field][k]) return;
+      // Already parked in that column (manual drag)? The allocator honors the
+      // seat without burning a slot — don't count them as queue either.
+      const bucket = assigns[field] && assigns[field][k];
+      if (bucket && bucket.includes && bucket.includes(r.memberId)) return;
+      out[field][k].pending++;
+    });
+  });
+  return out;
 }
 
 // "13:05:22" in Asia/Bangkok for a request timestamp; "—" for legacy
@@ -8568,14 +8787,19 @@ async function arBulkApprove(date, mode) {
   if (!obj) { toast("ยังไม่ได้ตั้งค่า auction state", "error"); return; }
 
   // Pools + per-person rates come from the same computation the summary
-  // table + ⚠️ "ของไม่พอ" warning use, so capacity here matches the UI.
+  // table + ⚠️ "ของไม่พอ" warning use, so capacity here matches the UI. The cap
+  // itself now comes from arGetQuota (the single quota source shared with the
+  // ของคงเหลือ panel + modal) — same floor(pool/rate) as before, just not inlined.
   const ITEM_KEYS = ["cards", "illusion", "white", "black"];
   const data = computeAuction(mode);
+  // pass [] — allocation only needs .quota (pool/rate); the pending tally is
+  // display-only and irrelevant to who wins.
+  const q = arGetQuota(data, []);
   const cap = { main: {}, sub: {} };
   let poolTotal = 0;
   data.items.forEach(it => {
-    cap.main[it.key] = it.rate > 0 ? Math.floor(it.main.pool / it.rate) : 0;
-    cap.sub[it.key]  = it.rate > 0 ? Math.floor(it.sub.pool  / it.rate) : 0;
+    cap.main[it.key] = q.main[it.key].quota;
+    cap.sub[it.key]  = q.sub[it.key].quota;
     poolTotal += (it.main.pool || 0) + (it.sub.pool || 0);
   });
 
@@ -8821,137 +9045,6 @@ function arSubmitModal() {
   }
 }
 
-/* ---------- Page render ---------- */
-function buildAuctionRequestHtml() {
-  // Initialize selected date to today on first render
-  const dateRange = arGetDateRange();
-  if (!_arSelectedDate || !dateRange.includes(_arSelectedDate)) _arSelectedDate = dateRange[0];
-  const claimedId = arGetClaimedMemberId();
-  const claimed = claimedId ? findMember(claimedId) : null;
-  const admin = isAdmin();
-  const date = _arSelectedDate;
-
-  // ---- Hero ----
-  const hero = `
-    <div class="ar-hero">
-      <div>
-        <h2>🙋 Auction Request</h2>
-        <div class="ar-meta">ขอได้เฉพาะวันกิจวันนี้ — แอดมินจัดให้ลงสนามหลัก/รองอัตโนมัติ</div>
-      </div>
-      <div style="flex:1"></div>
-      <div class="ar-meta">
-        <b>📅 ${date}</b>
-        <br><span style="font-size:11px">ประมูล 21:00–22:00 ของวันกิจกรรม · เคลียร์ 00:00</span>
-      </div>
-    </div>`;
-
-  // ---- Claim ----
-  const claimSection = claimed ? `
-    <div class="ar-section">
-      <div class="ar-claim">
-        <span class="ar-claimed">👤 ${escapeHtml(claimed.name)} (${escapeHtml(claimed.job || "?")})</span>
-        <button class="ghost" onclick="arSetClaimedMember('')">เปลี่ยน / ออก</button>
-      </div>
-    </div>
-  ` : `
-    <div class="ar-section">
-      <h3>👤 บอกชื่อตัวเอง</h3>
-      <div class="ar-claim">
-        <label>เลือกชื่อ:</label>
-        <select id="arClaimSelect">
-          <option value="">— เลือกชื่อ —</option>
-          ${claimOptionsHtml((state.members || [])
-            .slice()
-            .sort((a, b) => (a.name || "").localeCompare(b.name || "", "th")))}
-        </select>
-        <button onclick="arSetClaimedMember(document.getElementById('arClaimSelect').value)">ยืนยัน</button>
-      </div>
-    </div>
-  `;
-
-  // ---- Today's event banner ----
-  // Requests open for the current event day only (อังคาร/พฤหัส = GL,
-  // อาทิตย์ = Overrun). Any other day = no event → page locked.
-  const today      = todayBkkISO();
-  const todayEvent = isEventDay(today);                              // "GL" | "Overrun" | null
-  const eventMode  = todayEvent === "GL" ? "gl"
-                   : todayEvent === "Overrun" ? "overrun" : null;
-  const dayTabs = `
-    <div class="ar-day-tabs">
-      <div class="ar-day-tab active ${eventMode ? (eventMode === "gl" ? "has-gl" : "has-overrun") : "closed"}">
-        <span class="ar-day-num">${formatDayShortBkk(today)}</span>
-        <span class="ar-day-mode">${todayEvent ? "🟢 วันกิจ " + todayEvent : "🔒 ไม่มีกิจวันนี้"}</span>
-      </div>
-    </div>`;
-
-  // ---- Admin tools (manual clear, in case admin wants to wipe before midnight) ----
-  const adminDayControls = admin ? `
-    <div class="ar-section">
-      <h3>⚙️ Admin tools</h3>
-      <div class="ar-bulk-bar">
-        <span style="font-size:12px;color:var(--muted)">เปิดรับเฉพาะวันกิจ (อังคาร/พฤหัส = GL · อาทิตย์ = Overrun) — เคลียร์อัตโนมัติ 00:00 BKK</span>
-        <div style="flex:1"></div>
-        <button class="danger" onclick="arClearDay('${date}')">🧹 ล้างคำขอวันนี้ (${date})</button>
-        <button class="danger" onclick="arResetAuctionPages()">🧹 ล้างหน้า Auction GL+Overrun</button>
-      </div>
-    </div>
-  ` : "";
-
-  // ---- Guest: request button + my list ----
-  const myRequests = claimedId ? arGetMyRequests(claimedId).filter(r => r.date >= today) : [];
-  const onLeave    = claimedId && arHasLeaveOnDate(claimedId, today);
-  // Requests open ONLY on the current event day, ONLY for that day's event.
-  // Lock priority: no event today → on leave → open.
-  const lockReason = !eventMode ? "noevent" : onLeave ? "leave" : null;
-  const lockedTitle = lockReason === "noevent"
-    ? "วันนี้ไม่ใช่วันกิจกรรม — ขอประมูลได้เฉพาะวันกิจ (อังคาร/พฤหัส = GL, อาทิตย์ = Overrun)"
-    : lockReason === "leave" ? "คุณลงลาวันนี้ไว้ — ไม่มีสิทธิ์ขอประมูล"
-    : "";
-  const requestButtons = claimedId ? `
-    <div class="ar-bulk-bar">
-      ${eventMode ? `
-      <button class="ar-request-btn" ${lockReason ? "disabled" : ""}
-        title="${escapeHtml(lockedTitle)}"
-        onclick="arOpenRequestModal('${today}','${eventMode}')">🙋 ขอประมูล ${todayEvent} วันนี้ (${formatDayShortBkk(today)})</button>
-      ` : ""}
-    </div>
-    ${lockReason === "noevent"
-      ? `<div style="text-align:center;color:#94a3b8;padding:14px;font-size:13px;background:rgba(148,163,184,0.08);border:1px solid #475569;border-radius:6px;margin-top:8px">🔒 วันนี้ไม่ใช่วันกิจกรรม<br><span style="font-size:11px">ขอประมูลได้เฉพาะวันกิจ — อังคาร/พฤหัส = GL · อาทิตย์ = Overrun · ขอล่วงหน้าไม่ได้</span></div>`
-      : lockReason === "leave"
-        ? `<div style="text-align:center;color:#fb923c;padding:10px;font-size:13px;background:rgba(249,115,22,0.1);border:1px solid #f97316;border-radius:6px;margin-top:8px">🌴 คุณลงลาวันที่ ${today} ไว้แล้ว — ไม่มีสิทธิ์ขอประมูลวันนี้ <br><span style="font-size:11px">ถ้าเข้าได้ ให้ยกเลิกลาก่อนในแท็บ "🌴 ลา"</span></div>`
-        : ""}
-  ` : "";
-  const mySection = claimedId ? `
-    <div class="ar-section">
-      <h3>📋 คำขอของฉัน (${myRequests.length})</h3>
-      ${requestButtons}
-      ${myRequests.length ? `<div class="ar-my-list">${myRequests.map(r => arRenderRow(r, false)).join("")}</div>`
-                          : `<div class="ar-queue-empty">ยังไม่มีคำขอ — กดปุ่ม "ขอประมูล" ด้านบน</div>`}
-    </div>
-  ` : "";
-
-  // ---- Admin queue ----
-  const adminQueue = admin ? arBuildAdminQueue(date, eventMode) : "";
-
-  // ---- Modal ----
-  const modal = _arModalState ? arBuildModal() : "";
-
-  return `<div class="ar-view">
-    ${hero}
-    ${claimSection}
-    ${dayTabs}
-    ${adminDayControls}
-    ${mySection}
-    ${adminQueue}
-    ${modal}
-  </div>`;
-}
-
-function arSelectDate(d) {
-  _arSelectedDate = d;
-  render();
-}
-
 /** Format yyyy-mm-dd as short Thai weekday + dd/mm */
 function formatDayShortBkk(iso) {
   const [y, m, d] = iso.split("-").map(Number);
@@ -9022,96 +9115,154 @@ function arPromptReject(date, mode, requestId) {
   arRejectRequest(date, mode, requestId, reason);
 }
 
-function arBuildAdminQueue(date, eventMode) {
-  const all = ((state.auctionRequests || {})[date] || {});
-  const pendingGl      = arGetRequests(date, "gl").filter(r => r.status === "pending");
-  const pendingOverrun = arGetRequests(date, "overrun").filter(r => r.status === "pending");
-  const approvedGl     = arGetRequests(date, "gl").filter(r => r.status === "approved");
-  const approvedOver   = arGetRequests(date, "overrun").filter(r => r.status === "approved");
-  const rejectedGl     = arGetRequests(date, "gl").filter(r => r.status === "rejected");
-  const rejectedOver   = arGetRequests(date, "overrun").filter(r => r.status === "rejected");
-  const totalPending = pendingGl.length + pendingOverrun.length;
-
-  const renderGroup = (title, mode, reqs, asQueue) => {
-    if (!reqs.length) return "";
-    // Pending = the QUEUE: pure first-come-first-served with visible #N so
-    // the admin can approve in arrival order (the หลัก/รอง tag stays on each
-    // row). arGetRequests is the single sort authority (requestedAt asc) and
-    // filter() preserves it — don't re-sort here, or queue-order changes made
-    // there would silently not apply. History keeps main-before-sub grouping (GL only).
-    const sorted = asQueue
-      ? reqs
-      // History (อนุมัติแล้ว / ปฏิเสธ) sorts by pure request time for BOTH events
-      // so winners read in the order people asked. GL used to group หลัก-before-
-      // รอง here, which pushed early sub-field winners below later main-field ones
-      // (2026-07-07: now matches Overrun — the หลัก/รอง tag stays on each row).
-      : reqs.slice().sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
-    return `<div class="ar-queue-group">
-      <h4>${title} (${reqs.length})</h4>
-      ${sorted.map((r, i) => arRenderRow({ ...r, date, mode }, true, asQueue ? i + 1 : 0)).join("")}
+/** "🎟️ ของคงเหลือวันนี้" panel — per-item quota / จองแล้ว / คิวรอ / เหลือ, shown
+ *  on the Auction page above the request button so guests see what's left before
+ *  asking. Reads the SAME arGetQuota the auto-allocator uses. GL splits หลัก/รอง;
+ *  Overrun shows main only. "คิวรอ" (pending) is display-only. When the admin
+ *  hasn't entered any item counts (totalItems 0) it shows a "ยังไม่แจ้งของ" banner.
+ *  auctionData = the caller's single computeAuction(kind) result (no re-compute). */
+function arBuildQuotaPanel(kind, auctionData) {
+  if ((auctionData.pageMap.totalItems | 0) === 0) {
+    return `<div class="ar-section">
+      <h3>🎟️ ของคงเหลือวันนี้</h3>
+      <div class="ar-quota-empty">แอดมินยังไม่แจ้งของวันนี้ — ยังไม่มีจำนวนของให้ประมูล</div>
     </div>`;
-  };
+  }
+  const q = arGetQuota(auctionData, arGetRequests(todayBkkISO(), kind));
+  const hasSub = (kind === "gl");
+  const fields = hasSub ? ["main", "sub"] : ["main"];
+  const fieldLabel = { main: "หลัก", sub: "รอง" };
+  const rows = auctionData.items.map(it =>
+    fields.map((f, idx) => {
+      const c = q[f][it.key];
+      const remCls = c.remaining > 0 ? "over" : "zero";
+      return `<tr>
+        ${idx === 0 ? `<td class="ar-quota-item" rowspan="${fields.length}">${it.label}</td>` : ""}
+        ${hasSub ? `<td class="ar-quota-field ${f === "sub" ? "sub" : ""}">${fieldLabel[f]}</td>` : ""}
+        <td class="num">${c.quota}</td>
+        <td class="num">${c.occupied}</td>
+        <td class="num">${c.pending}</td>
+        <td class="num ar-quota-remain ${remCls}">${c.remaining}</td>
+      </tr>`;
+    }).join("")
+  ).join("");
+  return `<div class="ar-section">
+    <h3>🎟️ ของคงเหลือวันนี้</h3>
+    <table class="ar-quota-table">
+      <thead><tr>
+        <th style="text-align:left">รายการ</th>
+        ${hasSub ? `<th>สนาม</th>` : ""}
+        <th>โควตา</th><th>จองแล้ว</th><th>คิวรอ</th><th>เหลือ</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="ar-quota-note">โควตา = จำนวนของ ÷ อัตราต่อคน · จองแล้ว = อนุมัติ/ลากเข้าคอลัมน์แล้ว · คิวรอ = ยังไม่อนุมัติ (ไม่ตัดสิทธิ์) · เหลือ = โควตา − จองแล้ว</div>
+  </div>`;
+}
+
+function arBuildAdminQueue(date, mode, isTodaysKind) {
+  // Per-mode admin queue. The standalone tab used to show GL + Overrun together;
+  // now each Auction page renders only its own kind. date = todayBkkISO() always.
+  // isTodaysKind (boolean, from the caller's single eventModeFor check) gates the
+  // 🤖 จัดสรร button — no allocating an event that can't take requests today.
+  const modeLabel = mode === "gl" ? "GL" : "Overrun";
+  const pending  = arGetRequests(date, mode).filter(r => r.status === "pending");
+  const approved = arGetRequests(date, mode).filter(r => r.status === "approved");
+  const rejected = arGetRequests(date, mode).filter(r => r.status === "rejected");
+
+  // arGetRequests is the single sort authority (requestedAt asc) and filter()
+  // preserves it — both the queue and the history read in pure arrival order
+  // (GL like Overrun, 2026-07-07). asQueue only adds the visible #N badge.
+  const rowsHtml = (reqs, asQueue) =>
+    reqs.map((r, i) => arRenderRow({ ...r, date, mode }, true, asQueue ? i + 1 : 0)).join("");
 
   const bulkBar = `
     <div class="ar-bulk-bar">
-      ${eventMode === "gl" ? `<button class="primary" ${!pendingGl.length ? "disabled" : ""}
-        onclick="arBulkApprove('${date}','gl')">🤖 จัดสรร GL อัตโนมัติ</button>` : ""}
-      ${eventMode === "overrun" ? `<button class="primary" ${!pendingOverrun.length ? "disabled" : ""}
-        onclick="arBulkApprove('${date}','overrun')">🤖 จัดสรร Overrun อัตโนมัติ</button>` : ""}
+      ${isTodaysKind ? `<button class="primary" ${!pending.length ? "disabled" : ""}
+        onclick="arBulkApprove('${date}','${mode}')">🤖 จัดสรร ${modeLabel} อัตโนมัติ</button>` : ""}
       <div style="flex:1"></div>
       <button onclick="arAutoClearPast()">🧹 ล้างวันที่ผ่านมา</button>
     </div>`;
 
+  // Queue lists are boxed (max-height 40vh + scroll) so the page doesn't jump
+  // when a new request pops in over Firebase.
   const pendingSection = `
     <div class="ar-section">
-      <h3>📥 รออนุมัติ (${totalPending})</h3>
+      <h3>📥 รออนุมัติ ${modeLabel} (${pending.length})</h3>
       ${bulkBar}
-      ${totalPending === 0 ? `<div class="ar-queue-empty">ไม่มีคำขอรออนุมัติ</div>` : ""}
-      ${renderGroup("⚔️ GL", "gl", pendingGl, true)}
-      ${renderGroup("🏆 Overrun", "overrun", pendingOverrun, true)}
+      <div class="ar-queue-box">
+        ${pending.length ? rowsHtml(pending, true) : `<div class="ar-queue-empty">ไม่มีคำขอรออนุมัติ</div>`}
+      </div>
     </div>`;
 
-  const approvedSection = (approvedGl.length || approvedOver.length) ? `
+  const approvedSection = approved.length ? `
     <div class="ar-section">
-      <h3>✅ อนุมัติแล้ว (${approvedGl.length + approvedOver.length})</h3>
+      <h3>✅ อนุมัติแล้ว (${approved.length})</h3>
       <div class="ar-bulk-bar">
-        ${approvedGl.length ? `<button class="primary"
-          onclick="arResyncApprovedToAuction('${date}','gl')"
-          title="ล้างคอลัมน์ Auction GL แล้วใส่เฉพาะคนที่อนุมัติตอนนี้ (แทนที่ทั้งหมด)">♻️ แทนที่ Auction GL ด้วยที่อนุมัติ</button>` : ""}
-        ${approvedOver.length ? `<button class="primary"
-          onclick="arResyncApprovedToAuction('${date}','overrun')"
-          title="ล้างคอลัมน์ Auction Overrun แล้วใส่เฉพาะคนที่อนุมัติตอนนี้ (แทนที่ทั้งหมด)">♻️ แทนที่ Auction Overrun ด้วยที่อนุมัติ</button>` : ""}
+        <button class="primary" onclick="arResyncApprovedToAuction('${date}','${mode}')"
+          title="ล้างคอลัมน์ Auction ${modeLabel} แล้วใส่เฉพาะคนที่อนุมัติตอนนี้ (แทนที่ทั้งหมด)">♻️ แทนที่ Auction ${modeLabel} ด้วยที่อนุมัติ</button>
       </div>
-      ${renderGroup("⚔️ GL", "gl", approvedGl)}
-      ${renderGroup("🏆 Overrun", "overrun", approvedOver)}
+      <div class="ar-queue-box">${rowsHtml(approved, false)}</div>
     </div>` : "";
 
   // Rejected history — kept for the rest of the day so admins can see who was
   // turned down (and re-approve if it was a mistake). Cleared together with the
   // whole date by arClearDay / arAutoClearPast / the daily reset (same-day scope).
-  const rejectedSection = (rejectedGl.length || rejectedOver.length) ? `
+  const rejectedSection = rejected.length ? `
     <div class="ar-section ar-section-rejected">
-      <h3>❌ ปฏิเสธวันนี้ (${rejectedGl.length + rejectedOver.length})</h3>
-      ${renderGroup("⚔️ GL", "gl", rejectedGl)}
-      ${renderGroup("🏆 Overrun", "overrun", rejectedOver)}
+      <h3>❌ ปฏิเสธวันนี้ (${rejected.length})</h3>
+      <div class="ar-queue-box">${rowsHtml(rejected, false)}</div>
     </div>` : "";
 
-  return pendingSection + approvedSection + rejectedSection;
+  // Admin tools — global (clear today's requests / reset BOTH Auction pages),
+  // moved here from the old ขอประมูล tab's ⚙️ section.
+  const adminTools = `
+    <div class="ar-section">
+      <h3>⚙️ Admin tools</h3>
+      <div class="ar-bulk-bar">
+        <span style="font-size:12px;color:var(--muted)">เปิดรับเฉพาะวันกิจ — เคลียร์อัตโนมัติ 00:00 BKK</span>
+        <div style="flex:1"></div>
+        <button class="danger" onclick="arClearDay('${date}')">🧹 ล้างคำขอวันนี้ (${date})</button>
+        <button class="danger" onclick="arResetAuctionPages()">🧹 ล้างหน้า Auction GL+Overrun</button>
+      </div>
+    </div>`;
+
+  return pendingSection + approvedSection + rejectedSection + adminTools;
 }
 
-function arBuildModal() {
+function arBuildModal(data) {
+  // `data` = the caller's computeAuction(kind) result — buildAuctionView is the
+  // only caller and always passes it (computeAuction has a save() side-effect,
+  // so it must run exactly once per render per kind).
   const { date, mode, items, note } = _arModalState;
   const memberId = arGetClaimedMemberId();
-  const field = arDetectField(memberId, mode);
-  const fieldTxt = field === "main" ? "<b>สนามหลัก</b>" : field === "sub" ? '<b class="sub">สนามรอง</b>' : `<span style="color:var(--danger)">ยังไม่อยู่ในตี้</span>`;
+  const detected = arDetectField(memberId, mode);            // "main" | "sub" | null
+  // Which field's quota applies to THIS requester: Overrun always main; GL uses
+  // the detected party field, falling back to main (with a "ยังไม่อยู่ในตี้" note).
+  const qField = (mode === "overrun") ? "main" : (detected || "main");
+  const fieldTxt = (mode === "overrun" || detected === "main") ? "<b>สนามหลัก</b>"
+                 : detected === "sub" ? '<b class="sub">สนามรอง</b>'
+                 : `<span style="color:var(--danger)">ยังไม่อยู่ในตี้ (นับเป็นสนามหลัก)</span>`;
+  const q = arGetQuota(data, arGetRequests(date, mode));
 
   const itemRows = ["cards","illusion","white","black"].map(k => {
     const meta = AR_ITEM_META[k];
     const sel = items.has(k);
+    const c = q[qField][k];
+    let warn = "";
+    if (c.remaining === 0) {
+      warn = `<div class="ar-item-warn red">⚠️ เต็มแล้ว — จะเข้าคิวรอ ถ้าแอดมินไม่เพิ่มของ อาจถูกตัดตอนจัดสรร</div>`;
+    } else if (c.pending >= c.remaining) {
+      warn = `<div class="ar-item-warn yellow">มีคิวก่อนหน้าเกินจำนวนของแล้ว อาจไม่ได้รับ</div>`;
+    }
     return `<div class="ar-item-row ${sel ? "selected" : ""}" onclick="arToggleModalItem('${k}')">
-      <span style="font-size:18px">${sel ? "◉" : "○"}</span>
-      <span>${meta.label}</span>
-      <span class="ar-routing ${field === "sub" ? "sub" : ""}">ระบบจะใส่: ${fieldTxt}</span>
+      <div class="ar-item-main">
+        <span style="font-size:18px">${sel ? "◉" : "○"}</span>
+        <span>${meta.label}</span>
+        <span class="ar-routing ${qField === "sub" ? "sub" : ""}">ระบบจะใส่: ${fieldTxt}</span>
+        <span class="ar-item-remain ${c.remaining > 0 ? "" : "zero"}">เหลือ ${c.remaining} สิทธิ์</span>
+      </div>
+      ${warn}
     </div>`;
   }).join("");
 
@@ -10185,14 +10336,19 @@ function renderBattlefields() {
     }
   } else if (state.mode === "summary") {
     center.innerHTML = buildSummaryHtml();
-  } else if (state.mode === "auction-gl") {
-    center.innerHTML = buildAuctionGlHtml();
-  } else if (state.mode === "auction-overrun") {
-    center.innerHTML = buildAuctionOverrunHtml();
+  } else if (state.mode === "auction-gl" || state.mode === "auction-overrun") {
+    // Preserve each admin queue box's scroll position across the swap (same
+    // teardown problem as .member-list — a request echo would snap lists to top).
+    // Matched by index: the box set is stable within one mode's layout.
+    const _qbTops = Array.from(document.querySelectorAll(".ar-queue-box"), el => el.scrollTop);
+    center.innerHTML = state.mode === "auction-gl" ? buildAuctionGlHtml() : buildAuctionOverrunHtml();
+    if (_qbTops.some(t => t > 0)) {
+      document.querySelectorAll(".ar-queue-box").forEach((el, i) => {
+        if (_qbTops[i]) el.scrollTop = _qbTops[i];
+      });
+    }
   } else if (state.mode === "leave") {
     center.innerHTML = buildLeaveHtml();
-  } else if (state.mode === "auction-request") {
-    center.innerHTML = buildAuctionRequestHtml();
   } else if (state.mode === "users") {
     center.innerHTML = buildUsersHtml();
   } else if (state.mode === "feather") {
@@ -10350,7 +10506,11 @@ if (state.mode === "dimension" || state.mode === "glsummary") state.mode = "leag
 // Summary tab was merged into Roster — an old saved mode must not reach the
 // now-unused buildSummaryHtml (which predates the GL/Overrun target split).
 if (state.mode === "summary") state.mode = "roster";
-if (state.mode === "summary" || state.mode === "auction-gl" || state.mode === "auction-overrun" || state.mode === "roster" || state.mode === "auction-request" || state.mode === "users" || state.mode === "wheel") {
+// ขอประมูล tab was merged into the Auction pages — route an old saved mode to the
+// page matching today's event (Overrun on Sunday, else GL). Direct assignment
+// only (switchMode isn't defined yet at boot).
+if (state.mode === "auction-request") state.mode = eventModeFor(todayBkkISO()) === "overrun" ? "auction-overrun" : "auction-gl";
+if (state.mode === "summary" || state.mode === "auction-gl" || state.mode === "auction-overrun" || state.mode === "roster" || state.mode === "users" || state.mode === "wheel") {
   state.parties = state.partiesLeague;
 } else {
   state.parties = state.mode === "overrun" ? state.partiesOverrun : state.partiesLeague;

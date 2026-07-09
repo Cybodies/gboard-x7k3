@@ -31,7 +31,8 @@ window). If a surface exists, the rule must hold there too.
 1. **Render — by audience.** Guest vs admin vs viewer.
    - `isAdmin()` gates admin-only UI; non-admins get `viewer-mode` on `<body>` (CSS hides
      edit affordances). Check the feature renders correctly for **all three**.
-   - Builders: `buildAuctionView(kind)`, `buildAuctionRequestHtml()`, `arBuildAdminQueue(date, eventMode)`,
+   - Builders: `buildAuctionView(kind)` (the ขอประมูล claim/quota/request/queue UI is embedded here —
+     the standalone tab was removed), `arBuildQuotaPanel(kind, data)`, `arBuildAdminQueue(date, mode)` (per-mode),
      `arRenderRow(r, asAdmin, queueNo)` (queueNo > 0 = pending-queue badge), `buildRosterHtml()`, the header mode buttons.
 2. **Mode branches.** Anything keyed on `kind`/mode must handle **both** GL and Overrun (or
    deliberately not): `kind === "gl"`, `hasSubField`, `splitMain`, `state.auctionGL` vs
@@ -47,14 +48,14 @@ window). If a surface exists, the rule must hold there too.
    - **guest UI** (button shown/enabled?), **guest action** (the create/submit fn),
    - **admin UI** (button shown?), **admin bulk/allocate action**, **the writer/Firebase rule**.
    - Event-day rule: `isEventDay(iso)` → `arRequestBlockReason(memberId,date,mode)` (guest),
-     `eventMode` in `buildAuctionRequestHtml` → passed to `arBuildAdminQueue(date, eventMode)`
-     (admin). Admin allocate = `arBulkApprove(date, mode)`.
+     `isTodaysKind` in `buildAuctionView(kind)` gates the request button + `arBuildAdminQueue(date, mode)`
+     shows the 🤖 จัดสรร button only on that mode's event day (admin). Admin allocate = `arBulkApprove(date, mode)`.
    - Admin-write rule: every `_fbDB.ref(...).set/update/push` inside `isAdmin()`;
      mirrored server-side in `database.rules.json`.
 5. **Tests.** The matching group in `test/run.js`. A behavior change with no test is
    incomplete (CLAUDE.md). Prefer asserting via ASCII anchors (onclick handlers, data-attrs)
    so Thai labels don't break the match. Harness gives `setAdmin(bool)`, `setToday(iso)`,
-   `computeAuction`, `buildAuctionView`, `buildAuctionRequestHtml`.
+   `computeAuction`, `buildAuctionView`, `arGetQuota`, `arBuildAdminQueue`.
 
 ## 2. Cross-cutting checklist (tick before you call it done)
 
@@ -73,9 +74,9 @@ window). If a surface exists, the rule must hold there too.
 
 | Surface | Symbol | Honors the rule? |
 |---|---|---|
-| guest request buttons | `buildAuctionRequestHtml` (`eventMode`) | ✓ (Feature 1) |
+| guest request buttons | `buildAuctionView(kind)` (`isTodaysKind`) | ✓ |
 | guest submit | `arRequestBlockReason` → `arCreateRequest` | ✓ |
-| **admin allocate buttons** | `arBuildAdminQueue(date, eventMode)` → `arBulkApprove` | ✓ (this fix; was ✗) |
+| **admin allocate buttons** | `arBuildAdminQueue(date, mode)` → `arBulkApprove` | ✓ |
 | admin per-row approve | `arApproveRequest` | n/a (acts on existing requests) |
 | clear-old | `arAutoClearPast` | always available (not event-scoped) |
 | tests | `[admin allocate gating]`, gate matrix in `[event-day request gate]` | ✓ |
