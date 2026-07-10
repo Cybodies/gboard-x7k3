@@ -1511,10 +1511,19 @@
   .jb-title-gl { color: #58a6ff; }
   .jb-title-ov { color: #f0a35e; }
   .jb-event-block .pie { max-width: 190px; }
-  .ai-comment[data-event="gl"] { border-left-color: #58a6ff; }
-  .ai-comment[data-event="gl"] .ai-title { color: #58a6ff; }
-  .ai-comment[data-event="overrun"] { border-left-color: #f0a35e; }
-  .ai-comment[data-event="overrun"] .ai-title { color: #f0a35e; }
+  .ai-comment.ai-combined { margin-top: 12px; }
+  .ai-combined-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 720px) { .ai-combined-grid { grid-template-columns: 1fr; } }
+  .ai-event { border-left: 3px solid var(--border-2); padding-left: 10px; }
+  .ai-event-title {
+    font-weight: 700; font-size: 12px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ai-event-title span { font-weight: 400; font-size: 11px; color: var(--muted); }
+  .ai-event[data-event="gl"] { border-left-color: #58a6ff; }
+  .ai-event[data-event="gl"] .ai-event-title { color: #58a6ff; }
+  .ai-event[data-event="overrun"] { border-left-color: #f0a35e; }
+  .ai-event[data-event="overrun"] .ai-event-title { color: #f0a35e; }
 
   /* ===== GL Summary Dashboard ===== */
   .gl-dashboard { display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; }
@@ -5437,6 +5446,20 @@ function buildAiComment(jobs, counts, targets, total, emptyMsg) {
   return lines.join("");
 }
 
+/* Inner HTML of one event's slice of the combined AI Comment box — used by
+ * buildJobBreakdownSection AND updateJobTarget's surgical refresh so the two
+ * render paths can't drift. */
+function buildAiEventInner(event, counts, targets) {
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const isOv = event === "overrun";
+  const title = isOv ? "⚔️ Overrun" : "🛡️ GL";
+  const emptyMsg = isOv
+    ? "⚠️ ยังไม่มีคนลง Overrun — จัดปาร์ตี้ Overrun ก่อนถึงจะวิเคราะห์ได้"
+    : "⚠️ ยังไม่มีคนลง GL — จัดปาร์ตี้ League ก่อนถึงจะวิเคราะห์ได้";
+  return `<div class="ai-event-title">${title} <span>${total} คน</span></div>`
+       + buildAiComment(getSummaryJobs(counts, targets), counts, targets, total, emptyMsg);
+}
+
 function buildSummaryHtml() {
   const counts = getMergedJobCounts();
   if (!state.jobTargets) state.jobTargets = {};
@@ -5514,7 +5537,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.09.1";
+const APP_VERSION = "2026.07.10.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -7539,11 +7562,6 @@ function buildJobBreakdownSection() {
     `<span style="--c:${jobColorByIndex(i)}">${escapeHtml(job)} (${glCounts[job] || 0}/${ovCounts[job] || 0})</span>`
   ).join("");
 
-  const glAi = buildAiComment(getSummaryJobs(glCounts, glT), glCounts, glT, glTotal,
-    "⚠️ ยังไม่มีคนลง GL — จัดปาร์ตี้ League ก่อนถึงจะวิเคราะห์ได้");
-  const ovAi = buildAiComment(getSummaryJobs(ovCounts, ovT), ovCounts, ovT, ovTotal,
-    "⚠️ ยังไม่มีคนลง Overrun — จัดปาร์ตี้ Overrun ก่อนถึงจะวิเคราะห์ได้");
-
   return `
     <div class="auction-section">
       <h3>📊 Job Breakdown</h3>
@@ -7581,20 +7599,19 @@ function buildJobBreakdownSection() {
           <div class="jb-event-block">
             <div class="jb-event-title jb-title-gl">🛡️ GL <span>${glTotal} คน</span></div>
             ${glPie}
-            <div class="ai-comment" data-event="gl">
-              <div class="ai-title">💡 AI Comment · GL</div>
-              ${glAi}
-            </div>
           </div>
           <div class="jb-event-block">
             <div class="jb-event-title jb-title-ov">⚔️ Overrun <span>${ovTotal} คน</span></div>
             ${ovPie}
-            <div class="ai-comment" data-event="overrun">
-              <div class="ai-title">💡 AI Comment · Overrun</div>
-              ${ovAi}
-            </div>
           </div>
           ${legend ? `<div class="pie-legend">${legend}</div>` : ''}
+        </div>
+      </div>
+      <div class="ai-comment ai-combined">
+        <div class="ai-title">💡 AI Comment</div>
+        <div class="ai-combined-grid">
+          <div class="ai-event" data-event="gl">${buildAiEventInner("gl", glCounts, glT)}</div>
+          <div class="ai-event" data-event="overrun">${buildAiEventInner("overrun", ovCounts, ovT)}</div>
         </div>
       </div>
     </div>`;
@@ -9621,15 +9638,8 @@ function updateJobTarget(input) {
   const footCell = document.querySelector(event === "overrun" ? ".js-tfoot-target-ov" : ".js-tfoot-target-gl");
   if (footCell) footCell.textContent = Object.values(targets).reduce((a, b) => a + (b || 0), 0);
 
-  const aiBox = document.querySelector('.ai-comment[data-event="' + event + '"]');
-  if (aiBox) {
-    const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    const label = event === "overrun" ? "Overrun" : "GL";
-    const emptyMsg = event === "overrun"
-      ? "⚠️ ยังไม่มีคนลง Overrun — จัดปาร์ตี้ Overrun ก่อนถึงจะวิเคราะห์ได้"
-      : "⚠️ ยังไม่มีคนลง GL — จัดปาร์ตี้ League ก่อนถึงจะวิเคราะห์ได้";
-    aiBox.innerHTML = `<div class="ai-title">💡 AI Comment · ${label}</div>${buildAiComment(getSummaryJobs(counts, targets), counts, targets, total, emptyMsg)}`;
-  }
+  const aiBox = document.querySelector('.ai-event[data-event="' + event + '"]');
+  if (aiBox) aiBox.innerHTML = buildAiEventInner(event, counts, targets);
 }
 
 /* ===== GL Battle data ===== */

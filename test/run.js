@@ -1318,6 +1318,55 @@ console.log("\n[summary exact targets]");
   });
 })();
 
+// ------------------------------------------ job breakdown — combined AI comment
+// 2026-07-10: two per-event AI Comment boxes collapsed into ONE box under the
+// Job Breakdown. Both render paths share buildAiEventInner so they can't drift.
+console.log("\n[job breakdown — combined AI comment]");
+(() => {
+  t("buildAiEventInner returns event title + shortfall analysis", () => {
+    const gl = app.call("buildAiEventInner", "gl", { Wizard: 2 }, { Wizard: 3 });
+    ok(gl.includes("🛡️ GL"), "GL title present");
+    ok(gl.includes("2 คน"), "total span shows 2 คน");
+    ok(gl.includes("ขาด"), "buildAiComment shortfall (ขาด 1) surfaced");
+    const ov = app.call("buildAiEventInner", "overrun", { Wizard: 2 }, { Wizard: 3 });
+    ok(ov.includes("⚔️ Overrun"), "overrun variant swaps the title");
+  });
+
+  t("section renders exactly ONE combined AI Comment box, below the table", () => {
+    reset(app, []);
+    app.state.partiesLeague = [];
+    app.state.partiesOverrun = [];
+    app.state.jobTargets = { gl: { Wizard: 1 }, overrun: {} };
+    const html = app.call("buildJobBreakdownSection");
+    ok(html, "section renders (targets alone add a job row)");
+    eq((html.match(/class="ai-comment/g) || []).length, 1, "exactly one ai-comment box");
+    ok(html.indexOf("ai-combined") > html.indexOf("</table>"), "combined box is below the table");
+    ok(html.indexOf("ai-combined") > html.indexOf("pie-legend"), "combined box is below the pies/legend, not inside jb-event-block");
+    ok(html.includes('data-event="gl"') && html.includes('data-event="overrun"'), "both event slices present");
+    ok(html.includes("💡 AI Comment"), "combined box title present");
+    ok(!html.includes("AI Comment · GL") && !html.includes("AI Comment · Overrun"), "old per-event titles gone");
+  });
+
+  t("anti-drift: section reuses buildAiEventInner verbatim (same counts/targets)", () => {
+    reset(app, []);
+    app.state.partiesLeague = [];
+    app.state.partiesOverrun = [];
+    app.state.jobTargets = { gl: { Wizard: 1 }, overrun: {} };
+    const html = app.call("buildJobBreakdownSection");
+    const glCounts = app.call("getEventJobCounts", "league");
+    const glT = app.call("normalizeJobTargets", app.state.jobTargets).gl;
+    const inner = app.call("buildAiEventInner", "gl", glCounts, glT);
+    ok(html.includes(inner), "section HTML embeds the helper's exact output");
+  });
+
+  t("updateJobTarget surgical refresh targets .ai-event[data-event=…] (static)", () => {
+    const appHtml = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+    ok(appHtml.includes(".ai-event[data-event=\"' + event + '\"]"), "updater selects the per-event slice");
+    ok(appHtml.includes("aiBox.innerHTML = buildAiEventInner(event, counts, targets)"), "updater reuses the shared helper");
+    ok(!appHtml.includes("AI Comment · "), "no legacy per-event AI Comment title remains");
+  });
+})();
+
 // ------------------------------------------------------- overrun groups
 // 2026-06-12: 5th "Purple" group (ตี้ 15,16 carved out of Blue).
 console.log("\n[overrun groups]");
