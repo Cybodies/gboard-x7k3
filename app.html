@@ -2875,7 +2875,7 @@
   <!-- Feather Optimizer (standalone tool, iframed for full isolation from app CSS/JS/state).
        ponytail: iframe over inline-merge — zero collision risk + survives Firebase re-renders. -->
   <div id="featherPane">
-    <iframe id="featherFrame" src="feather-optimizer.html" title="ROOC Feather Optimizer" loading="lazy"></iframe>
+    <iframe id="featherFrame" data-src="feather-optimizer.html" title="ROOC Feather Optimizer" loading="lazy"></iframe>
   </div>
 
   <!-- Mobile sidebar backdrop (click to close) -->
@@ -3130,6 +3130,7 @@ function switchMode(newMode) {
     state.parties = next;
   }
 
+  loadModeAssets(newMode);
   updateModeToggleUI();
   // Tag body so CSS can hide the sidebar on no-member-needed views
   document.body.dataset.mode = state.mode;
@@ -4683,14 +4684,21 @@ const EMBEDDED_MAPS = {
   6: "maps/emperium.png"
 };
 
-function tryAutoLoadMapImages() {
-  for (const n of Object.keys(EMBEDDED_MAPS).map(Number)) {
-    // Embedded path ALWAYS becomes the baseline — including over stale
-    // https:// Firebase-Storage URLs that the retired upload era may have
-    // left in old localStorage saves (those objects no longer exist, and
-    // honoring them blanked the map for exactly those users). Custom
-    // overrides live in _customMapImages now, never in state.mapBg.
-    if (!EMBEDDED_MAPS[n]) continue;
+// Lazy per-page asset loading (2026-07-11): the embedded map PNGs are ~3.6MB
+// combined (overrun.png alone is 2.4MB) and used to ALL preload on every app
+// open, even on pages that show no map. Now each page's maps start loading
+// the first time that page becomes active (boot + switchMode both call this).
+// The feather-optimizer iframe follows the same rule — its src is set on the
+// first visit to the 🪶 tab instead of loading at startup.
+const MODE_MAPS = { league: [1, 2, 4, 5], overrun: [3, 6] };
+const _mapLoadStarted = {};
+function loadModeAssets(mode) {
+  for (const n of MODE_MAPS[mode] || []) {
+    // Embedded path ALWAYS becomes the baseline once loaded — custom
+    // overrides live in _customMapImages, never in state.mapBg. (Stale
+    // retired Firebase-Storage URLs from old saves are dropped at boot.)
+    if (_mapLoadStarted[n] || !EMBEDDED_MAPS[n]) continue;
+    _mapLoadStarted[n] = true;
     const img = new Image();
     img.onload = () => {
       state.mapBg[n] = EMBEDDED_MAPS[n];
@@ -4698,6 +4706,10 @@ function tryAutoLoadMapImages() {
     };
     img.onerror = () => { console.warn("[maps] failed to load " + EMBEDDED_MAPS[n]); };
     img.src = EMBEDDED_MAPS[n];
+  }
+  if (mode === "feather") {
+    const f = document.getElementById("featherFrame");
+    if (f && !f.getAttribute("src")) f.src = f.dataset.src;
   }
 }
 
@@ -5537,7 +5549,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.10.1";
+const APP_VERSION = "2026.07.11.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -10591,8 +10603,14 @@ if (state.members.length) {
 
 render();
 renderVersionStamp();
+// Drop stale non-embedded URLs from old saves WITHOUT downloading anything —
+// the retired eager preloader used to overwrite these on every boot; the lazy
+// loader re-fills the slot the first time the owning page opens.
+for (const n of Object.keys(EMBEDDED_MAPS)) {
+  if (state.mapBg[n] && state.mapBg[n] !== EMBEDDED_MAPS[n]) state.mapBg[n] = null;
+}
 applyMapBg(1); applyMapBg(2); applyMapBg(3);
-tryAutoLoadMapImages();
+loadModeAssets(state.mode);
 if (state.mode === "league") renderMarkers();
 else if (state.mode === "overrun") renderOverrunMarkers();
 

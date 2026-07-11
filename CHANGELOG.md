@@ -10,6 +10,17 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.07.11.1]
+### Changed (performance)
+- **เปิดแอปเร็วขึ้น — เลิก preload รูปแผนที่ทุกไฟล์ (~3.6MB) ตอนเปิดหน้า.** รูปแผนที่ฝังตัว
+  (main/sub 589KB×2, overrun 2.4MB, emperium 6KB) โหลดเฉพาะของหน้าที่เปิดอยู่ครั้งแรก
+  (League → 1,2,4,5 · Overrun → 3,6) ผ่าน `loadModeAssets(mode)` ที่ boot + `switchMode`
+  เรียกร่วมกัน; หน้าอื่น (Roster/Auction/ลา) ไม่ดึงรูปแผนที่เลย.
+- **iframe 🪶 คำนวนขนนก (feather-optimizer.html, ~187KB) เปลี่ยนเป็น lazy** — เซ็ต `src`
+  ตอนกดเข้าแท็บครั้งแรกแทนการโหลดทันทีตอนเปิดแอป.
+- URL แผนที่ค้างเก่า (Firebase-Storage ยุคเลิกใช้) ใน localStorage ถูกล้างตอน boot แบบ
+  ไม่ดาวน์โหลดอะไรเพิ่ม (เดิม preloader ทับค่าให้ทุกครั้งอยู่แล้ว — พฤติกรรมเดิมคงไว้).
+
 ## [2026.07.10.1]
 ### Changed
 - **รวม AI Comment ของ 🛡️ GL + ⚔️ Overrun เป็นกล่องเดียว "💡 AI Comment" ใต้ 📊 Job Breakdown** (แทนที่กล่องแยกสองอันใต้พายชาร์ตแต่ละฝั่งเดิม).
