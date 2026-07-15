@@ -10,6 +10,38 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.07.15.1]
+### Changed (auction — GL รวมเป็น pool เดียวแบบ Overrun)
+- **เลิกแบ่งสนามหลัก/สนามรองในระบบประมูล GL — ทุกคนประมูลร่วมกันจาก pool เดียว
+  เหมือน Overrun.** ของแต่ละชนิดเข้ากองรวมทั้งหมด (ไม่มี % แบ่ง 70/30 อีกต่อไป),
+  คำขอทุกคนเข้าคิวเดียวเรียงตามเวลากด (FCFS), โควตา/ของคงเหลือคิดจากกองรวม.
+- ถอด UI ที่เกี่ยวกับสนามออกทั้งหมด: กล่องตั้ง "% การแบ่งสนาม", ชุดคอลัมน์สนามรอง,
+  คอลัมน์ สนามหลัก/สนามรอง ในตารางสรุป, ป้ายสนามในแถวคำขอ, คอลัมน์ "สนาม" ใน
+  ของคงเหลือ, และบรรทัด "ระบบจะใส่: สนามหลัก" ในโมดอลขอของ (ทั้ง GL และ Overrun).
+- ป้าย "ยังไม่อยู่ในตี้" ยังอยู่ (เช็คว่ามีตี้หรือยัง — ไม่เกี่ยวกับสนาม) และตอนนี้แสดง
+  ทั้ง GL และ Overrun (เดิม Overrun ไม่มีป้ายเลย).
+- Migration อัตโนมัติ: `normalizeAuctionState` รวมรายชื่อที่ค้างในสนามรองเข้ากองรวม
+  (กันข้อมูลจากแท็บ/เวอร์ชันเก่า, idempotent) และ strip `splitMainPercent` ถาวร
+  แบบเดียวกับ `bonusPercent`. โครงข้อมูลที่เก็บใน Firebase (`assignments.main/sub`)
+  คงไว้เพื่อ compatibility — `main` คือกองรวม, `sub` ว่างถาวร. Firebase rules
+  ไม่ต้องแก้.
+- ถอด concept "field" ออกจากโค้ดจริง: `computeAuction` ไม่มี sub side ในผลลัพธ์แล้ว,
+  mutator ทั้ง 5 ตัว (assign/unassign/clear/autoFill/dropAuctionColumn) ตัด
+  param `field` ทิ้ง (เขียนลง `assignments.main` โดยตรง — เขียนลง bucket ที่มอง
+  ไม่เห็นไม่ได้อีกต่อไป), เลิกเขียน `computedField` ในคำขอใหม่ (record เก่าที่มี
+  ค่านี้ถูก ignore ทุกจุด).
+- หน้า Auction: เลขหน้า/ชิ้นต่อชนิดของไม่เปลี่ยน (ช่วงหน้า per-type ไม่เคยขึ้นกับ
+  การแบ่งสนามอยู่แล้ว — มี test ยืนยัน).
+- Tests: 198 ผ่าน (ลบเทส 70/30; เพิ่ม merge sub→main / strip splitMainPercent /
+  acceptance "ตี้ 1 กับ ตี้ 10 ใช้ pool เดียวกัน" / negative "ไม่มีคำว่า สนามหลัก-สนามรอง
+  เหลือใน source" / un-approve คืนของจากกองรวม (รวมเคส record เก่า field sub) /
+  arInParty + ป้ายยังไม่อยู่ในตี้ / forged item key "__proto__" ไม่ throw).
+- Security hardening (จาก security review): arApproveRequest + arResync ใช้
+  `Array.isArray` guard ก่อน index bucket — คำขอปลอมที่ยัด item key แปลกๆ
+  (เช่น "__proto__") ถูกข้าม ไม่ทำ resync พังกลางทางหลัง wipe.
+- หมายเหตุ: แผนที่ GL (Main/Sub Battlefield Map) และการจัดกลุ่มตี้ 1–8 / 9–16 บน
+  บอร์ดจัดตี้ **คงเดิม** — การเปลี่ยนแปลงนี้เฉพาะระบบประมูล+ขอของเท่านั้น.
+
 ## [2026.07.11.1]
 ### Changed (performance)
 - **เปิดแอปเร็วขึ้น — เลิก preload รูปแผนที่ทุกไฟล์ (~3.6MB) ตอนเปิดหน้า.** รูปแผนที่ฝังตัว

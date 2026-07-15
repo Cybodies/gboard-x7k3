@@ -5,8 +5,9 @@
  * Runs the inline-script parse check, then loads the real app in a vm harness
  * and exercises the auction features end-to-end: the event-day request gate,
  * admin-editable per-person rates, state normalization/migration, the
- * shortage/70-30 math, and the auction-page CHAIN numbering (the thing that
- * must stay correct when rates are edited).
+ * single-pool shortage math (main/sub split retired 2026-07-15), and the
+ * auction-page CHAIN numbering (the thing that must stay correct when rates
+ * are edited).
  *
  * Run:  node test/run.js
  * Exit: 0 = all green, 1 = any failure (suitable as a pre-commit gate).
@@ -154,7 +155,7 @@ t("normalizeAuctionState migrates legacy flat assignments into main", () => {
   eq(o.assignments.sub.cards, []);
 });
 
-console.log("\n[auction math — shortage + 70/30 split, live rate]");
+console.log("\n[auction math — single shared pool, live rate]");
 t("computeAuction uses the live (edited) rate, not the default", () => {
   reset(app, mkMembers(["p1", "p2", "p3"]));
   app.state.auctionGL.rates.white = 7;
@@ -164,23 +165,26 @@ t("computeAuction uses the live (edited) rate, not the default", () => {
   eq(w.rate, 7, "item rate");
   eq(w.main.need, 21, "3 ppl x 7");
 });
-t("GL splits 70/30; status 'พอดี' when mainPool == need", () => {
+t("GL single pool: entered count IS the pool; status 'พอดี' when pool == need", () => {
   reset(app, mkMembers(["p1"]));
   app.state.auctionGL.rates.white = 7;
-  app.state.auctionGL.white = 10;          // entered count IS the total
+  app.state.auctionGL.white = 7;           // entered count IS the pool (no 70/30 split)
   app.state.auctionGL.assignments.main.white = ["p1"];
   const d = app.call("computeAuction", "gl");
   const w = d.items.find(i => i.key === "white");
-  eq(w.main.pool, 7, "floor(10*0.7)");
+  eq(w.main.pool, 7, "full total in the one pool");
   eq(w.main.need, 7, "1 ppl x 7");
   eq(w.main.diff, 0, "exact");
   eq(w.main.statusCls, "ok", "พอดี");
 });
-t("Overrun has no sub field (single combined pool)", () => {
-  reset(app, mkMembers(["p1"]));
-  app.state.auctionOverrun.assignments.main.cards = ["p1"];
-  const d = app.call("computeAuction", "overrun");
-  eq(d.hasSubField, false);
+t("single shared pool for BOTH kinds: full total in main, no sub side at all", () => {
+  for (const kind of ["gl", "overrun"]) {
+    reset(app, mkMembers(["p1"]));
+    app.state[kind === "gl" ? "auctionGL" : "auctionOverrun"].white = 10;
+    const w = app.call("computeAuction", kind).items.find(i => i.key === "white");
+    eq(w.main.pool, 10, kind + " white10 → one pool");
+    ok(!("sub" in w), kind + " items carry no sub side (concept removed)");
+  }
 });
 
 console.log("\n[auction-page CHAIN numbering — the rate↔chain interaction]");
@@ -256,10 +260,10 @@ t("end-to-end GL flow stays consistent", () => {
   // 2) admin approves -> hero placed in white main bucket
   app.setAdmin(true);
   s.auctionGL.assignments.main.white = ["hero"];
-  // 3) admin fills the day's drop (base 10) and 4) sets per-person rate to 7
-  s.auctionGL.white = 10;
+  // 3) admin fills the day's drop (7) and 4) sets per-person rate to 7
+  s.auctionGL.white = 7;
   app.call("setAuctionRate", "gl", "white", "7");
-  // compute: total 10, mainPool 7, need 7 -> exact
+  // compute: pool 7 (single pool = entered count), need 7 -> exact
   const d = app.call("computeAuction", "gl");
   const w = d.items.find(i => i.key === "white");
   eq(w.main.diff, 0, "exact allocation");
@@ -292,36 +296,18 @@ t("GL invariant: totalPages === max endPage across all buckets", () => {
   let maxEnd = 0;
   d.items.forEach(it => {
     if (it.main.page.endPage) maxEnd = Math.max(maxEnd, it.main.page.endPage);
-    if (it.sub.page.endPage)  maxEnd = Math.max(maxEnd, it.sub.page.endPage);
   });
   eq(maxEnd, d.pageMap.totalPages, "max endPage == totalPages");
 });
 t("GL items pack continuously — next type shares the same page (no fresh-page gap)", () => {
   reset(app, []);
   // cards 2 → page 1 slots 1-2; illu 2 must continue on page 1 slots 3-4 (same page),
-  // NOT jump to a fresh page 2. (split 100 so each type is main-only for a clean check.)
-  Object.assign(app.state.auctionGL, { cards: 2, illusion: 2, white: 0, black: 0, splitMainPercent: 100 });
+  // NOT jump to a fresh page 2.
+  Object.assign(app.state.auctionGL, { cards: 2, illusion: 2, white: 0, black: 0 });
   const d = app.call("computeAuction", "gl");
   const cards = d.items.find(i => i.key === "cards"), illu = d.items.find(i => i.key === "illusion");
   eq([cards.main.page.startPage, cards.main.page.endPage], [1, 1], "cards 2 → page 1");
   eq([illu.main.page.startPage, illu.main.page.startSlot], [1, 3], "illu continues page 1 slot 3 (no gap)");
-});
-t("GL 70/30 boundary: sub continues main's partial page (white=10)", () => {
-  reset(app, []);
-  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 10, black: 0 });
-  const w = app.call("computeAuction", "gl").items.find(i => i.key === "white");
-  eq([w.main.page.startPage, w.main.page.endPage], [1, 2], "main 7 items → pages 1-2");
-  eq([w.sub.page.startPage, w.sub.page.endPage], [2, 3], "sub 3 items → pages 2-3");
-  eq(w.sub.page.startPage, w.main.page.endPage, "sub continues main's last page");
-  eq(w.sub.page.startSlot, 4, "sub starts page2 slot4");
-});
-t("GL split @70 ceil-to-main: white=6 → main 5 (p1-2) / sub 1 (p2)", () => {
-  reset(app, []);
-  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 6, black: 0 });
-  const w = app.call("computeAuction", "gl").items.find(i => i.key === "white");
-  eq([w.main.pool, w.sub.pool], [5, 1], "6 @70 → main 5 / sub 1 (remainder to main)");
-  eq([w.main.page.startPage, w.main.page.endPage], [1, 2], "main 5 → pages 1-2");
-  eq([w.sub.page.startPage, w.sub.page.startSlot], [2, 2], "sub continues page 2 slot 2");
 });
 t("Overrun: items pack continuously across types (no fresh page per type)", () => {
   reset(app, []);
@@ -353,7 +339,7 @@ t("badge re-anchor: white person shows real page with cards column empty of peop
   Object.assign(app.state.auctionGL, { cards: 5, illusion: 0, white: 10, black: 0 });
   app.state.auctionGL.assignments.main.white = ["w1"]; // cards has 5 ITEMS but no people
   const html = app.call("buildAuctionView", "gl");
-  // cards 5 (main 4 + sub 1) consume cursor 1-5 → white main starts page 2 slot 2,
+  // cards 5 consume cursor 1-5 → white starts page 2 slot 2,
   // anchored to the real pool position even though the cards column has no people.
   eq(badgesFor(html, "w1"), ["หน้า 2 · ชิ้น 2-4"], "white anchored to real pool page (p2 s2) regardless of card people");
 });
@@ -363,85 +349,59 @@ function coveragesOf(html) { return [...html.matchAll(/ac-coverage [^"]*">([^<]+
 t("under-filled column shows pages covered + items/pages remaining", () => {
   reset(app, mkMembers(["w1"]));
   Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 10, black: 0 });
-  app.state.auctionGL.assignments.main.white = ["w1"]; // rate 3 → need 3 of pool 7
+  app.state.auctionGL.assignments.main.white = ["w1"]; // rate 3 → need 3 of pool 10
   const cov = coveragesOf(app.call("buildAuctionView", "gl"));
-  eq(cov[0], "👥 ลากถึงหน้า 1 · ขาดอีก 4 ชิ้น (1 หน้า)", "white main under-filled");
-  eq(cov[1], "ยังไม่ลากใคร — ต้องครอบ 3 ชิ้น", "white sub untouched");
+  eq(cov[0], "👥 ลากถึงหน้า 1 · ขาดอีก 7 ชิ้น (2 หน้า)", "white under-filled");
+  eq(cov.length, 1, "one coverage chip per item — no sub column");
 });
 t("exactly-filled column shows ครบ", () => {
   reset(app, mkMembers(["w1"]));
-  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 10, black: 0 });
+  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 7, black: 0 });
   app.state.auctionGL.rates.white = 7;                 // need 7 == pool 7
   app.state.auctionGL.assignments.main.white = ["w1"];
   eq(coveragesOf(app.call("buildAuctionView", "gl"))[0], "✅ ลากครบทุกหน้าแล้ว", "exact");
 });
 t("over-filled column shows เกิน", () => {
   reset(app, mkMembers(["w1", "w2"]));
-  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 10, black: 0 });
+  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 7, black: 0 });
   app.state.auctionGL.rates.white = 7;                 // 2 ppl × 7 = 14 > pool 7
   app.state.auctionGL.assignments.main.white = ["w1", "w2"];
   eq(coveragesOf(app.call("buildAuctionView", "gl"))[0], "✅ ครบแล้ว · เกินมา 7 ชิ้น", "over by 7");
 });
 
-console.log("\n[auction main/sub split % — editable GL split]");
-function glPools(key) {
-  const d = app.call("computeAuction", "gl");
-  const it = d.items.find(i => i.key === key);
-  return { total: it.total, main: it.main.pool, sub: it.sub.pool, split: d.splitMainPercent };
-}
-function setSplit(p) { app.state.auctionGL.splitMainPercent = p; }
-t("default split is 70 (getter + computeAuction)", () => {
+console.log("\n[auction single pool — main/sub split retired 2026-07-15]");
+t("normalize strips legacy splitMainPercent (old clients keep pushing it)", () => {
+  ok(!("splitMainPercent" in app.call("normalizeAuctionState", {}, "gl")), "not backfilled");
+  ok(!("splitMainPercent" in app.call("normalizeAuctionState", { splitMainPercent: 55 }, "gl")), "stripped when present");
+  ok(!("splitMainPercent" in app.call("normalizeAuctionState", { splitMainPercent: 70 }, "overrun")), "stripped for overrun too");
+});
+t("normalize merges legacy sub seats into main (dedupe, idempotent)", () => {
+  const legacy = { assignments: {
+    main: { cards: ["a"], illusion: [], white: ["b"], black: [] },
+    sub:  { cards: ["c", "a"], illusion: ["d"], white: [], black: [] }
+  } };
+  const o = app.call("normalizeAuctionState", legacy, "gl");
+  eq(o.assignments.main.cards, ["a", "c"], "sub folded into main, 'a' not duplicated");
+  eq(o.assignments.main.illusion, ["d"], "illusion folded too");
+  eq(o.assignments.sub.cards, [], "sub emptied");
+  const o2 = app.call("normalizeAuctionState", o, "gl");
+  eq(o2.assignments.main.cards, ["a", "c"], "second pass is a no-op (echo-safe)");
+});
+t("legacy save with splitMainPercent still computes a single pool", () => {
   reset(app, []);
-  eq(app.call("getAuctionSplitPercent", "gl"), 70, "getter default");
-  eq(app.call("getAuctionSplitPercent", "overrun"), 100, "overrun = no split");
-  Object.assign(app.state.auctionGL, { white: 10 });
-  eq(glPools("white"), { total: 10, main: 7, sub: 3, split: 70 }, "white10 @70");
+  Object.assign(app.state.auctionGL, { white: 10, splitMainPercent: 55 });  // stale field ignored
+  const w = app.call("computeAuction", "gl").items.find(i => i.key === "white");
+  eq(w.main.pool, 10, "full total in one pool despite stale %");
 });
-t("uneven split: remainder goes to สนามหลัก (ceil)", () => {
-  reset(app, []);
-  Object.assign(app.state.auctionGL, { white: 5 });
-  eq(glPools("white"), { total: 5, main: 4, sub: 1, split: 70 }, "5 @70 → main 4 / sub 1");
-  Object.assign(app.state.auctionGL, { white: 6 });
-  eq(glPools("white"), { total: 6, main: 5, sub: 1, split: 70 }, "6 @70 → main 5 / sub 1");
+t("split machinery fully removed from the app source", () => {
+  const src = require("fs").readFileSync(require("path").join(__dirname, "..", "app.html"), "utf8");
+  ok(!src.includes("setAuctionSplitPercent"), "setter gone");
+  ok(!src.includes("getAuctionSplitPercent"), "getter gone");
+  ok(!src.includes("data-auction-split-kind"), "split input gone");
+  ok(!src.includes("สนามหลัก") && !src.includes("สนามรอง"), "no main/sub field wording left");
+  eq((src.match(/splitMainPercent/g) || []).length, 1, "only the normalize strip line remains");
 });
-t("changing the split % moves main/sub pools", () => {
-  reset(app, []);
-  Object.assign(app.state.auctionGL, { white: 5 });
-  setSplit(60); eq(glPools("white"), { total: 5, main: 3, sub: 2, split: 60 }, "5 @60 → 3/2");
-  setSplit(100); Object.assign(app.state.auctionGL, { white: 10 });
-  eq(glPools("white"), { total: 10, main: 10, sub: 0, split: 100 }, "100% → all main");
-  setSplit(0); eq(glPools("white"), { total: 10, main: 0, sub: 10, split: 0 }, "0% → all sub");
-});
-t("setAuctionSplitPercent: admin-gated + clamps 0..100", () => {
-  reset(app, []);
-  app.setAdmin(true);
-  app.call("setAuctionSplitPercent", "gl", "250"); eq(app.call("getAuctionSplitPercent", "gl"), 100, "clamp 250→100");
-  app.call("setAuctionSplitPercent", "gl", "-5");  eq(app.call("getAuctionSplitPercent", "gl"), 0, "clamp -5→0");
-  app.call("setAuctionSplitPercent", "gl", "60");  eq(app.call("getAuctionSplitPercent", "gl"), 60, "set 60");
-  app.setAdmin(false);
-  app.call("setAuctionSplitPercent", "gl", "20");  eq(app.call("getAuctionSplitPercent", "gl"), 60, "viewer cannot change");
-  app.setAdmin(true);
-});
-t("normalize backfills split (missing/invalid → 70)", () => {
-  eq(app.call("normalizeAuctionState", {}, "gl").splitMainPercent, 70, "missing → 70");
-  eq(app.call("normalizeAuctionState", { splitMainPercent: 999 }, "gl").splitMainPercent, 70, "invalid → 70");
-  eq(app.call("normalizeAuctionState", { splitMainPercent: 55 }, "gl").splitMainPercent, 55, "valid kept");
-});
-t("split is independent of per-person rate", () => {
-  reset(app, []);
-  Object.assign(app.state.auctionGL, { white: 5 });
-  const before = JSON.stringify(glPools("white"));
-  app.state.auctionGL.rates.white = 7;
-  eq(JSON.stringify(glPools("white")), before, "rate edit doesn't move the split");
-});
-t("Overrun ignores the split (no sub field)", () => {
-  reset(app, []);
-  Object.assign(app.state.auctionOverrun, { white: 10 });
-  const d = app.call("computeAuction", "overrun");
-  const w = d.items.find(i => i.key === "white");
-  eq([w.main.pool, w.sub.pool, d.hasSubField], [10, 0, false], "overrun white10 → all main, no sub");
-});
-t("page ranges stay split-invariant at 70% (worked example)", () => {
+t("page ranges: worked example (continuous packing, single pool)", () => {
   reset(app, []);
   Object.assign(app.state.auctionGL, { cards: 5, illusion: 2, white: 10, black: 10 });
   const pm = pageMapOf("gl");
@@ -449,16 +409,14 @@ t("page ranges stay split-invariant at 70% (worked example)", () => {
      [["cards",1,2],["illusion",2,2],["white",2,5],["black",5,7]], "per-type pages (continuous packing)");
   eq(pm.totalPages, 7, "total pages (continuous, no per-type gaps)");
 });
-t("GL view renders the editable split control + dynamic field labels", () => {
-  reset(app, []);
+t("GL view renders like Overrun: no split control, no field headers/columns", () => {
+  reset(app, mkMembers(["p1"]));
   app.setAdmin(true);
-  app.state.auctionGL.splitMainPercent = 60;
   const html = app.call("buildAuctionView", "gl");
-  ok(html.includes('data-auction-split-kind="gl"'), "split input present for admin");
-  ok(html.includes("สนามหลัก (60%)"), "main header shows 60%");
-  ok(html.includes("สนามรอง (40%)"), "sub header shows 40%");
-  const or = app.call("buildAuctionView", "overrun");
-  ok(!or.includes('data-auction-split-kind'), "Overrun has no split control");
+  ok(!html.includes("data-auction-split-kind"), "no split input");
+  ok(html.includes("รายชื่อรับของ"), "single member section header");
+  eq((html.match(/class="auction-column"/g) || []).length, 4, "exactly 4 drop columns (one per item)");
+  ok(html.includes("ใช้/มี"), "summary table single ใช้/มี column");
 });
 
 console.log("\n[admin allocate gating — buttons follow the day's event]");
@@ -611,9 +569,6 @@ console.log("\n[css coverage — themed controls have their CSS]");
   // as a plain white box because its CSS edit silently failed. If a themed class is in
   // the markup, it MUST have a matching CSS rule.
   const pairs = [
-    ["auction-split-input",   /class="auction-split-input"/,   /\.auction-split-input\s*\{/],
-    ["auction-split-row",     /class="auction-split-row"/,     /\.auction-split-row\s*\{/],
-    ["auction-split-note",    /class="auction-split-note"/,    /\.auction-split-note\s*\{/],
     ["ac-pagemap",            /class="ac-pagemap/,             /\.ac-pagemap\s*\{/],
     ["ac-coverage",           /class="ac-coverage/,            /\.ac-coverage\s*\{/],
     ["auction-pagemap-strip", /class="auction-pagemap-strip/,  /\.auction-pagemap-strip\s*\{/],
@@ -670,7 +625,7 @@ t("partial page shows slot range, not the whole page", function () {
 });
 t("single-item column shows a single slot", function () {
   reset(app, mkMembers(["w1"]));
-  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 1, black: 0, splitMainPercent: 100 });
+  Object.assign(app.state.auctionGL, { cards: 0, illusion: 0, white: 1, black: 0 });
   (function () { var A = app.state.auctionGL.assignments; if (A && A.main && A.main.white) A.main.white = ["w1"]; })();
   const html = app.call("buildAuctionView", "gl");
   const chips = [...html.matchAll(/ac-pagemap[^>]*>([^<]+)</g)].map(function (m) { return m[1]; });
@@ -1629,31 +1584,29 @@ console.log("\n[auction allocate — จัดสรร by capacity, 1 item/pers
 })();
 
 // ------------------------------------------------ arGetQuota (ของคงเหลือ helper)
-// Pure per-item/per-field quota view shared by the ของคงเหลือ panel, the modal
+// Pure per-item quota view shared by the ของคงเหลือ panel, the modal
 // "เหลือ X สิทธิ์" line, and arBulkApprove's cap. Hand-build a computeAuction-shaped
 // `data` + request list so the test exercises arGetQuota alone (no computeAuction
 // coupling). Key invariant: pending is DISPLAY-ONLY — it never shrinks remaining.
 console.log("\n[arGetQuota — quota/occupied/pending/remaining (pending is display-only)]");
 (() => {
   const mkData = (kind, items, assigns) => ({ kind, assignments: assigns, items });
-  const item = (key, rate, mainPool, subPool) => ({ key, rate, main: { pool: mainPool }, sub: { pool: subPool } });
+  const item = (key, rate, pool) => ({ key, rate, main: { pool } });
 
   t("normal: quota=floor(pool/rate), occupied=assignments.length, remaining=quota-occupied", () => {
     const data = mkData("gl",
-      [item("cards", 1, 7, 3)],
-      { main: { cards: ["m1", "m2"] }, sub: { cards: [] } });
+      [item("cards", 1, 10)],
+      { main: { cards: ["m1", "m2"] } });
     const q = app.call("arGetQuota", data, []);
-    eq(q.main.cards.quota, 7, "main quota floor(7/1)");
+    eq(q.main.cards.quota, 10, "quota floor(10/1)");
     eq(q.main.cards.occupied, 2, "two dragged in");
-    eq(q.main.cards.remaining, 5, "7-2");
-    eq(q.sub.cards.quota, 3, "sub quota floor(3/1)");
-    eq(q.sub.cards.remaining, 3, "sub 3-0");
+    eq(q.main.cards.remaining, 8, "10-2");
   });
 
   t("full: occupied >= quota → remaining clamps to 0 (never negative)", () => {
     const data = mkData("overrun",
-      [item("cards", 1, 2, 0)],
-      { main: { cards: ["m1", "m2", "m3"] }, sub: { cards: [] } });
+      [item("cards", 1, 2)],
+      { main: { cards: ["m1", "m2", "m3"] } });
     const q = app.call("arGetQuota", data, []);
     eq(q.main.cards.quota, 2, "quota 2");
     eq(q.main.cards.occupied, 3, "occupied 3");
@@ -1662,68 +1615,131 @@ console.log("\n[arGetQuota — quota/occupied/pending/remaining (pending is disp
 
   t("rate 0 → quota 0 (divide-by-zero guard)", () => {
     const data = mkData("overrun",
-      [item("white", 0, 50, 0)],
-      { main: { white: [] }, sub: { white: [] } });
+      [item("white", 0, 50)],
+      { main: { white: [] } });
     const q = app.call("arGetQuota", data, []);
     eq(q.main.white.quota, 0, "rate 0 → quota 0 even with pool 50");
   });
 
   t("pending is counted but NEVER shrinks remaining", () => {
     const data = mkData("overrun",
-      [item("cards", 1, 2, 0)],
-      { main: { cards: ["m1"] }, sub: { cards: [] } });
+      [item("cards", 1, 2)],
+      { main: { cards: ["m1"] } });
     const reqs = [
-      { memberId: "z1", status: "pending",  computedField: "main", items: ["cards"] },
-      { memberId: "z2", status: "pending",  computedField: "main", items: ["cards"] },
-      { memberId: "z3", status: "approved", computedField: "main", items: ["cards"] }, // not pending → ignored
+      { memberId: "z1", status: "pending",  items: ["cards"] },
+      { memberId: "z2", status: "pending",  items: ["cards"] },
+      { memberId: "z3", status: "approved", items: ["cards"] }, // not pending → ignored
     ];
     const q = app.call("arGetQuota", data, reqs);
     eq(q.main.cards.pending, 2, "two pending counted (approved not counted)");
     eq(q.main.cards.remaining, 1, "remaining still quota(2)-occupied(1)=1 — pending ignored");
   });
 
-  t("Overrun routes everything to main (no sub pool)", () => {
+  t("stale computedField 'sub' is ignored — everything counts in the one pool", () => {
     const data = mkData("overrun",
-      [item("black", 5, 10, 0)],
-      { main: { black: [] }, sub: { black: [] } });
+      [item("black", 5, 10)],
+      { main: { black: [] } });
     const reqs = [{ memberId: "z1", status: "pending", computedField: "sub", items: ["black"] }];
     const q = app.call("arGetQuota", data, reqs);
-    eq(q.main.black.quota, 2, "main quota floor(10/5)");
-    eq(q.main.black.pending, 1, "pending forced to main for overrun (computedField sub ignored)");
-    eq(q.sub.black.quota, 0, "sub pool 0 → quota 0");
-    eq(q.sub.black.pending, 0, "nothing routed to sub in overrun");
+    eq(q.main.black.quota, 2, "quota floor(10/5)");
+    eq(q.main.black.pending, 1, "pending counted in main despite legacy computedField sub");
   });
 
   t("pending skips members already parked in that column (matches allocator's already-parked rule)", () => {
     const data = mkData("overrun",
-      [item("cards", 1, 3, 0)],
-      { main: { cards: ["p1"] }, sub: { cards: [] } });
+      [item("cards", 1, 3)],
+      { main: { cards: ["p1"] } });
     const reqs = [
-      { memberId: "p1", status: "pending", computedField: "main", items: ["cards"] }, // parked → keeps seat, no queue slot
-      { memberId: "p2", status: "pending", computedField: "main", items: ["cards"] },
+      { memberId: "p1", status: "pending", items: ["cards"] }, // parked → keeps seat, no queue slot
+      { memberId: "p2", status: "pending", items: ["cards"] },
     ];
     const q = app.call("arGetQuota", data, reqs);
     eq(q.main.cards.pending, 1, "parked p1 not counted as queue; only p2");
     eq(q.main.cards.occupied, 1, "p1 still counts as occupied");
   });
 
-  t("pending routes by LIVE arDetectField: party 1 → main, party 10 → sub (stale computedField loses)", () => {
+  t("ACCEPTANCE: party index no longer matters — ตี้ 1 and ตี้ 10 share ONE pool", () => {
     app.setAdmin(true); app.setToday("2026-06-02");
     reset(app, mkMembers(["MainGuy", "SubGuy"]));
     const parties = app.call("makeEmptyParties");
-    parties[0].slots[0] = "MainGuy";   // ตี้ 1 (index 0-7 = main field)
-    parties[9].slots[0] = "SubGuy";    // ตี้ 10 (index 8-15 = sub field)
+    parties[0].slots[0] = "MainGuy";   // ตี้ 1
+    parties[9].slots[0] = "SubGuy";    // ตี้ 10 (would have been "สนามรอง" before 2026-07-15)
     app.state.partiesLeague = parties;
-    app.state.auctionGL.cards = 10;    // both fields get a pool (70/30 split)
+    app.state.auctionGL.cards = 10;
     const data = app.call("computeAuction", "gl");
     const reqs = [
-      // computedField deliberately WRONG both ways — live party detect must win
+      // legacy computedField values must not matter either
       { memberId: "MainGuy", status: "pending", computedField: "sub",  items: ["cards"] },
       { memberId: "SubGuy",  status: "pending", computedField: "main", items: ["cards"] },
     ];
     const q = app.call("arGetQuota", data, reqs);
-    eq(q.main.cards.pending, 1, "party-1 member routed to main");
-    eq(q.sub.cards.pending, 1, "party-10 member routed to sub");
+    eq(q.main.cards.quota, 10, "one pool holds the full total");
+    eq(q.main.cards.pending, 2, "both queue in the same pool regardless of party index");
+  });
+})();
+
+// ------------------------------------------------ arRejectRequest (un-approve)
+// Un-approving must free the member's seat from the shared pool — including a
+// request approved BEFORE 2026-07-15 whose seat was recorded in the retired
+// "sub" bucket (normalize folds it into main before any reject can run).
+console.log("\n[arRejectRequest — un-approve frees the seat (single pool)]");
+(() => {
+  const date = "2026-06-02"; // Tuesday = GL
+  t("un-approving frees the granted seat from the pool", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m1"]));
+    app.state.auctionGL.assignments.main.cards = ["m1"];
+    app.state.auctionRequests = { [date]: { gl: {
+      r1: { id: "r1", memberId: "m1", memberName: "m1", items: ["cards"], status: "approved", grantedItem: "cards", requestedAt: 1 },
+    } } };
+    app.call("arRejectRequest", date, "gl", "r1", "เปลี่ยนใจ");
+    eq(app.state.auctionGL.assignments.main.cards, [], "seat freed from the shared pool");
+  });
+  t("legacy sub seat: normalize folds into main, reject then frees it", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m1"]));
+    // Simulate a stale pre-2026-07-15 snapshot: seat recorded in the retired sub bucket.
+    app.state.auctionGL = app.call("normalizeAuctionState",
+      { assignments: { main: { cards: [] }, sub: { cards: ["m1"] } } }, "gl");
+    eq(app.state.auctionGL.assignments.main.cards, ["m1"], "merge folded the sub seat into main");
+    app.state.auctionRequests = { [date]: { gl: {
+      r1: { id: "r1", memberId: "m1", memberName: "m1", items: ["cards"], status: "approved", grantedItem: "cards", computedField: "sub", requestedAt: 1 },
+    } } };
+    app.call("arRejectRequest", date, "gl", "r1", "");
+    eq(app.state.auctionGL.assignments.main.cards, [], "legacy computedField 'sub' record still un-approves cleanly");
+  });
+  t("forged item key ('__proto__') is skipped, not thrown on — approve + resync survive", () => {
+    app.setAdmin(true); app.setToday(date);
+    reset(app, mkMembers(["m1", "m2"]));
+    app.state.auctionGL.assignments.main.cards = ["m2"];
+    app.state.auctionRequests = { [date]: { gl: {
+      bad:  { id: "bad",  memberId: "m1", memberName: "m1", items: ["__proto__"], status: "pending", requestedAt: 1 },
+      evil: { id: "evil", memberId: "m1", memberName: "m1", items: ["cards"], status: "approved", grantedItem: "constructor", requestedAt: 2 },
+      good: { id: "good", memberId: "m2", memberName: "m2", items: ["cards"], status: "approved", grantedItem: "cards", requestedAt: 3 },
+    } } };
+    const p1 = app.call("arApproveRequest", date, "gl", "bad");   // must not throw
+    if (p1 && p1.catch) p1.catch(() => {});
+    const p2 = app.call("arResyncApprovedToAuction", date, "gl"); // must not throw mid-wipe
+    if (p2 && p2.catch) p2.catch(() => {});
+    eq(app.state.auctionGL.assignments.main.cards, ["m2"], "resync survived the forged grantedItem and re-seated the good record");
+    eq(Object.getPrototypeOf({}).cards, undefined, "no prototype pollution");
+  });
+})();
+
+// ------------------------------------------------ arInParty (ยังไม่อยู่ในตี้ hint)
+console.log("\n[arInParty — ยังไม่อยู่ในตี้ hint]");
+(() => {
+  t("arInParty checks membership only; tag renders only for unseated members", () => {
+    reset(app, mkMembers(["In", "Out"]));
+    const parties = app.call("makeEmptyParties");
+    parties[9].slots[0] = "In";   // ตี้ 10 — any party counts, index no longer matters
+    app.state.partiesLeague = parties;
+    eq(app.call("arInParty", "In", "gl"), true, "seated (ตี้ 10) → in party");
+    eq(app.call("arInParty", "Out", "gl"), false, "not seated");
+    const row = (mid) => app.call("arRenderRow",
+      { id: "x_" + mid, memberId: mid, memberName: mid, items: ["cards"], status: "pending", requestedAt: 1, mode: "gl", date: "2026-06-02" }, true, 1);
+    ok(!row("In").includes("ยังไม่อยู่ในตี้"), "seated member gets no tag");
+    ok(row("Out").includes("ยังไม่อยู่ในตี้"), "unseated member gets the hint tag");
   });
 })();
 
@@ -1741,16 +1757,16 @@ console.log("\n[auction column mutators — admin-gated + legacy redirect]");
   t("guest assign/unassign are no-ops; admin path still mutates", () => {
     reset(app, mkMembers(["m1"]));
     app.setAdmin(false);
-    app.call("assignAuctionMember", "gl", "main", "cards", "m1");
+    app.call("assignAuctionMember", "gl", "cards", "m1");
     eq(app.state.auctionGL.assignments.main.cards, [], "guest assign is a no-op");
     app.setAdmin(true);
-    app.call("assignAuctionMember", "gl", "main", "cards", "m1");
+    app.call("assignAuctionMember", "gl", "cards", "m1");
     eq(app.state.auctionGL.assignments.main.cards, ["m1"], "admin assign works");
     app.setAdmin(false);
-    app.call("unassignAuctionMember", "gl", "main", "cards", "m1");
+    app.call("unassignAuctionMember", "gl", "cards", "m1");
     eq(app.state.auctionGL.assignments.main.cards, ["m1"], "guest unassign is a no-op");
     app.setAdmin(true);
-    app.call("unassignAuctionMember", "gl", "main", "cards", "m1");
+    app.call("unassignAuctionMember", "gl", "cards", "m1");
     eq(app.state.auctionGL.assignments.main.cards, [], "admin unassign works");
   });
   t("legacy saved mode 'auction-request' redirects, falling back to auction-gl (static)", () => {

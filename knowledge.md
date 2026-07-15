@@ -248,23 +248,23 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
   (no new listener needed — `rates` rides inside the same object).
 - **`computeAuction(kind)`** computes per-item totals. Totals = the entered
   counts 1:1 (the GL ×-bonus multiplier was removed 2026-06 — admins type
-  post-bonus quantities directly). GL then splits each item by an
-  **admin-editable main %** (`state.auctionGL.splitMainPercent`, default 70):
-  `mainPool = Math.ceil(total * mainPct/100)` so the leftover on an uneven split goes
-  to **สนามหลัก**; `subPool = total − mainPool`. Read it via `getAuctionSplitPercent(kind)`
-  (GL only; returns 100 for Overrun → no sub), set via `setAuctionSplitPercent` (admin-gated,
-  clamps 0..100, mirrors `setAuctionRate`). Overrun has no sub field (`hasSubField=false`).
-  Shortage per side = `pool − count×rate`. NOTE: page-map per-type ranges depend on each
-  item's *total*, not the split, so they don't move when the split changes.
-- **Supply-based page-map** (`computeAuction` → `data.pageMap` + `it.{main,sub}.page`)
+  post-bonus quantities directly). **Single shared pool for BOTH kinds**
+  (2026-07-15: GL's admin-editable main/sub 70/30 split was retired — everyone
+  auctions together): `mainPool = total`, `subPool = 0`. The stored
+  `assignments.{main,sub}` container is unchanged for wire compat — `main` IS
+  the pool, `sub` stays permanently empty; `normalizeAuctionState` merges any
+  legacy sub seats into main (dedupe, idempotent) and strips `splitMainPercent`
+  (same treatment as the retired `bonusPercent`).
+  Shortage = `pool − count×rate`.
+- **Supply-based page-map** (`computeAuction` → `data.pageMap` + `it.main.page`)
   — the REAL in-game auction pages, from the ITEM POOL (counts), `AUCTION_ITEMS_PER_PAGE`
   (=4) per page. NOT from assigned people, NOT from `rate`.
-  - Each `it.main.page`/`it.sub.page` = `{items, startCursor, endCursor, startPage,
+  - Each `it.main.page` = `{items, startCursor, endCursor, startPage,
     endPage, startSlot, pageOffset}`, walked from a cumulative POOL cursor.
-  - **GL** = ONE continuous run over 8 buckets (cards-main → cards-sub → … →
-    black-sub); sub continues main's partial page (the 70/30 boundary). `pageMap`
-    = `{perType, totalItems, totalPages}`; invariant `max(endPage) === totalPages`.
-  - **Overrun** = each item type independent, starts page 1 (no sub).
+  - ONE continuous run over the 4 columns (cards → illusion → white → black),
+    each type continuing the previous type's partial page — same for GL +
+    Overrun. `pageMap` = `{perType, totalItems, totalPages}`; invariant
+    `max(endPage) === totalPages`.
   - **Rate-independent** — pages come from counts only; editing a per-person rate
     must NOT move them (locked by a test).
 - **Per-person page badge** (`buildAuctionCol`, ~6645): a dragged person's
@@ -284,8 +284,8 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
   (`arFormatTime`, BKK, HH:MM:SS; legacy = "—"). The PENDING group renders
   in pure first-come order with a visible `#N` queue badge
   (`renderGroup(..., asQueue=true)` → `arRenderRow(r, asAdmin, queueNo)`);
-  approved/rejected history keeps the old main-before-sub grouping, and
-  `arBulkApprove` still allocates main-first (unchanged on purpose).
+  approved/rejected history reads in the same arrival order, and
+  `arBulkApprove` allocates pure FCFS from the one shared pool.
   `requestedAt` is written as `firebase.database.ServerValue.TIMESTAMP`
   (server clock — a guest's skewed/forged device time can't jump the queue;
   raw-REST forgery is still possible — same accepted low-stakes griefing
@@ -304,9 +304,10 @@ load() ──▶ initFirebase() ──▶ onAuthStateChanged
   boot `load();` line. `setAdmin(bool)` / `setToday(iso)` override `isAdmin` /
   `todayBkkISO` for deterministic tests.
 - Coverage today: event-day gate, editable rates (defaults/override/clamp/
-  admin-guard), `normalizeAuctionState` migration, 70/30 + shortage math,
+  admin-guard), `normalizeAuctionState` migration (legacy flat + sub→main merge
+  + splitMainPercent strip), single-pool + shortage math,
   GL+Overrun per-person badge numbering, the supply-based `[auction page-map]`
-  (per-type ranges, total pages, 70/30 continuity + exact-fill, rate-invariance,
+  (per-type ranges, total pages, continuity + exact-fill, rate-invariance,
   zero-item, badge re-anchor), and the version stamp.
 - **When you change auction or request behavior, add/extend a test** in
   `test/run.js` in the same commit (CLAUDE.md rule). Harness stub gaps (e.g. a

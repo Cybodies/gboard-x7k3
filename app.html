@@ -589,7 +589,6 @@
     background: #064e3b; color: #6ee7b7; border-radius: 4px;
     padding: 2px 6px; font-size: 11px;
   }
-  .ar-req-row .ar-field-tag.sub { background: #422006; color: #fdba74; }
   .ar-req-row .ar-status-tag {
     margin-left: auto; padding: 2px 8px; border-radius: 4px;
     font-size: 11px; font-weight: 700;
@@ -635,8 +634,6 @@
   .ar-quota-table th { color: var(--muted); font-size: 11px; font-weight: 600; }
   .ar-quota-table td.num { font-variant-numeric: tabular-nums; }
   .ar-quota-item { text-align: left !important; font-weight: 700; }
-  .ar-quota-field { color: #6ee7b7; font-size: 12px; }
-  .ar-quota-field.sub { color: #fdba74; }
   .ar-quota-remain { font-weight: 800; }
   .ar-quota-remain.over { color: var(--success); }
   .ar-quota-remain.zero { color: var(--danger); }
@@ -698,11 +695,6 @@
   }
   .ar-modal .ar-item-row:hover { border-color: #a855f7; }
   .ar-modal .ar-item-row.selected { background: #1e1b4b; border-color: #a855f7; }
-  .ar-modal .ar-item-row .ar-routing {
-    margin-left: auto; font-size: 11px; color: var(--muted);
-  }
-  .ar-modal .ar-item-row .ar-routing b { color: #6ee7b7; }
-  .ar-modal .ar-item-row .ar-routing.sub b { color: #fdba74; }
   .ar-modal textarea {
     background: var(--bg-2); color: var(--text);
     border: 1px solid var(--border); border-radius: 6px;
@@ -1099,29 +1091,6 @@
     box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
   }
 
-  /* GL main/sub split % control */
-  .auction-split-row {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 0 4px;
-  }
-  .auction-split-row .label { color: var(--muted); font-size: 13px; }
-  .auction-split-row .label b { color: var(--accent); }
-  .auction-split-input {
-    width: 70px; padding: 6px 10px; font-size: 16px; font-weight: 700; text-align: center;
-    background: var(--panel-2); border: 1px solid var(--border-2); border-radius: 8px;
-    color: var(--accent-2); font-variant-numeric: tabular-nums;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .auction-split-input:hover { border-color: var(--accent-2); }
-  .auction-split-input:focus {
-    outline: none; border-color: var(--accent-2);
-    box-shadow: 0 0 0 3px rgba(255,179,71,0.18);
-  }
-  .auction-split-static {
-    color: var(--accent-2); font-size: 16px; font-weight: 700;
-    padding: 4px 10px; border-radius: 8px; background: var(--panel-2);
-  }
-  .auction-split-note { color: var(--muted); font-size: 11px; margin-top: 2px; }
-
   .auction-summary-table {
     width: 100%;
     border-collapse: collapse;
@@ -1163,55 +1132,6 @@
     margin-top: 10px;
   }
   .auction-warning b { color: var(--danger); }
-
-  /* ===== Sub-field info boxes (auto 30% split) ===== */
-  .auction-sub-boxes {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-  }
-  @media (max-width: 900px) { .auction-sub-boxes { grid-template-columns: 1fr; } }
-  .auction-sub-box {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--col, var(--accent));
-    border-radius: 8px;
-    padding: 12px 14px;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      "icon label total"
-      "icon label total";
-    gap: 0 12px;
-    align-items: center;
-  }
-  .auction-sub-box .asb-icon {
-    grid-area: icon;
-    font-size: 26px;
-    line-height: 1;
-  }
-  .auction-sub-box .asb-label {
-    grid-area: label;
-    display: flex; flex-direction: column;
-  }
-  .auction-sub-box .asb-name {
-    font-size: 13px; font-weight: 700; color: var(--text);
-  }
-  .auction-sub-box .asb-sub {
-    font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  .auction-sub-box .asb-val {
-    grid-area: total;
-    font-size: 24px; font-weight: 800;
-    color: var(--col, var(--accent));
-    text-align: right;
-    font-family: monospace;
-  }
-  .auction-sub-box .asb-unit {
-    font-size: 11px; font-weight: 400; color: var(--muted);
-    margin-left: 2px;
-  }
 
   /* ===== Auction columns (drag-drop assignment) ===== */
   .auction-columns {
@@ -2507,7 +2427,6 @@
     /* Auction inputs/columns: 1 col stack on mobile */
     .auction-inputs { grid-template-columns: 1fr !important; gap: 8px; }
     .auction-columns { grid-template-columns: 1fr !important; gap: 8px; }
-    .auction-sub-boxes { grid-template-columns: 1fr !important; }
     .auction-summary-table { font-size: 11px; }
     .auction-summary-table th, .auction-summary-table td { padding: 5px 4px; }
     .auction-input-card input { font-size: 18px; padding: 8px 10px; }
@@ -2697,12 +2616,6 @@
     .auction-input-card { padding: 10px 12px; }
     .auction-input-card input { font-size: 18px; padding: 8px 10px; }
 
-    /* Auction sub-boxes (70/30 split for GL) — compact internal layout */
-    .auction-sub-box { padding: 10px 12px; }
-    .auction-sub-box .asb-icon { font-size: 22px; }
-    .auction-sub-box .asb-name { font-size: 12px; }
-    .auction-sub-box .asb-val  { font-size: 20px; }
-
     /* Auction columns (drag-drop) — tighter chrome, taller drop area */
     .auction-column .ac-head { padding: 8px 10px; font-size: 13px; }
     .auction-column .ac-stats { padding: 6px 8px; gap: 2px; }
@@ -2796,9 +2709,6 @@
     .leave-hero .leave-today { font-size: 10px; padding: 3px 8px; }
     /* GL stat grid: single col on tiny screens */
     .gl-stat-grid { grid-template-columns: 1fr; }
-    /* Sub-box label hide subtitle on micro */
-    .auction-sub-box .asb-sub { display: none; }
-    .auction-sub-box .asb-val { font-size: 18px; }
     /* Pie chart: smaller */
     .pie { max-width: 160px; }
     .pie-legend { grid-template-columns: 1fr; }
@@ -2992,7 +2902,7 @@ let state = {
   // Per-event job targets (2026-07-05). Split GL vs Overrun — see
   // normalizeJobTargets for the legacy flat→{gl,overrun} migration.
   jobTargets: { gl: {}, overrun: {} },
-  auctionGL: { cards: 0, illusion: 0, white: 0, black: 0, splitMainPercent: 70,
+  auctionGL: { cards: 0, illusion: 0, white: 0, black: 0,
     assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } },
   auctionOverrun: { cards: 0, illusion: 0, white: 0, black: 0,
     assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } },
@@ -5549,7 +5459,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.11.1";
+const APP_VERSION = "2026.07.15.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;
@@ -7740,15 +7650,6 @@ function getAuctionRates(kind) {
   return { card: pick("card"), illusion: pick("illusion"), white: pick("white"), black: pick("black") };
 }
 
-/** Admin-editable GL main/sub split — % of each item that goes to สนามหลัก (main);
- *  สนามรอง (sub) gets the rest. Clamped 0..100, default 70. GL only (Overrun has no
- *  sub). The remainder on an uneven split goes to MAIN (ceil) — see computeAuction. */
-function getAuctionSplitPercent(kind) {
-  if (kind !== "gl") return 100;
-  const v = state.auctionGL && state.auctionGL.splitMainPercent;
-  return (typeof v === "number" && isFinite(v) && v >= 0 && v <= 100) ? Math.round(v) : 70;
-}
-
 /** Compute totals + per-person allocation + shortage/leftover.
  *  Item counts are entered as FINAL totals — the old GL ×-bonus system
  *  (cards/illusion ×2, feathers ×(1+%/100)) was retired 2026-06; admins
@@ -7782,16 +7683,13 @@ function computeAuction(kind) {
   const src = kind === "gl" ? state.auctionGL : state.auctionOverrun;
   const totals = { cards: src.cards|0, illusion: src.illusion|0, white: src.white|0, black: src.black|0 };
 
-  // GL splits each item between main+sub by an admin-editable percent (default
-  // 70). The remainder on an uneven split goes to MAIN (ceil), so the leftover
-  // item is auctioned on the main field. Overrun has no sub field — main pool
-  // absorbs the full total (sub pool = 0, not rendered).
-  const hasSubField = (kind === "gl");
-  const mainPct = getAuctionSplitPercent(kind);
-  const splitMain = (n) => hasSubField ? Math.ceil(n * mainPct / 100) : n;
+  // Single shared pool for BOTH kinds (2026-07-15: GL's main/sub 70/30 split
+  // retired — everyone auctions together, like Overrun always did). In memory,
+  // `it.main` IS the one pool; the STORED assignments keep an always-empty
+  // `sub` bucket purely so old cached clients' shape guards don't wipe them.
 
-  const buildSide = (field, key, pool, perPersonRate) => {
-    const ids = assignments[field][key];
+  const buildSide = (key, pool, perPersonRate) => {
+    const ids = assignments.main[key];
     const count = ids.length;
     const need = count * perPersonRate;
     const diff = pool - need;
@@ -7811,8 +7709,6 @@ function computeAuction(kind) {
   };
   const items = ["cards","illusion","white","black"].map(key => {
     const total    = totals[key];
-    const mainPool = splitMain(total);
-    const subPool  = total - mainPool;
     const meta     = ITEM_META[key];
     const itemRate = rate[meta.rateKey];
     return {
@@ -7821,8 +7717,7 @@ function computeAuction(kind) {
       unit:  meta.unit,
       rate:  itemRate,
       total,
-      main: buildSide("main", key, mainPool, itemRate),
-      sub:  buildSide("sub",  key, subPool,  itemRate)
+      main: buildSide(key, total, itemRate)
     };
   });
 
@@ -7847,78 +7742,73 @@ function computeAuction(kind) {
   };
   // Items pack CONTINUOUSLY across pages: the next item type starts right after the
   // previous type's last slot, NOT on a fresh page. E.g. cards fill page 1, illusion
-  // takes page 2 slots 1-2, then white starts on page 2 slot 3 (same page). Within a
-  // type, main then sub run continuously (sub fills main's last partial page). One
-  // path for GL + Overrun (Overrun just has sub.pool = 0). Pages come from item
-  // COUNTS only, not the rate.
+  // takes page 2 slots 1-2, then white starts on page 2 slot 3 (same page). One
+  // path for GL + Overrun. Pages come from item COUNTS only, not the rate.
   let offset = 0;
   items.forEach(it => {
     it.main.page = pagesFromCursor(offset + 1, it.main.pool); offset += it.main.pool;
-    it.sub.page  = pagesFromCursor(offset + 1, it.sub.pool);  offset += it.sub.pool;
   });
-  // Per-type ruler (combine main+sub items per type) + whole-day total.
-  const perType = items.map(it => {
-    const m = it.main.page, s = it.sub.page;
-    const startPage = (m.startPage != null) ? m.startPage : s.startPage;
-    const endPage   = (s.endPage   != null) ? s.endPage   : m.endPage;
-    return { key: it.key, label: it.label, items: it.total, startPage, endPage };
-  });
+  // Per-type ruler + whole-day total.
+  const perType = items.map(it => ({
+    key: it.key, label: it.label, items: it.total,
+    startPage: it.main.page.startPage, endPage: it.main.page.endPage
+  }));
   const totalItems = items.reduce((sum, it) => sum + it.total, 0);
-  // Total pages = the last page actually used (gaps exist because each type
-  // starts fresh, so this is NOT ceil(totalItems/4)).
+  // Total pages = the last page actually used.
   let totalPages = 0;
   items.forEach(it => {
     if (it.main.page.endPage) totalPages = Math.max(totalPages, it.main.page.endPage);
-    if (it.sub.page.endPage)  totalPages = Math.max(totalPages, it.sub.page.endPage);
   });
   const pageMap = { perType, totalItems, totalPages };
 
-  return { kind, members, people, rate, items, assignments, hasSubField, pageMap, splitMainPercent: mainPct };
+  return { kind, members, people, rate, items, assignments, pageMap };
 }
 
 // All four mutators call render() (not just renderBattlefields) so the sidebar's
 // .assigned styling + "ซ่อนคนที่จัดตี้แล้ว" filter update with each drag/drop.
-// `field` = "main" (70% pool) or "sub" (30% pool).
-function assignAuctionMember(kind, field, item, memberId) {
+// Seats live in assignments.main — the one shared pool. (The stored "sub"
+// bucket still exists, always empty, only so old cached clients' shape guards
+// don't wipe assignments; nothing here can write to it.)
+function assignAuctionMember(kind, item, memberId) {
   if (!isAdmin()) return;   // guests can view the columns but not edit them
   const a = getAuctionAssignments(kind);
-  const bucket = a[field] && a[field][item];
+  const bucket = a.main && a.main[item];
   if (!bucket || bucket.includes(memberId)) return;
   bucket.push(memberId);
   save(); render();
 }
-function unassignAuctionMember(kind, field, item, memberId) {
+function unassignAuctionMember(kind, item, memberId) {
   if (!isAdmin()) return;
   const a = getAuctionAssignments(kind);
-  if (!a[field] || !a[field][item]) return;
-  a[field][item] = a[field][item].filter(id => id !== memberId);
+  if (!a.main || !a.main[item]) return;
+  a.main[item] = a.main[item].filter(id => id !== memberId);
   save(); render();
 }
-function clearAuctionColumn(kind, field, item) {
+function clearAuctionColumn(kind, item) {
   if (!isAdmin()) return;
   const a = getAuctionAssignments(kind);
-  const bucket = a[field] && a[field][item];
+  const bucket = a.main && a.main[item];
   if (!bucket || !bucket.length) return;
   if (!confirm("ล้างรายชื่อทั้งคอลัมน์นี้?")) return;
-  a[field][item] = [];
+  a.main[item] = [];
   save(); render();
 }
-function autoFillAuctionColumn(kind, field, item) {
+function autoFillAuctionColumn(kind, item) {
   if (!isAdmin()) return;
   const eligibleMembers = getAuctionMembers(kind);
   const a = getAuctionAssignments(kind);
-  if (!a[field]) return;
-  a[field][item] = eligibleMembers.map(m => m.id);
+  if (!a.main) return;
+  a.main[item] = eligibleMembers.map(m => m.id);
   save(); render();
 }
-function dropAuctionColumn(e, kind, field, item) {
+function dropAuctionColumn(e, kind, item) {
   // Always consume the drop + clear the highlight — even for guests — so the
   // browser doesn't run its default drop handling; only the WRITE is gated.
   e.preventDefault();
   e.currentTarget.classList.remove("drag-over");
   if (!isAdmin()) return;
   if (drag.type === "member") {
-    assignAuctionMember(kind, field, item, drag.payload.memberId);
+    assignAuctionMember(kind, item, drag.payload.memberId);
   }
 }
 
@@ -7992,35 +7882,6 @@ function setAuctionRate(kind, rateKey, value) {
   window.scrollTo(scrollX, scrollY);
 }
 
-/** Admin-editable GL main/sub split %. Mirrors setAuctionRate's focus/scroll
- *  preservation. GL only; clamps 0..100. Sub % is derived (100 − main). */
-function setAuctionSplitPercent(kind, value) {
-  if (kind !== "gl") return;
-  if (!isAdmin()) { toast("ต้องเป็น admin ถึงจะแก้ % การแบ่งสนามได้", "error"); return; }
-  // Keep a leading "-" so a typed negative clamps to 0 (don't strip it to a positive).
-  const cleaned = String(value).replace(/[^0-9-]/g, "");
-  let n = parseInt(cleaned, 10);
-  if (isNaN(n)) n = 70;
-  if (n < 0) n = 0; if (n > 100) n = 100;
-  if (state.auctionGL.splitMainPercent === n) return;
-  state.auctionGL.splitMainPercent = n;
-  save();
-  let cursorPos = null;
-  const focused = document.activeElement;
-  if (focused && focused.tagName === "INPUT") {
-    try { cursorPos = focused.selectionStart; } catch (e) {}
-  }
-  const scrollX = window.scrollX, scrollY = window.scrollY;
-  renderBattlefields();
-  const newInput = document.querySelector(`input[data-auction-split-kind="${kind}"]`);
-  if (newInput) {
-    try { newInput.focus({ preventScroll: true }); } catch (e) {}
-    const pos = (cursorPos != null) ? Math.min(cursorPos, newInput.value.length) : newInput.value.length;
-    try { newInput.setSelectionRange(pos, pos); } catch (e) {}
-  }
-  window.scrollTo(scrollX, scrollY);
-}
-
 function buildAuctionInputCard(opts) {
   const { icon, label, value, rate, perPersonLabel, effective, status, statusCls,
           kind, field, rateItemKey, rateEditable } = opts;
@@ -8085,65 +7946,25 @@ function buildAuctionView(kind) {
     });
   }).join("");
 
-  // Status summary — for GL shows main+sub split; for Overrun a single combined
-  // pool. Status column gives the worst of the rendered sides.
-  const summaryRows = data.items.map(it => {
-    if (data.hasSubField) {
-      const worst = it.sub.diff < it.main.diff ? it.sub : it.main;
-      const fieldName = worst === it.main ? "หลัก" : "รอง";
-      const statusText = worst.statusCls === "none" ? "ยังไม่ลาก" : `${fieldName}: ${worst.status}`;
-      return `
-        <tr>
-          <td class="item">${it.label}</td>
-          <td class="num"><b>${it.total}</b></td>
-          <td class="num" style="color:#fbbf24">${it.main.need}/<b>${it.main.pool}</b></td>
-          <td class="num" style="color:#06b6d4">${it.sub.need}/<b>${it.sub.pool}</b></td>
-          <td class="status-cell ${worst.statusCls}">${statusText}</td>
-        </tr>`;
-    }
-    return `
+  // Status summary — one combined pool per item for both kinds.
+  const summaryRows = data.items.map(it => `
       <tr>
         <td class="item">${it.label}</td>
         <td class="num"><b>${it.total}</b></td>
         <td class="num">${it.main.need}/<b>${it.main.pool}</b></td>
         <td class="status-cell ${it.main.statusCls}">${it.main.status}</td>
-      </tr>`;
-  }).join("");
+      </tr>`).join("");
 
   const shortPairs = [];
   data.items.forEach(it => {
-    const fields = data.hasSubField ? ["main","sub"] : ["main"];
-    fields.forEach(f => {
-      if (it[f].diff < 0) shortPairs.push({ label: it.label, field: f, short: -it[f].diff });
-    });
+    if (it.main.diff < 0) shortPairs.push({ label: it.label, short: -it.main.diff });
   });
-  const fieldThai = (f) => f === "main" ? "หลัก" : "รอง";
   const warning = (data.people > 0 && shortPairs.length) ? `
     <div class="auction-warning">
-      ⚠️ <b>ของไม่พอ</b> — ${shortPairs.map(s => data.hasSubField
-          ? `${s.label.replace(/^[^\s]+\s/, "")}(สนาม${fieldThai(s.field)}) ขาด ${s.short}`
-          : `${s.label.replace(/^[^\s]+\s/, "")} ขาด ${s.short}`).join(", ")}
+      ⚠️ <b>ของไม่พอ</b> — ${shortPairs.map(s => `${s.label.replace(/^[^\s]+\s/, "")} ขาด ${s.short}`).join(", ")}
     </div>` : "";
 
-  // GL main/sub split %: admin types main %, sub = 100 − main (live). Remainder
-  // on an uneven split goes to main (see computeAuction's ceil). GL only.
-  const splitPct = data.splitMainPercent;
-  const splitSection = isGL ? `
-    <div class="auction-section split">
-      <h3>⚖️ การแบ่งสนาม (หลัก/รอง)</h3>
-      <div class="auction-split-row">
-        <span class="label">ของแต่ละชนิดเข้า สนามหลัก</span>
-        ${isAdmin()
-          ? `<input class="auction-split-input" type="text" inputmode="numeric" pattern="[0-9]*"
-                    value="${splitPct}" data-auction-split-kind="gl"
-                    oninput="setAuctionSplitPercent('gl', this.value)" onfocus="this.select()" />`
-          : `<b class="auction-split-static">${splitPct}</b>`}
-        <span class="label">% · ที่เหลือเข้า สนามรอง <b>${100 - splitPct}%</b></span>
-      </div>
-      <div class="auction-split-note">เศษที่หารไม่ลงตัวจะเข้า “สนามหลัก” · เช่น 5 ชิ้น ${splitPct}% = หลัก ${Math.ceil(5*splitPct/100)} / รอง ${5 - Math.ceil(5*splitPct/100)}</div>
-    </div>` : "";
-
-  // Two sets of 3 drag-drop columns: สนามหลัก (main, 70% pool) + สนามรอง (sub, 30% pool).
+  // One set of 4 drag-drop columns — a single shared pool for both kinds.
   // Each column = drop zone for member chips; per-person quantity auto-filled by rate.
   const COL_STYLES = {
     cards:    "#ec4899",
@@ -8151,24 +7972,16 @@ function buildAuctionView(kind) {
     white:    "#fbbf24",
     black:    "#6b7280"
   };
-  const buildAuctionCol = (field, it) => {
-    const side = it[field];
-    const ids = data.assignments[field][it.key];
-    // Page numbering:
-    //  - GL: ONE continuous chain across all 8 buckets in order:
-    //      การ์ดสนามหลัก → การ์ดสนามรอง → Illusion-หลัก → Illusion-รอง
-    //      → ขนขาว-หลัก → ขนขาว-รอง → ขนดำ-หลัก → ขนดำ-รอง
-    //    chainOffset for a bucket = cumulative items used by earlier buckets
-    //    in the chain (each bucket's people × that bucket's item rate). Page =
-    //    ceil(startItem / 4), no reset within a bucket.
-    //  - Overrun: chain is INDEPENDENT per column (cards/illusion/white/black
-    //    each start at item #1). Within a column, items run sequentially across
-    //    auction pages of 4 slots, splitting a person's allocation across pages
-    //    when needed (e.g. Overrun white/black rate=10 → 1 คน กิน 3 หน้า).
-    // Per-person badge offset = where this bucket's items START in the real
-    // auction, taken from the pool-anchored page-map (computeAuction). This makes
-    // a person's page correct even when earlier columns are underfilled. GL chains
-    // across all 8 buckets by item pool; Overrun is independent (pageOffset 0).
+  const buildAuctionCol = (it) => {
+    const side = it.main;
+    const ids = data.assignments.main[it.key];
+    // Page numbering: ONE continuous chain across the 4 columns in order
+    // (การ์ด → Illusion → ขนขาว → ขนดำ), same for GL + Overrun. Within a
+    // column, items run sequentially across auction pages of 4 slots, splitting
+    // a person's allocation across pages when needed (e.g. rate=10 → 1 คน กิน
+    // 3 หน้า). Per-person badge offset = where this column's items START in the
+    // real auction, taken from the pool-anchored page-map (computeAuction), so
+    // a person's page is correct even when earlier columns are underfilled.
     const chainOffset = (side.page && typeof side.page.pageOffset === "number") ? side.page.pageOffset : 0;
     const rows = ids.map((memId, i) => {
       const m = findMember(memId);
@@ -8211,16 +8024,14 @@ function buildAuctionView(kind) {
             ${pageBadge}
           </div>
           <span class="aar-del" title="ลบออก"
-                onclick="unassignAuctionMember('${data.kind}','${field}','${it.key}','${m.id}')">×</span>
+                onclick="unassignAuctionMember('${data.kind}','${it.key}','${m.id}')">×</span>
         </div>`;
     }).join("");
 
     const ppLabel = it.key === "cards" ? "ใบ/คน"
                   : it.key === "illusion" ? "ชิ้น/คน"
                   : "ขน/คน";
-    const poolLabel = !data.hasSubField ? "รวม"
-                    : field === "main"  ? ("หลัก" + data.splitMainPercent + "%")
-                                        : ("รอง" + (100 - data.splitMainPercent) + "%");
+    const poolLabel = "รวม";
     // Real auction pages this column's item pool occupies (supply-based).
     const pg = side.page;
     // Show the exact slot range, not just the page, so a partial page reads
@@ -8283,31 +8094,28 @@ function buildAuctionView(kind) {
         <div class="ac-droplist"
              ondragover="dragOverEl(event)"
              ondragleave="dragLeaveEl(event)"
-             ondrop="dropAuctionColumn(event,'${data.kind}','${field}','${it.key}')">
+             ondrop="dropAuctionColumn(event,'${data.kind}','${it.key}')">
           ${rows || (_auctionSearch
             ? `<div class="ac-empty">🔍 ไม่มี "${escapeHtml(_auctionSearch)}"<br>ในคอลัมน์นี้</div>`
             : `<div class="ac-empty">ลากชื่อจาก sidebar<br>มาวางที่นี่</div>`)}
         </div>
         <div class="ac-actions">
-          <button onclick="autoFillAuctionColumn('${data.kind}','${field}','${it.key}')">✨ ใส่ทุกคน</button>
-          <button class="danger" onclick="clearAuctionColumn('${data.kind}','${field}','${it.key}')">🗑 ล้าง</button>
+          <button onclick="autoFillAuctionColumn('${data.kind}','${it.key}')">✨ ใส่ทุกคน</button>
+          <button class="danger" onclick="clearAuctionColumn('${data.kind}','${it.key}')">🗑 ล้าง</button>
         </div>
       </div>`;
   };
 
-  const mainCols = data.items.map(it => buildAuctionCol("main", it)).join("");
-  const subCols  = data.hasSubField ? data.items.map(it => buildAuctionCol("sub",  it)).join("") : "";
+  const mainCols = data.items.map(it => buildAuctionCol(it)).join("");
 
   const noMembersFallback = `
     <div style="color:var(--muted);text-align:center;padding:30px">
       ยังไม่มีสมาชิก — กด "🔄 Refresh จาก Sheet"
     </div>`;
-  const mainHeader = data.hasSubField
-    ? `👥 สนามหลัก (${data.splitMainPercent}%) — ลากชื่อจาก sidebar มาวางในคอลัมน์`
-    : "👥 รายชื่อรับของ — ลากชื่อจาก sidebar มาวางในคอลัมน์";
+  const mainHeader = "👥 รายชื่อรับของ — ลากชื่อจาก sidebar มาวางในคอลัมน์";
 
   // Search input — lets guests filter by their name to see only their rows.
-  // The search applies to BOTH main + sub columns; columns without a match
+  // The search applies to all columns; columns without a match
   // show a placeholder so it's clear "ไม่มีชื่อนี้ในคอลัมน์นี้".
   const searchSection = `
     <div class="auction-section" style="padding:10px 14px">
@@ -8322,12 +8130,6 @@ function buildAuctionView(kind) {
       <h3>${mainHeader}</h3>
       ${data.members.length ? `<div class="auction-columns">${mainCols}</div>` : noMembersFallback}
     </div>`;
-  const subSection = data.hasSubField ? `
-    <div class="auction-section">
-      <h3>🛡️ สนามรอง (${100 - data.splitMainPercent}%) — ลากชื่อจาก sidebar มาวางในคอลัมน์</h3>
-      ${data.members.length ? `<div class="auction-columns">${subCols}</div>` : noMembersFallback}
-    </div>` : "";
-
   // Top page ruler — today's whole-day auction layout from the item pool.
   const pm = data.pageMap;
   const typeChips = pm.perType.filter(t => t.items > 0).map(t => {
@@ -8338,9 +8140,7 @@ function buildAuctionView(kind) {
   if (pm.totalItems === 0) {
     pageMapStrip = `<div class="auction-pagemap-strip empty">📄 ยังไม่ได้กรอกจำนวนของ — ใส่จำนวนของด้านบนก่อน แล้วระบบจะคำนวณหน้าประมูลให้</div>`;
   } else {
-    const head = data.hasSubField
-      ? `📄 วันนี้รวม <b>${pm.totalItems}</b> ชิ้น = <b>${pm.totalPages}</b> หน้า <span class="apm-sub">(4 ชิ้น/หน้า · เรียงตามคอลัมน์)</span>`
-      : `📄 วันนี้รวม <b>${pm.totalItems}</b> ชิ้น <span class="apm-sub">(แต่ละชนิดเริ่มหน้า 1 · 4 ชิ้น/หน้า)</span>`;
+    const head = `📄 วันนี้รวม <b>${pm.totalItems}</b> ชิ้น = <b>${pm.totalPages}</b> หน้า <span class="apm-sub">(4 ชิ้น/หน้า · เรียงตามคอลัมน์)</span>`;
     pageMapStrip = `<div class="auction-pagemap-strip"><div class="apm-head">${head}</div><div class="apm-chips">${typeChips}</div></div>`;
   }
 
@@ -8446,8 +8246,6 @@ function buildAuctionView(kind) {
         <div class="auction-inputs">${itemCountInputs}</div>
       </div>
 
-      ${splitSection}
-
       <div class="auction-section">
         <h3>📊 สรุปการแจก</h3>
         <table class="auction-summary-table">
@@ -8455,10 +8253,7 @@ function buildAuctionView(kind) {
             <tr>
               <th style="text-align:left">รายการ</th>
               <th>รวม</th>
-              ${data.hasSubField ? `
-                <th>สนามหลัก<br><span style="font-weight:400;font-size:9px">ใช้/${data.splitMainPercent}%</span></th>
-                <th>สนามรอง<br><span style="font-weight:400;font-size:9px">ใช้/${100 - data.splitMainPercent}%</span></th>
-              ` : `<th>ใช้/มี</th>`}
+              <th>ใช้/มี</th>
               <th>สถานะ</th>
             </tr>
           </thead>
@@ -8472,8 +8267,6 @@ function buildAuctionView(kind) {
       ${searchSection}
 
       ${memberSection}
-
-      ${subSection}
 
       ${(_arModalState && _arModalState.mode === kind) ? arBuildModal(data) : ""}
     </div>`;
@@ -8491,15 +8284,17 @@ function buildAuctionOverrunHtml() { return buildAuctionView("overrun"); }
  * the admin queue builder was refactored to per-mode (one kind per page), and
  * arGetQuota/arBuildQuotaPanel are new display helpers on top of the same math.
  * Guest claims their identity, picks an item, submits a request.
- * Admin sees a per-mode queue, approves/rejects; auto-routes main/sub by party;
+ * Admin sees a per-mode queue, approves/rejects; everyone draws from ONE
+ * shared pool (main/sub routing retired 2026-07-15);
  * auto-cuts when an item's capacity is reached; auto-clears the day after.
  *
  * Data shape (Firebase):
  *   /auction_requests/{date}/{mode}/{requestId} = {
  *     id, memberId, memberName, items: ["cards", ...],
- *     note, status, computedField, requestedAt, decidedAt, decidedBy,
- *     rejectReason
+ *     note, status, requestedAt, decidedAt, decidedBy, rejectReason
  *   }
+ *   (legacy records may carry computedField "main"|"sub" from the retired
+ *   main/sub era — ignored everywhere since 2026-07-15)
  */
 const AR_CLAIMED_KEY    = "roo_party_claimed_member";
 const AR_ITEM_META = {
@@ -8552,18 +8347,13 @@ function arHasLeaveOnDate(memberId, date) {
 // requesting a future event in advance. Non-event days are locked. Daily
 // reset wipes the auction pages at 00:00 BKK so each event day starts fresh.
 
-/** Detect main/sub for a member in a given mode. Returns "main" | "sub" | null. */
-function arDetectField(memberId, mode) {
+/** Is the member seated in any party of the given mode? Single shared pool
+ *  since 2026-07-15 (main/sub routing retired) — this only feeds the
+ *  "ยังไม่อยู่ในตี้" hint on request rows and in the request modal. */
+function arInParty(memberId, mode) {
   const parties = mode === "gl" ? state.partiesLeague : state.partiesOverrun;
-  if (!Array.isArray(parties)) return null;
-  for (let i = 0; i < parties.length; i++) {
-    const p = parties[i];
-    if (p && Array.isArray(p.slots) && p.slots.includes(memberId)) {
-      // Parties 1-8 (index 0-7) = main field; 9-16 = sub field
-      return i < 8 ? "main" : "sub";
-    }
-  }
-  return null;
+  if (!Array.isArray(parties)) return false;
+  return parties.some(p => p && Array.isArray(p.slots) && p.slots.includes(memberId));
 }
 
 function arGetRequests(date, mode) {
@@ -8572,7 +8362,7 @@ function arGetRequests(date, mode) {
   return Object.values(list).sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
 }
 
-/** PURE per-item/per-field quota view for the "ของคงเหลือ" panel, the modal
+/** PURE per-item quota view for the "ของคงเหลือ" panel, the modal
  *  "เหลือ X สิทธิ์" line, AND the arBulkApprove capacity cap — one source so the
  *  UI and the auto-allocator can never disagree.
  *
@@ -8581,39 +8371,34 @@ function arGetRequests(date, mode) {
  *                      the caller owns the single call per render).
  *  @param requests     today's requests for that mode (arGetRequests). Only the
  *                      pending ones are counted, and ONLY for display.
- *  @returns { main:{cards:{quota,occupied,pending,remaining},...}, sub:{...} }
+ *  @returns { main:{cards:{quota,occupied,pending,remaining},...} }
+ *    ("main" = the single shared pool — named after assignments.main, the
+ *    stored bucket it mirrors; this return value itself is in-memory only)
  *    quota     = rate>0 ? floor(pool/rate) : 0
- *    occupied  = assignments[field][item].length (approved / dragged-in)
- *    pending   = # pending requests routed to that field whose items include it
+ *    occupied  = assignments.main[item].length (approved / dragged-in)
+ *    pending   = # pending requests whose items include it
  *                — DISPLAY ONLY, never subtracted from remaining or any decision
  *    remaining = max(0, quota - occupied)
  */
 function arGetQuota(auctionData, requests) {
   const ITEM_KEYS = ["cards", "illusion", "white", "black"];
-  const mode = auctionData.kind;
-  const assigns = auctionData.assignments || { main: {}, sub: {} };
-  const out = { main: {}, sub: {} };
+  const assigns = auctionData.assignments || { main: {} };
+  const out = { main: {} };
   auctionData.items.forEach(it => {
-    ["main", "sub"].forEach(field => {
-      const pool = (it[field] && it[field].pool) || 0;
-      const quota = it.rate > 0 ? Math.floor(pool / it.rate) : 0;
-      const occupied = ((assigns[field] && assigns[field][it.key]) || []).length;
-      out[field][it.key] = { quota, occupied, pending: 0, remaining: Math.max(0, quota - occupied) };
-    });
+    const pool = (it.main && it.main.pool) || 0;
+    const quota = it.rate > 0 ? Math.floor(pool / it.rate) : 0;
+    const occupied = ((assigns.main && assigns.main[it.key]) || []).length;
+    out.main[it.key] = { quota, occupied, pending: 0, remaining: Math.max(0, quota - occupied) };
   });
   (requests || []).forEach(r => {
     if (r.status !== "pending") return;
-    // Route the pending request to a field the same way arBulkApprove does, so
-    // the "คิวรอ" tally lines up with where the allocator will actually try to seat it.
-    let field = arDetectField(r.memberId, mode) || r.computedField || "main";
-    if (mode === "overrun") field = "main";   // Overrun has no sub pool
     (r.items || []).forEach(k => {
-      if (!ITEM_KEYS.includes(k) || !out[field] || !out[field][k]) return;
-      // Already parked in that column (manual drag)? The allocator honors the
+      if (!ITEM_KEYS.includes(k) || !out.main[k]) return;
+      // Already parked in the column (manual drag)? The allocator honors the
       // seat without burning a slot — don't count them as queue either.
-      const bucket = assigns[field] && assigns[field][k];
+      const bucket = assigns.main && assigns.main[k];
       if (bucket && bucket.includes && bucket.includes(r.memberId)) return;
-      out[field][k].pending++;
+      out.main[k].pending++;
     });
   });
   return out;
@@ -8679,7 +8464,6 @@ function arCreateRequest({ date, mode, items, note }) {
   }
 
   const id = "req_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
-  const computedField = arDetectField(memberId, mode);
   const req = {
     id,
     memberId,
@@ -8687,7 +8471,8 @@ function arCreateRequest({ date, mode, items, note }) {
     items: items.slice(),
     note: (note || "").slice(0, 200),
     status: "pending",
-    computedField,
+    // (computedField retired 2026-07-15 with the main/sub split — old records
+    // may still carry it; every reader falls back to the one shared pool.)
     // SERVER clock, not the guest's device clock — the queue page sorts and
     // numbers by this, so a skewed/forged client time must not jump the line.
     // (The compat SDK substitutes its server-offset estimate in the local
@@ -8712,14 +8497,6 @@ async function arApproveRequest(date, mode, requestId) {
   const req = r[requestId];
   if (!req) return;
   if (req.status === "approved") return;
-  // Re-detect field at approve time so the member lands in the column
-  // matching their CURRENT party assignment, not whatever snapshot the
-  // request was created with. Falls back to the stored value (if any)
-  // then to "main" if the member isn't in any party.
-  let field = arDetectField(req.memberId, mode) || req.computedField || "main";
-  // Overrun has no sub-field column in the auction UI — force main so
-  // approved members don't vanish into an invisible bucket.
-  if (mode === "overrun") field = "main";
   const auctionKey = mode === "gl" ? "auctionGL" : "auctionOverrun";
   const obj = state[auctionKey];
   if (!obj) { toast("ยังไม่ได้ตั้งค่า auction state", "error"); return; }
@@ -8730,9 +8507,12 @@ async function arApproveRequest(date, mode, requestId) {
       if (!Array.isArray(obj.assignments[f][k])) obj.assignments[f][k] = [];
     });
   });
+  // Single shared pool — everyone seats in assignments.main. Array.isArray
+  // (not truthiness) so a forged item key like "__proto__" in a guest-written
+  // request resolves to an inherited object and is skipped, not thrown on.
   (req.items || []).forEach(item => {
-    const bucket = obj.assignments[field][item];
-    if (bucket && !bucket.includes(req.memberId)) bucket.push(req.memberId);
+    const bucket = obj.assignments.main[item];
+    if (Array.isArray(bucket) && !bucket.includes(req.memberId)) bucket.push(req.memberId);
   });
   // Persist auction state — await so bulk-approve loop serializes writes
   // and the next iteration sees the listener's echo before mutating obj
@@ -8747,8 +8527,7 @@ async function arApproveRequest(date, mode, requestId) {
   await _fbDB.ref(`auction_requests/${date}/${mode}/${requestId}`).update({
     status: "approved",
     decidedAt: Date.now(),
-    decidedBy: (_fbUser && _fbUser.email) || "admin",
-    computedField: field
+    decidedBy: (_fbUser && _fbUser.email) || "admin"
   }).catch(e => {
     toast(`อนุมัติไม่สำเร็จ: ${e.message}`, "error");
     console.error("[auction-request] approve failed", e);
@@ -8763,13 +8542,14 @@ function arRejectRequest(date, mode, requestId, reason) {
   if (req && req.status === "approved") {
     const auctionKey = mode === "gl" ? "auctionGL" : "auctionOverrun";
     const obj = state[auctionKey];
-    const field = req.computedField || "main";
-    if (obj && obj.assignments && obj.assignments[field]) {
+    if (obj && obj.assignments && obj.assignments.main) {
       // Bulk-approved members sit in exactly one column (grantedItem); older
       // manual approvals span all requested items. Remove only what applies.
+      // Seats can only be in assignments.main: normalizeAuctionState folds any
+      // legacy sub seat into main before this can run (boot + every snapshot).
       const itemsToRemove = req.grantedItem ? [req.grantedItem] : (req.items || []);
       itemsToRemove.forEach(item => {
-        const arr = obj.assignments[field][item];
+        const arr = obj.assignments.main[item];
         if (Array.isArray(arr)) {
           const idx = arr.indexOf(req.memberId);
           if (idx >= 0) arr.splice(idx, 1);
@@ -8824,12 +8604,11 @@ async function arBulkApprove(date, mode) {
   // pass [] — allocation only needs .quota (pool/rate); the pending tally is
   // display-only and irrelevant to who wins.
   const q = arGetQuota(data, []);
-  const cap = { main: {}, sub: {} };
+  const cap = { main: {} };
   let poolTotal = 0;
   data.items.forEach(it => {
     cap.main[it.key] = q.main[it.key].quota;
-    cap.sub[it.key]  = q.sub[it.key].quota;
-    poolTotal += (it.main.pool || 0) + (it.sub.pool || 0);
+    poolTotal += it.main.pool || 0;
   });
 
   // Don't reject the whole queue just because item counts weren't entered.
@@ -8839,13 +8618,9 @@ async function arBulkApprove(date, mode) {
   }
 
   const pending = arGetRequests(date, mode)
+    // Pure first-come-first-served by request time for BOTH events — one shared
+    // pool, so winners are simply everyone in line until the items run out.
     .filter(r => r.status === "pending")
-    // Pure first-come-first-served by request time for BOTH events (2026-07-07).
-    // GL's main pool and sub pool are INDEPENDENT — each member only ever draws
-    // from their own field's pool — so field order never changes who wins, only
-    // the order winners are listed. Sorting by pure requestedAt keeps GL winners
-    // ordered by the second they asked, exactly like Overrun (was gated behind
-    // mode==="gl", which shoved early sub-field askers behind later main ones).
     .sort((a, b) => (a.requestedAt || 0) - (b.requestedAt || 0));
   if (!pending.length) { toast("ไม่มีคำขอที่รออนุมัติ"); return; }
 
@@ -8860,27 +8635,24 @@ async function arBulkApprove(date, mode) {
 
   // Seed "used" from whoever already occupies each column so we never
   // double-book a slot (re-run, or mixed manual-drag + auto flow).
-  const used = { main: {}, sub: {} };
-  ["main", "sub"].forEach(f => ITEM_KEYS.forEach(k => { used[f][k] = obj.assignments[f][k].length; }));
+  const used = { main: {} };
+  ITEM_KEYS.forEach(k => { used.main[k] = obj.assignments.main[k].length; });
 
-  const approvals  = [];  // { req, field, item }
+  const approvals  = [];  // { req, item }
   const rejections = [];  // { req, reason }
 
   for (const req of pending) {
-    let field = arDetectField(req.memberId, mode) || req.computedField || "main";
-    if (mode === "overrun") field = "main";  // no sub column in Overrun
-
     const wanted = (req.items || []).filter(k => ITEM_KEYS.includes(k));
     // Already parked in one of their columns (manual drag)? Honor that seat —
     // don't burn a second slot or reject someone who's literally already in.
     // Otherwise take the first requested item that still has a free slot.
-    const already = wanted.find(k => obj.assignments[field][k].includes(req.memberId));
-    const pick = already || wanted.find(k => used[field][k] < cap[field][k]);
+    const already = wanted.find(k => obj.assignments.main[k].includes(req.memberId));
+    const pick = already || wanted.find(k => used.main[k] < cap.main[k]);
 
     if (pick) {
-      const bucket = obj.assignments[field][pick];
-      if (!bucket.includes(req.memberId)) { bucket.push(req.memberId); used[field][pick]++; }
-      approvals.push({ req, field, item: pick });
+      const bucket = obj.assignments.main[pick];
+      if (!bucket.includes(req.memberId)) { bucket.push(req.memberId); used.main[pick]++; }
+      approvals.push({ req, item: pick });
     } else {
       const full = wanted.length
         ? wanted.map(k => (AR_ITEM_META[k] ? AR_ITEM_META[k].label : k)).join(", ")
@@ -8901,10 +8673,10 @@ async function arBulkApprove(date, mode) {
   const decidedBy = (_fbUser && _fbUser.email) || "admin";
   const now = Date.now();
   const writes = [];
-  approvals.forEach(({ req, field, item }) => {
+  approvals.forEach(({ req, item }) => {
     writes.push(_fbDB.ref(`auction_requests/${date}/${mode}/${req.id}`).update({
       status: "approved", decidedAt: now, decidedBy,
-      computedField: field, grantedItem: item, rejectReason: null
+      grantedItem: item, rejectReason: null
     }));
   });
   rejections.forEach(({ req, reason }) => {
@@ -8928,7 +8700,7 @@ async function arBulkApprove(date, mode) {
  *  approved bidder. Drops stale ids AND any manual drag-in that has no approved
  *  request, so the columns end up matching "✅ อนุมัติแล้ว" 1:1. Matches by current
  *  member id, falling back to NAME (req.memberName) so it survives a roster refresh
- *  that churned ids. Overrun forces field "main" (no sub column). Admin-only +
+ *  that churned ids. Everyone seats in "main" (single shared pool). Admin-only +
  *  confirm-gated because it discards manual additions. Recovers columns wiped by
  *  the mobile hydration bug, and reusable to re-sync any time. */
 async function arResyncApprovedToAuction(date, mode) {
@@ -8949,16 +8721,18 @@ async function arResyncApprovedToAuction(date, mode) {
     // current id first, then name fallback (roster refresh churns ids)
     const m = findMember(req.memberId) || state.members.find(mm => mm.name === req.memberName);
     if (!m) { missing++; return; }
-    // Overrun has no sub column in the UI — force main (matches arApproveRequest).
-    const field = (mode === "overrun") ? "main" : (arDetectField(m.id, mode) || req.computedField || "main");
     // Refill by the item the member was ACTUALLY granted, not everything they
     // asked for — otherwise a capacity-aware bulk approve that handed out ONE
     // item (grantedItem) would be undone here and re-overflow the other column.
     // Legacy manual approvals have no grantedItem → fall back to all req.items.
+    // Single shared pool — ignore any stored computedField (incl. legacy "sub").
     const items = req.grantedItem ? [req.grantedItem] : (req.items || []);
     items.forEach(item => {
-      const bucket = obj.assignments[field][item];
-      if (bucket && !bucket.includes(m.id)) { bucket.push(m.id); added++; }
+      // Array.isArray guard: a guest-forged grantedItem like "__proto__" must
+      // be skipped — a throw here would land AFTER the local wipe above and
+      // strand the admin with empty columns.
+      const bucket = obj.assignments.main[item];
+      if (Array.isArray(bucket) && !bucket.includes(m.id)) { bucket.push(m.id); added++; }
     });
   });
   try {
@@ -9087,16 +8861,11 @@ function arRenderRow(r, asAdmin, queueNo) {
   const name = m ? m.name : (r.memberName || "?");
   const job  = m ? jobForMode(m, r.mode) : "";
   const items = (r.items || []).map(k => `<span class="ar-item-chip">${AR_ITEM_META[k] ? AR_ITEM_META[k].label : k}</span>`).join("");
-  // Re-detect field at render time so the main/sub tag tracks the
-  // member's current party assignment instead of the snapshot from
-  // request-creation time. The parties listener calls safeRender on
-  // change, so this stays realtime without extra plumbing.
-  const liveField = arDetectField(r.memberId, r.mode);
-  // Overrun has no main/sub split — only GL gets the field tag.
-  const fieldTag = (r.mode !== "gl") ? ""
-    : liveField
-      ? `<span class="ar-field-tag ${liveField === "sub" ? "sub" : ""}">${liveField === "sub" ? "สนามรอง" : "สนามหลัก"}</span>`
-      : `<span class="ar-field-tag" style="background:#3f3f46;color:#a1a1aa">ยังไม่อยู่ในตี้</span>`;
+  // Single shared pool — no main/sub tag. Still hint when the requester isn't
+  // seated in any party (checked live; the parties listener re-renders on change).
+  const fieldTag = arInParty(r.memberId, r.mode)
+    ? ""
+    : `<span class="ar-field-tag" style="background:#3f3f46;color:#a1a1aa">ยังไม่อยู่ในตี้</span>`;
   const leaveTag = arHasLeaveOnDate(r.memberId, r.date)
     ? `<span class="ar-field-tag" style="background:#7c2d12;color:#fdba74">🌴 ลา</span>` : "";
   const modeTag = `<span style="font-size:10px;color:var(--muted)">${r.mode === "gl" ? "GL" : "OR"} · ${r.date}</span>`;
@@ -9146,8 +8915,8 @@ function arPromptReject(date, mode, requestId) {
 
 /** "🎟️ ของคงเหลือวันนี้" panel — per-item quota / จองแล้ว / คิวรอ / เหลือ, shown
  *  on the Auction page above the request button so guests see what's left before
- *  asking. Reads the SAME arGetQuota the auto-allocator uses. GL splits หลัก/รอง;
- *  Overrun shows main only. "คิวรอ" (pending) is display-only. When the admin
+ *  asking. Reads the SAME arGetQuota the auto-allocator uses. One shared pool
+ *  per item. "คิวรอ" (pending) is display-only. When the admin
  *  hasn't entered any item counts (totalItems 0) it shows a "ยังไม่แจ้งของ" banner.
  *  auctionData = the caller's single computeAuction(kind) result (no re-compute). */
 function arBuildQuotaPanel(kind, auctionData) {
@@ -9158,29 +8927,22 @@ function arBuildQuotaPanel(kind, auctionData) {
     </div>`;
   }
   const q = arGetQuota(auctionData, arGetRequests(todayBkkISO(), kind));
-  const hasSub = (kind === "gl");
-  const fields = hasSub ? ["main", "sub"] : ["main"];
-  const fieldLabel = { main: "หลัก", sub: "รอง" };
-  const rows = auctionData.items.map(it =>
-    fields.map((f, idx) => {
-      const c = q[f][it.key];
-      const remCls = c.remaining > 0 ? "over" : "zero";
-      return `<tr>
-        ${idx === 0 ? `<td class="ar-quota-item" rowspan="${fields.length}">${it.label}</td>` : ""}
-        ${hasSub ? `<td class="ar-quota-field ${f === "sub" ? "sub" : ""}">${fieldLabel[f]}</td>` : ""}
-        <td class="num">${c.quota}</td>
-        <td class="num">${c.occupied}</td>
-        <td class="num">${c.pending}</td>
-        <td class="num ar-quota-remain ${remCls}">${c.remaining}</td>
-      </tr>`;
-    }).join("")
-  ).join("");
+  const rows = auctionData.items.map(it => {
+    const c = q.main[it.key];
+    const remCls = c.remaining > 0 ? "over" : "zero";
+    return `<tr>
+      <td class="ar-quota-item">${it.label}</td>
+      <td class="num">${c.quota}</td>
+      <td class="num">${c.occupied}</td>
+      <td class="num">${c.pending}</td>
+      <td class="num ar-quota-remain ${remCls}">${c.remaining}</td>
+    </tr>`;
+  }).join("");
   return `<div class="ar-section">
     <h3>🎟️ ของคงเหลือวันนี้</h3>
     <table class="ar-quota-table">
       <thead><tr>
         <th style="text-align:left">รายการ</th>
-        ${hasSub ? `<th>สนาม</th>` : ""}
         <th>โควตา</th><th>จองแล้ว</th><th>คิวรอ</th><th>เหลือ</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -9265,19 +9027,16 @@ function arBuildModal(data) {
   // so it must run exactly once per render per kind).
   const { date, mode, items, note } = _arModalState;
   const memberId = arGetClaimedMemberId();
-  const detected = arDetectField(memberId, mode);            // "main" | "sub" | null
-  // Which field's quota applies to THIS requester: Overrun always main; GL uses
-  // the detected party field, falling back to main (with a "ยังไม่อยู่ในตี้" note).
-  const qField = (mode === "overrun") ? "main" : (detected || "main");
-  const fieldTxt = (mode === "overrun" || detected === "main") ? "<b>สนามหลัก</b>"
-                 : detected === "sub" ? '<b class="sub">สนามรอง</b>'
-                 : `<span style="color:var(--danger)">ยังไม่อยู่ในตี้ (นับเป็นสนามหลัก)</span>`;
   const q = arGetQuota(data, arGetRequests(date, mode));
+  // One shared pool — no routing line. Still warn when the requester isn't in
+  // any party yet, since that's usually a claim/roster mistake worth catching.
+  const notInPartyNote = arInParty(memberId, mode) ? ""
+    : `<div style="font-size:12px;color:var(--danger);margin-bottom:8px">⚠️ ยังไม่อยู่ในตี้ — ขอได้ แต่เช็คชื่อ/ตี้กับแอดมินอีกที</div>`;
 
   const itemRows = ["cards","illusion","white","black"].map(k => {
     const meta = AR_ITEM_META[k];
     const sel = items.has(k);
-    const c = q[qField][k];
+    const c = q.main[k];
     let warn = "";
     if (c.remaining === 0) {
       warn = `<div class="ar-item-warn red">⚠️ เต็มแล้ว — จะเข้าคิวรอ ถ้าแอดมินไม่เพิ่มของ อาจถูกตัดตอนจัดสรร</div>`;
@@ -9288,7 +9047,6 @@ function arBuildModal(data) {
       <div class="ar-item-main">
         <span style="font-size:18px">${sel ? "◉" : "○"}</span>
         <span>${meta.label}</span>
-        <span class="ar-routing ${qField === "sub" ? "sub" : ""}">ระบบจะใส่: ${fieldTxt}</span>
         <span class="ar-item-remain ${c.remaining > 0 ? "" : "zero"}">เหลือ ${c.remaining} สิทธิ์</span>
       </div>
       ${warn}
@@ -9299,6 +9057,7 @@ function arBuildModal(data) {
     <div class="ar-modal">
       <h3>🙋 ขอประมูล — ${mode === "gl" ? "GL" : "Overrun"} วันที่ ${date}</h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">เลือกของ 1 อย่าง (ขอได้คนละ 1 ชนิดต่อกิจ)</div>
+      ${notInPartyNote}
       ${itemRows}
       <div style="font-size:12px;color:var(--muted);margin:10px 0 4px">หมายเหตุ (ไม่บังคับ):</div>
       <textarea rows="2" maxlength="200" oninput="arSetModalNote(this.value)" placeholder="เช่น ขอใบเดียวพอ">${escapeHtml(note || "")}</textarea>
@@ -10541,21 +10300,22 @@ state.jobTargets = normalizeJobTargets(state.jobTargets);
 if (!state.wheelHistory || typeof state.wheelHistory !== "object" || Array.isArray(state.wheelHistory)) state.wheelHistory = {};
 // Normalize one auction object: ensure shape + migrate legacy flat assignments
 // (cards/white/black at top level → main bucket, fresh sub bucket). Also
-// backfills "illusion" key on saves that pre-date the Illusion Fragment item.
+// backfills "illusion" key on saves that pre-date the Illusion Fragment item,
+// and MERGES legacy sub seats into main (single shared pool since 2026-07-15).
 function normalizeAuctionState(obj, kind) {
   const defRates = AUCTION_DEFAULT_RATES[kind] || AUCTION_DEFAULT_RATES.gl;
   if (!obj || typeof obj !== "object") {
-    return { cards: 0, illusion: 0, white: 0, black: 0, splitMainPercent: 70,
+    return { cards: 0, illusion: 0, white: 0, black: 0,
       rates: { ...defRates },
       assignments: { main: { cards: [], illusion: [], white: [], black: [] }, sub: { cards: [], illusion: [], white: [], black: [] } } };
   }
   // bonus system retired 2026-06: counts are entered as final totals now.
   delete obj.bonusCards; delete obj.bonusWhite; delete obj.bonusBlack;
   delete obj.bonusPercent;
+  // main/sub split retired 2026-07-15: strip the % so it never re-syncs (old
+  // clients may still push it — this runs on every snapshot, so it stays gone).
+  delete obj.splitMainPercent;
   if (typeof obj.illusion !== "number") obj.illusion = 0;
-  // Backfill GL main/sub split % (added 2026-05). Valid range 0..100, default 70.
-  if (typeof obj.splitMainPercent !== "number" || !isFinite(obj.splitMainPercent)
-      || obj.splitMainPercent < 0 || obj.splitMainPercent > 100) obj.splitMainPercent = 70;
   // Backfill / validate editable per-person rates (added 2026-05). Any missing
   // or invalid (<1) key falls back to this mode's default.
   if (!obj.rates || typeof obj.rates !== "object") obj.rates = {};
@@ -10575,6 +10335,13 @@ function normalizeAuctionState(obj, kind) {
     ["cards","illusion","white","black"].forEach(k => {
       if (!Array.isArray(a[f][k])) a[f][k] = [];
     });
+  });
+  // Single-pool migration: fold any sub seats (written by pre-2026-07-15 code,
+  // possibly re-pushed by a stale open tab) into main. Dedupe keeps this
+  // idempotent — every own-write echo runs through here again.
+  ["cards","illusion","white","black"].forEach(k => {
+    a.sub[k].forEach(id => { if (!a.main[k].includes(id)) a.main[k].push(id); });
+    a.sub[k] = [];
   });
   obj.assignments = a;
   return obj;

@@ -45,10 +45,12 @@ a render/compute function and assert on the result.
   อังคาร/พฤหัส, Overrun ↔ อาทิตย์), leave + advance-request blocking.
 - **Editable per-person rates** — defaults, live override, invalid→fallback,
   admin clamp ≥1, viewer admin-guard.
-- **State normalization / migration** — rates backfill, legacy flat→main.
-- **Auction math** — live rate in `computeAuction`, 70/30 split, shortage.
-- **Auction-page chain numbering** — GL cross-bucket chain, Overrun per-column
-  reset, page splitting, and the rate↔chain regression guard.
+- **State normalization / migration** — rates backfill, legacy flat→main,
+  legacy sub→main merge + `splitMainPercent` strip (main/sub split retired
+  2026-07-15).
+- **Auction math** — live rate in `computeAuction`, single shared pool, shortage.
+- **Auction-page chain numbering** — one continuous chain across the 4 columns
+  (GL + Overrun), page splitting, and the rate↔chain regression guard.
 - **End-to-end simulation** — request → approve → fill → set rate → chain.
 
 ## Adding tests

@@ -35,10 +35,12 @@ window). If a surface exists, the rule must hold there too.
      the standalone tab was removed), `arBuildQuotaPanel(kind, data)`, `arBuildAdminQueue(date, mode)` (per-mode),
      `arRenderRow(r, asAdmin, queueNo)` (queueNo > 0 = pending-queue badge), `buildRosterHtml()`, the header mode buttons.
 2. **Mode branches.** Anything keyed on `kind`/mode must handle **both** GL and Overrun (or
-   deliberately not): `kind === "gl"`, `hasSubField`, `splitMain`, `state.auctionGL` vs
-   `state.auctionOverrun`, `partiesLeague` vs `partiesOverrun`. Overrun has **no sub field**.
+   deliberately not): `kind === "gl"`, `state.auctionGL` vs
+   `state.auctionOverrun`, `partiesLeague` vs `partiesOverrun`. Both kinds share **one
+   auction pool** (`assignments.main`; `sub` is a permanently-empty wire-compat leftover —
+   the GL main/sub 70/30 split was retired 2026-07-15).
 3. **State + sync.** Where the value lives and how it propagates:
-   `state.auction{GL,Overrun}` (with `rates`, `splitMainPercent` — `bonusPercent` was retired 2026-06 and is stripped by normalize),
+   `state.auction{GL,Overrun}` (with `rates` — `bonusPercent` retired 2026-06 and `splitMainPercent` retired 2026-07-15 are both stripped by normalize),
    `normalizeAuctionState(obj, kind)` (add a backfill for any new field),
    the `_fbDB.ref("auction_gl"|"auction_overrun").set(...)` writers + `.on("value")` listeners,
    and `save()` (localStorage). A new persistent field needs: state init + normalize backfill
