@@ -4594,7 +4594,7 @@ const EMBEDDED_MAPS = {
   6: "maps/emperium.png"
 };
 
-// Lazy per-page asset loading (2026-07-11): the embedded map PNGs are ~3.6MB
+// Lazy per-page asset loading (2026-07-11): the embedded map PNGs are ~2.6MB
 // combined (overrun.png alone is 2.4MB) and used to ALL preload on every app
 // open, even on pages that show no map. Now each page's maps start loading
 // the first time that page becomes active (boot + switchMode both call this).
@@ -5459,7 +5459,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.15.1";
+const APP_VERSION = "2026.07.19.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;

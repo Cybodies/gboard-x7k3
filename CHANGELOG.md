@@ -10,6 +10,16 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 - _nothing yet_
 
+## [2026.07.19.1]
+### Changed (GL — กลับมาใช้แมพ Stellar Clash "3 เสา")
+- **เปลี่ยนรูปสนาม Guild League กลับเป็น Stellar Clash** (เกมหมุนโหมด GL กลับมา):
+  `maps/main.png` = สนามหลักผังกากบาทมี 3 เสา (ซ้าย/Emperium กลาง/ขวา) และ
+  `maps/sub.png` = สนามรองห้องโถงสี่เหลี่ยม — คือรูปชุดเดิมของแอปก่อน 2026-06-09
+  (กู้คืนจาก git ไบต์ต่อไบต์), แทนรูป Vale of Clash ทั้ง 4 การ์ด (เกิดบน/เกิดล่าง).
+- วงรัศมี admin 3 วง (`DEFAULT_RANGE_CIRCLES`) ถูกออกแบบไว้บน 3 เสาของแมพนี้
+  อยู่แล้ว — ตำแหน่ง default กลับมาตรง landmark เหมือนเดิม. Binary asset swap
+  เท่านั้น — ไม่มีการแก้โค้ด/marker/Firebase.
+
 ## [2026.07.15.1]
 ### Changed (auction — GL รวมเป็น pool เดียวแบบ Overrun)
 - **เลิกแบ่งสนามหลัก/สนามรองในระบบประมูล GL — ทุกคนประมูลร่วมกันจาก pool เดียว
