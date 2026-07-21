@@ -127,7 +127,7 @@
      so tabs can have variable widths (long labels like "Auction Overrun"
      no longer overflow). CSS here only controls background color per mode. */
   .mode-toggle.overrun-active .seg-indicator {
-    background: linear-gradient(90deg, #ef4444, #eab308 25%, #22c55e 50%, #3b82f6 75%, #a855f7);
+    background: linear-gradient(90deg, #ef4444, #eab308 33%, #3b82f6 66%, #a855f7);
   }
   .mode-toggle.summary-active .seg-indicator {
     background: var(--success);
@@ -2022,7 +2022,7 @@
   .map-card .map-title.sub { color: var(--sub-bf); }
   .map-card .map-title.overrun-map {
     color: #fff;
-    background: linear-gradient(90deg, #ef4444, #eab308 25%, #22c55e 50%, #3b82f6 75%, #a855f7);
+    background: linear-gradient(90deg, #ef4444, #eab308 33%, #3b82f6 66%, #a855f7);
   }
   .map-card .map-title .actions { display: flex; gap: 6px; flex-shrink: 0; }
   .map-card .map-title button {
@@ -2845,17 +2845,20 @@ const TEAM_COLORS = [
   "#8b5cf6", "#a855f7", "#d946ef", "#ec4899"
 ];
 
-// 5 color groups partitioning the 16 shared overrun parties (2026-06-12:
-// Blue gave ตี้ 15,16 to the new "Purple" group — no structural
-// change, party ids/slots untouched, only the group mapping).
-// `marker` = the group's default map pin (used only until a position is
-// saved) — 2×2 corners for the four classic groups, center for Purple.
+// 4 color groups partitioning the 16 shared overrun parties (2026-07-21:
+// Green merged INTO Red → "ตี้แดง" owns ตี้ 1-4 + 9-12, and the groups got
+// Thai role names — party ids/slots untouched, only the group mapping).
+// `mk` = STABLE Firebase marker key (overrun_markers[_b]/{mk}) — frozen at
+// each group's original 5-group index so pins/paths saved before the merge
+// stay with the right group (Green's old key 3 is orphaned; harmless).
+// `chip` = short label for map filter chips + toasts (falls back to name).
+// `marker` = the group's default map pin (used only until a position is saved).
 const OVERRUN_GROUPS = [
-  { name: "Red",    color: "#ef4444", ids: [1,2,3,4],    marker: { x: 25, y: 35 } },
-  { name: "Yellow", color: "#eab308", ids: [5,6,7,8],    marker: { x: 75, y: 35 } },
-  { name: "Green",  color: "#22c55e", ids: [9,10,11,12], marker: { x: 25, y: 70 } },
-  { name: "Blue",   color: "#3b82f6", ids: [13,14],      marker: { x: 75, y: 70 } },
-  { name: "Purple", color: "#a855f7", ids: [15,16],      marker: { x: 50, y: 52 } }
+  { name: "ตี้แดง",    color: "#ef4444", ids: [1,2,3,4,9,10,11,12], mk: 1, marker: { x: 25, y: 35 } },
+  { name: "ตี้ตีบ้าน", color: "#eab308", ids: [5,6,7,8],            mk: 2, marker: { x: 75, y: 35 } },
+  { name: "ตี้เสาเอา", color: "#3b82f6", ids: [13,14],              mk: 4, marker: { x: 75, y: 70 } },
+  { name: "ตี้สเก้าท์ + ทำ Objective ตามสั่ง", chip: "ตี้สเก้าท์",
+    color: "#a855f7", ids: [15,16],                                 mk: 5, marker: { x: 50, y: 52 } }
 ];
 const TEAM_COLORS_OVERRUN = (() => {
   const out = new Array(16);
@@ -4142,7 +4145,8 @@ function clearArrows(mapNum) {
   if (ovCfg) {
     const store = ovCfg.store();
     for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
-      if (store[i]) store[i].path = [];
+      const m = store[OVERRUN_GROUPS[i - 1].mk];
+      if (m) m.path = [];
     }
     save();
     renderOverrunMarkers();
@@ -4175,7 +4179,7 @@ function undoLastSegment(idx, store) {
 /* ===== Overrun Map markers (one per OVERRUN_GROUPS entry) =====
  * The Overrun mode shows TWO maps stacked: map 3 (world map) and map 6
  * (Emperium room · Prontera). Each has its OWN marker store + filter so the
- * 5 color-group pins can be positioned independently per map. Everything below
+ * color-group pins can be positioned independently per map. Everything below
  * is config-driven over OVERRUN_MAPS so both maps share one code path. */
 const OVERRUN_MAPS = [
   { mapNum: 3, title: "Overrun Map",
@@ -4199,14 +4203,15 @@ function renderOverrunMarkersFor(cfg) {
   const filter = cfg.filter();
 
   for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
-    if (!store[i]) {
-      const def = OVERRUN_GROUPS[i - 1].marker || { x: 50, y: 50 };
-      store[i] = { x: def.x, y: def.y, path: [] };
+    const g = OVERRUN_GROUPS[i - 1];
+    const mk = g.mk;   // stable Firebase key (≠ i since the 2026-07-21 merge)
+    if (!store[mk]) {
+      const def = g.marker || { x: 50, y: 50 };
+      store[mk] = { x: def.x, y: def.y, path: [] };
     }
     // Map filter — when set, only render the selected group's marker.
     if (!mapFilterVisible(filter, i)) continue;
-    const pos = store[i];
-    const g = OVERRUN_GROUPS[i - 1];
+    const pos = store[mk];
     const total = g.ids.reduce((s, id) => {
       const p = state.parties.find(p => p.id === id);
       return s + (p ? p.slots.filter(Boolean).length : 0);
@@ -4232,8 +4237,8 @@ function renderOverrunMarkersFor(cfg) {
       }).filter(Boolean);
       if (subMembers.length) memLines.push(`[ตี้ ${id}] ${subMembers.join(", ")}`);
     }
-    div.setAttribute("data-tip", `${g.name} Party · ${total} คน` + (memLines.length ? "\n" + memLines.join("\n") : "\n(ยังว่าง)"));
-    attachMarkerDragOverrun(div, wrap, i, cfg);
+    div.setAttribute("data-tip", `${g.name} · ${total} คน` + (memLines.length ? "\n" + memLines.join("\n") : "\n(ยังว่าง)"));
+    attachMarkerDragOverrun(div, wrap, mk, cfg, g);
     wrap.appendChild(div);
   }
   renderOverrunArrowsFor(cfg);
@@ -4266,7 +4271,7 @@ function renderOverrunArrowsFor(cfg) {
   if (!store) return;
   for (let i = 1; i <= OVERRUN_GROUPS.length; i++) {
     if (!mapFilterVisible(filter, i)) continue;
-    const m = store[i];
+    const m = store[OVERRUN_GROUPS[i - 1].mk];
     if (!m || !m.path || m.path.length === 0) continue;
     const color = OVERRUN_GROUPS[i - 1].color;
     const pts = [...m.path, { x: m.x, y: m.y }];
@@ -4312,7 +4317,8 @@ function renderOverrunArrowsFor(cfg) {
   }
 }
 
-function attachMarkerDragOverrun(el, wrap, idx, cfg) {
+function attachMarkerDragOverrun(el, wrap, idx, cfg, g) {
+  // idx = the group's stable marker key (g.mk), NOT its position in OVERRUN_GROUPS.
   // Admin-only — same hard gate as attachMarkerDrag (see comment there).
   if (!isAdmin()) { el.style.cursor = "default"; return; }
   let dragging = false, moved = false, shiftHeld = false;
@@ -4370,7 +4376,7 @@ function attachMarkerDragOverrun(el, wrap, idx, cfg) {
       if (m.path.length > 0) {
         m.path = [];
         save(); renderOverrunMarkers();
-        toast(`ล้างเส้นทางของ ${OVERRUN_GROUPS[idx-1].name} Party`, "");
+        toast(`ล้างเส้นทางของ ${g.chip || g.name}`, "");
       }
       return;
     }
@@ -4388,7 +4394,7 @@ function attachMarkerDragOverrun(el, wrap, idx, cfg) {
     if (undoLastSegment(idx, cfg.store())) {
       save();
       renderOverrunMarkers();
-      toast(`Undo segment ของ ${OVERRUN_GROUPS[idx-1].name}`, "");
+      toast(`Undo segment ของ ${g.chip || g.name}`, "");
     }
   });
   el.addEventListener("mousedown", onDown);
@@ -5028,7 +5034,7 @@ function buildOverrunHtml() {
     return `
       <div class="bg-card" style="--gc:${g.color}">
         <div class="bg-head">
-          <span>● ${g.name} Party</span>
+          <span>● ${escapeHtml(g.name)}</span>
           <span class="count">${total} คน</span>
           ${sortAllBtn ? '<div style="flex:1"></div>' + sortAllBtn : ''}
         </div>
@@ -5052,7 +5058,7 @@ function buildOverrunMapHtml() {
         const groupId = idx + 1;
         const on = filterSet.has(groupId);
         const style = on ? ` style="background:${g.color};border-color:${g.color};color:#fff"` : "";
-        return `<button class="map-filter-chip${on ? " active" : ""}" onclick="${cfg.toggleFn}(${groupId})"${style} title="${escapeHtml(g.name)} Party">● ${escapeHtml(g.name)}</button>`;
+        return `<button class="map-filter-chip${on ? " active" : ""}" onclick="${cfg.toggleFn}(${groupId})"${style} title="${escapeHtml(g.name)}">● ${escapeHtml(g.chip || g.name)}</button>`;
       }).join("");
     return `
     <div class="map-card" style="margin-top:10px">
@@ -5459,7 +5465,7 @@ function buildSummaryHtml() {
  * guild bug report maps to a deployed version and stale caches are visible.
  * (No build step, so this is a manually-bumped constant — see RUNBOOK.md.)
  * ===================================================================== */
-const APP_VERSION = "2026.07.19.1";
+const APP_VERSION = "2026.07.21.1";
 function buildVersionStamp() { return "v" + APP_VERSION; }
 function renderVersionStamp() {
   if (typeof document === "undefined" || !document.body) return;

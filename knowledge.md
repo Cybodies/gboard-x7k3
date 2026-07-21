@@ -71,9 +71,11 @@ Use this lookup before grep:
                                              // ขอประมูล UI now lives in the Auction pages
   parties: Party[],                  // mirrors partiesLeague or partiesOverrun
   partiesLeague: Party[16],          // each = { id, name, slots: [memberId|null × 5] }
-  partiesOverrun: Party[16],         // 5 color groups over the 16 shared ids —
-                                     // OVERRUN_GROUPS: Red 1-4, Yellow 5-8,
-                                     // Green 9-12, Blue 13-14, Purple 15-16
+  partiesOverrun: Party[16],         // 4 color groups over the 16 shared ids —
+                                     // OVERRUN_GROUPS: ตี้แดง 1-4+9-12,
+                                     // ตี้ตีบ้าน 5-8, ตี้เสาเอา 13-14,
+                                     // ตี้สเก้าท์ 15-16; Firebase marker key =
+                                     // g.mk (1,2,4,5 — frozen pre-merge indices)
   markers: { [partyId]: { mapNum, x, y } },
   mapBg: { 1: url, 2: url, 3: url }, // resolved via tryAutoLoadMapImages
   overrunMarkers: { ... },
